@@ -1,10 +1,10 @@
 bl_info = {
     "name": "UNI Rolling Bearing Generator",
     "author": "Codex",
-    "version": (0, 1, 0),
+    "version": (0, 2, 0),
     "blender": (3, 6, 0),
     "location": "View3D > Sidebar > UNI Bearings",
-    "description": "Erstellt parametrische Wälzlager mit Norm-Presets und N-Panel UI",
+    "description": "Erstellt parametrische, funktionsfähige Wälzlager mit Norm-Presets",
     "category": "Add Mesh",
 }
 
@@ -36,7 +36,6 @@ PRECISION_CLASSES = [
     ("P4", "P4", "ISO 492 Klasse P4"),
 ]
 
-# Vereinfachte Start-Presets (DIN 625 / ISO 15 Reihen) als praxisnaher Einstieg.
 SERIES_PRESETS = {
     "BALL": {
         "6000": (10.0, 26.0, 8.0),
@@ -62,15 +61,17 @@ SERIES_PRESETS = {
 }
 
 
-def _new_mesh_object(name: str):
+def _new_mesh_object(name: str, collection=None):
     mesh = bpy.data.meshes.new(name)
     obj = bpy.data.objects.new(name, mesh)
-    bpy.context.collection.objects.link(obj)
+    if collection is None:
+        collection = bpy.context.collection
+    collection.objects.link(obj)
     return obj, mesh
 
 
-def _finish_bmesh(name: str, bm: bmesh.types.BMesh):
-    obj, mesh = _new_mesh_object(name)
+def _finish_bmesh(name: str, bm: bmesh.types.BMesh, collection=None):
+    obj, mesh = _new_mesh_object(name, collection=collection)
     bm.normal_update()
     bm.to_mesh(mesh)
     bm.free()
@@ -79,7 +80,7 @@ def _finish_bmesh(name: str, bm: bmesh.types.BMesh):
     return obj
 
 
-def _make_hollow_ring(name: str, inner_d: float, outer_d: float, width: float, segments: int):
+def _make_hollow_ring(name: str, inner_d: float, outer_d: float, width: float, segments: int, collection=None):
     """Erstellt einen geschlossenen, manifold Ring als BMesh (kein Boolean nötig)."""
     inner_r = inner_d * 0.5
     outer_r = outer_d * 0.5
@@ -109,10 +110,10 @@ def _make_hollow_ring(name: str, inner_d: float, outer_d: float, width: float, s
                 pass
 
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    return _finish_bmesh(name, bm)
+    return _finish_bmesh(name, bm, collection=collection)
 
 
-def _add_uv_sphere(name: str, radius: float, location, segments: int, rings: int):
+def _add_uv_sphere(name: str, radius: float, location, segments: int, rings: int, collection=None):
     bm = bmesh.new()
     bmesh.ops.create_uvsphere(
         bm,
@@ -121,10 +122,10 @@ def _add_uv_sphere(name: str, radius: float, location, segments: int, rings: int
         radius=radius,
     )
     bmesh.ops.translate(bm, vec=Vector(location), verts=bm.verts)
-    return _finish_bmesh(name, bm)
+    return _finish_bmesh(name, bm, collection=collection)
 
 
-def _add_cylinder(name: str, radius: float, depth: float, location, segments: int):
+def _add_cylinder(name: str, radius: float, depth: float, location, segments: int, collection=None):
     bm = bmesh.new()
     bmesh.ops.create_cone(
         bm,
@@ -136,155 +137,196 @@ def _add_cylinder(name: str, radius: float, depth: float, location, segments: in
         depth=depth,
     )
     bmesh.ops.translate(bm, vec=Vector(location), verts=bm.verts)
-    return _finish_bmesh(name, bm)
+    return _finish_bmesh(name, bm, collection=collection)
 
 
-def _distribute_elements(props, pitch_diameter, element_radius, factory, count, name_prefix, z=0.0):
-    objs = []
-    ring_r = pitch_diameter * 0.5
-    for i in range(count):
-        a = 2.0 * math.pi * i / count
-        x = ring_r * math.cos(a)
-        y = ring_r * math.sin(a)
-        obj = factory(
-            f"{name_prefix}_{i+1:02d}",
-            element_radius,
-            (x, y, z),
-            props.segments,
-        )
-        objs.append(obj)
-    return objs
-
-
-def _join_and_recalc(objs, target_name):
-    if not objs:
-        return None
-    ctx = bpy.context
-    for o in ctx.selected_objects:
-        o.select_set(False)
-    for o in objs:
-        o.select_set(True)
-    ctx.view_layer.objects.active = objs[0]
-    bpy.ops.object.join()
-    joined = ctx.view_layer.objects.active
-    joined.name = target_name
-
+def _count_non_manifold_edges(mesh):
     bm = bmesh.new()
-    bm.from_mesh(joined.data)
-    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    bm.to_mesh(joined.data)
+    bm.from_mesh(mesh)
+    non_manifold = sum(1 for e in bm.edges if not e.is_manifold)
     bm.free()
-    joined.data.update()
-    joined.data.validate(verbose=False)
-    return joined
+    return non_manifold
 
 
-def _build_bearing(props):
+def _create_collection(name):
+    root = bpy.context.scene.collection
+    coll = bpy.data.collections.new(name)
+    root.children.link(coll)
+    return coll
+
+
+def _dims_from_props(props):
+    inner_outer_d = props.bore_diameter + 2.0 * props.ring_thickness
+    outer_inner_d = props.outer_diameter - 2.0 * props.ring_thickness
+    radial_space = outer_inner_d - inner_outer_d
+    return inner_outer_d, outer_inner_d, radial_space
+
+
+def _max_elements_for_pitch(pitch_diameter, element_diameter, gap_factor):
+    circumference = math.pi * pitch_diameter
+    element_pitch = max(0.1, element_diameter * (1.0 + gap_factor))
+    return max(3, int(circumference // element_pitch))
+
+
+def _resolve_geometry(props):
+    """Löst Parameter auf, damit das Lager geometrisch funktionsfähig bleibt."""
+    inner_outer_d, outer_inner_d, radial_space = _dims_from_props(props)
+    if radial_space <= 0.0:
+        return None, "Ringstärke/Abmessungen erzeugen keinen Laufbahnspalt."
+
+    # freie Radialhöhe für Wälzkörper: zwei Laufspielzonen (innen/außen)
+    usable_space = radial_space - 2.0 * props.radial_clearance
+    if usable_space <= 0.2:
+        return None, "Zu wenig Platz zwischen den Ringen nach Abzug der Lagerluft."
+
+    requested_roller_d = props.roller_diameter
+    max_roller_d = usable_space * 0.98
+    if requested_roller_d > max_roller_d:
+        if not props.auto_fit:
+            return None, (
+                f"Wälzkörper-Ø ({requested_roller_d:.2f} mm) ist zu groß. "
+                f"Maximal zulässig: {max_roller_d:.2f} mm."
+            )
+        roller_d = max_roller_d
+    else:
+        roller_d = requested_roller_d
+
+    pitch_d = inner_outer_d + roller_d + 2.0 * props.radial_clearance
+
+    max_elements = _max_elements_for_pitch(pitch_d, roller_d, props.gap_factor)
+    if props.element_count > max_elements:
+        if not props.auto_fit:
+            return None, (
+                f"Zu viele Wälzkörper ({props.element_count}). "
+                f"Maximal zulässig: {max_elements} für aktuellen Pitch/Ø."
+            )
+        element_count = max_elements
+    else:
+        element_count = props.element_count
+
+    if props.bearing_type == "NEEDLE":
+        roller_length = props.width * 0.98
+    elif props.bearing_type == "CYLINDRICAL":
+        roller_length = props.width * 0.82
+    elif props.bearing_type == "TAPERED":
+        roller_length = props.width * 0.90
+    elif props.bearing_type == "SPHERICAL":
+        roller_length = props.width * 0.85
+    else:
+        roller_length = roller_d
+
+    resolved = {
+        "inner_outer_d": inner_outer_d,
+        "outer_inner_d": outer_inner_d,
+        "roller_d": roller_d,
+        "roller_length": roller_length,
+        "pitch_d": pitch_d,
+        "element_count": max(3, element_count),
+    }
+    return resolved, None
+
+
+def _build_bearing(props, spec, target_collection):
     inner_ring = _make_hollow_ring(
-        "InnerRing", props.bore_diameter, props.bore_diameter + props.ring_thickness * 2.0, props.width, props.segments
+        "InnerRing",
+        props.bore_diameter,
+        spec["inner_outer_d"],
+        props.width,
+        props.segments,
+        collection=target_collection,
     )
     outer_ring = _make_hollow_ring(
-        "OuterRing", props.outer_diameter - props.ring_thickness * 2.0, props.outer_diameter, props.width, props.segments
+        "OuterRing",
+        spec["outer_inner_d"],
+        props.outer_diameter,
+        props.width,
+        props.segments,
+        collection=target_collection,
     )
 
-    pitch = (props.bore_diameter + props.outer_diameter) * 0.5
+    elements = []
+    ring_r = spec["pitch_d"] * 0.5
+    roller_r = spec["roller_d"] * 0.5
 
-    if props.bearing_type == "BALL":
-        elements = _distribute_elements(
-            props,
-            pitch_diameter=pitch,
-            element_radius=props.roller_diameter * 0.5,
-            factory=lambda n, r, loc, seg: _add_uv_sphere(n, r, loc, seg, max(8, seg // 2)),
-            count=props.element_count,
-            name_prefix="Ball",
-        )
-    elif props.bearing_type == "CYLINDRICAL":
-        elements = _distribute_elements(
-            props,
-            pitch_diameter=pitch,
-            element_radius=props.roller_diameter * 0.5,
-            factory=lambda n, r, loc, seg: _add_cylinder(n, r, props.width * 0.8, loc, seg),
-            count=props.element_count,
-            name_prefix="CylRoller",
-        )
-    elif props.bearing_type == "NEEDLE":
-        elements = _distribute_elements(
-            props,
-            pitch_diameter=pitch,
-            element_radius=props.roller_diameter * 0.5,
-            factory=lambda n, r, loc, seg: _add_cylinder(n, r, props.width * 0.95, loc, max(12, seg)),
-            count=props.element_count,
-            name_prefix="Needle",
-        )
-    elif props.bearing_type == "TAPERED":
-        elements = []
-        ring_r = pitch * 0.5
-        half_len = props.width * 0.45
-        for i in range(props.element_count):
-            a = 2.0 * math.pi * i / props.element_count
-            x = ring_r * math.cos(a)
-            y = ring_r * math.sin(a)
+    for i in range(spec["element_count"]):
+        a = 2.0 * math.pi * i / spec["element_count"]
+        x = ring_r * math.cos(a)
+        y = ring_r * math.sin(a)
+
+        if props.bearing_type == "BALL":
+            obj = _add_uv_sphere(
+                f"Ball_{i+1:02d}",
+                roller_r,
+                (x, y, 0.0),
+                props.segments,
+                max(8, props.segments // 2),
+                collection=target_collection,
+            )
+        elif props.bearing_type in {"CYLINDRICAL", "NEEDLE"}:
+            obj = _add_cylinder(
+                f"Roller_{i+1:02d}",
+                roller_r,
+                spec["roller_length"],
+                (x, y, 0.0),
+                max(12, props.segments // 2),
+                collection=target_collection,
+            )
+            obj.rotation_euler[2] = a
+        elif props.bearing_type == "TAPERED":
             bm = bmesh.new()
             bmesh.ops.create_cone(
                 bm,
                 cap_ends=True,
                 cap_tris=False,
-                segments=max(12, props.segments),
-                radius1=props.roller_diameter * 0.35,
-                radius2=props.roller_diameter * 0.55,
-                depth=half_len * 2.0,
+                segments=max(12, props.segments // 2),
+                radius1=roller_r * 0.75,
+                radius2=roller_r * 1.15,
+                depth=spec["roller_length"],
             )
             bmesh.ops.translate(bm, vec=Vector((x, y, 0.0)), verts=bm.verts)
-            obj = _finish_bmesh(f"TaperRoller_{i+1:02d}", bm)
+            obj = _finish_bmesh(f"TaperRoller_{i+1:02d}", bm, collection=target_collection)
             obj.rotation_euler[2] = a
-            elements.append(obj)
-    else:  # SPHERICAL / Tonnenlager
-        elements = []
-        ring_r = pitch * 0.5
-        for i in range(props.element_count):
-            a = 2.0 * math.pi * i / props.element_count
-            x = ring_r * math.cos(a)
-            y = ring_r * math.sin(a)
+        else:  # SPHERICAL / Tonnenlager
             bm = bmesh.new()
-            # Vereinfachter Tonnenkörper als zwei gekoppelte Kegelstümpfe
             bmesh.ops.create_cone(
                 bm,
                 cap_ends=True,
                 cap_tris=False,
-                segments=max(12, props.segments),
-                radius1=props.roller_diameter * 0.45,
-                radius2=props.roller_diameter * 0.65,
-                depth=props.width * 0.45,
+                segments=max(12, props.segments // 2),
+                radius1=roller_r * 0.85,
+                radius2=roller_r * 1.15,
+                depth=spec["roller_length"] * 0.5,
             )
             bmesh.ops.create_cone(
                 bm,
                 cap_ends=True,
                 cap_tris=False,
-                segments=max(12, props.segments),
-                radius1=props.roller_diameter * 0.65,
-                radius2=props.roller_diameter * 0.45,
-                depth=props.width * 0.45,
-                matrix=Matrix.Translation((0.0, 0.0, props.width * 0.45)),
+                segments=max(12, props.segments // 2),
+                radius1=roller_r * 1.15,
+                radius2=roller_r * 0.85,
+                depth=spec["roller_length"] * 0.5,
+                matrix=Matrix.Translation((0.0, 0.0, spec["roller_length"] * 0.5)),
             )
-            bmesh.ops.translate(bm, vec=Vector((x, y, -props.width * 0.225)), verts=bm.verts)
-            obj = _finish_bmesh(f"BarrelRoller_{i+1:02d}", bm)
+            bmesh.ops.translate(bm, vec=Vector((x, y, -spec["roller_length"] * 0.25)), verts=bm.verts)
+            obj = _finish_bmesh(f"BarrelRoller_{i+1:02d}", bm, collection=target_collection)
             obj.rotation_euler[2] = a
-            elements.append(obj)
 
-    all_parts = [inner_ring, outer_ring, *elements]
-    bearing = _join_and_recalc(all_parts, "Bearing")
-    if bearing is None:
-        return None
+        elements.append(obj)
 
-    # finaler Manifold-Check je Kante
-    bm_check = bmesh.new()
-    bm_check.from_mesh(bearing.data)
-    non_manifold = [e for e in bm_check.edges if not e.is_manifold]
-    bm_check.free()
-    if non_manifold:
-        print(f"[UNI Bearing] Warnung: {len(non_manifold)} nicht-manifold Kanten erkannt.")
-    return bearing
+    # Funktionsfähig: Komponenten bleiben getrennt und werden unter ein Empty gruppiert.
+    assembly = bpy.data.objects.new("Bearing", None)
+    target_collection.objects.link(assembly)
+    assembly.empty_display_type = 'PLAIN_AXES'
+
+    for part in [inner_ring, outer_ring, *elements]:
+        part.parent = assembly
+
+    # Manifold-Qualitätsprüfung je Objekt
+    nm_total = 0
+    for part in [inner_ring, outer_ring, *elements]:
+        nm_total += _count_non_manifold_edges(part.data)
+
+    return assembly, nm_total
 
 
 class UNI_Bearing_Properties(bpy.types.PropertyGroup):
@@ -304,9 +346,21 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
 
     ring_thickness: FloatProperty(name="Ringstärke [mm]", default=4.0, min=0.5)
     roller_diameter: FloatProperty(name="Wälzkörper-Ø [mm]", default=7.0, min=0.5)
-    element_count: IntProperty(name="Wälzkörper Anzahl", default=10, min=4, max=128)
-    segments: IntProperty(name="Auflösung Segmente", default=48, min=12, max=256)
+    element_count: IntProperty(name="Wälzkörper Anzahl", default=10, min=3, max=256)
+    gap_factor: FloatProperty(
+        name="Umfangsspalt Faktor",
+        description="Zusätzlicher Umfangsabstand zwischen Wälzkörpern",
+        default=0.10,
+        min=0.0,
+        max=0.8,
+    )
+    auto_fit: BoolProperty(
+        name="Auto-Fit aktiv",
+        description="Passt Wälzkörper-Ø und Anzahl automatisch an, damit das Lager funktionsfähig bleibt",
+        default=True,
+    )
 
+    segments: IntProperty(name="Auflösung Segmente", default=48, min=12, max=256)
     precision_class: EnumProperty(name="Toleranzklasse", items=PRECISION_CLASSES, default="NORMAL")
     radial_clearance: FloatProperty(name="Radiale Lagerluft [mm]", default=0.02, min=0.0)
 
@@ -327,7 +381,7 @@ class UNI_OT_apply_series_preset(bpy.types.Operator):
 class UNI_OT_create_bearing(bpy.types.Operator):
     bl_idname = "uni_bearing.create"
     bl_label = "Erstellen"
-    bl_description = "Erstellt das konfigurierte Wälzlager als manifold Mesh"
+    bl_description = "Erstellt das konfigurierte Wälzlager als separate, funktionsfähige Komponenten"
 
     def execute(self, context):
         props = context.scene.uni_bearing
@@ -335,26 +389,35 @@ class UNI_OT_create_bearing(bpy.types.Operator):
         if props.bore_diameter >= props.outer_diameter:
             self.report({'ERROR'}, "Innendurchmesser muss kleiner als Außendurchmesser sein.")
             return {'CANCELLED'}
-        if props.ring_thickness * 2.0 >= (props.outer_diameter - props.bore_diameter):
-            self.report({'ERROR'}, "Ringstärke ist zu groß für die gewählten Durchmesser.")
+
+        spec, error = _resolve_geometry(props)
+        if error:
+            self.report({'ERROR'}, error)
             return {'CANCELLED'}
 
         scale = 0.001  # mm -> m (Blender)
         old_cursor = context.scene.cursor.location.copy()
 
-        bearing = _build_bearing(props)
-        if bearing is None:
-            self.report({'ERROR'}, "Lager konnte nicht erzeugt werden.")
-            return {'CANCELLED'}
+        coll_name = f"Bearing_{props.bearing_type}"
+        target_collection = _create_collection(coll_name)
+        assembly, non_manifold_edges = _build_bearing(props, spec, target_collection)
 
-        bearing.scale = (scale, scale, scale)
-        bearing.location = old_cursor
-        bearing["bearing_type"] = props.bearing_type
-        bearing["norm_hint"] = "ISO 15 / DIN 625 Preset-basiert"
-        bearing["precision_class"] = props.precision_class
-        bearing["radial_clearance_mm"] = props.radial_clearance
+        assembly.scale = (scale, scale, scale)
+        assembly.location = old_cursor
+        assembly["bearing_type"] = props.bearing_type
+        assembly["norm_hint"] = "ISO 15 / DIN 625 Preset-basiert"
+        assembly["precision_class"] = props.precision_class
+        assembly["radial_clearance_mm"] = props.radial_clearance
+        assembly["resolved_roller_d_mm"] = spec["roller_d"]
+        assembly["resolved_element_count"] = spec["element_count"]
 
-        self.report({'INFO'}, "Wälzlager wurde erzeugt.")
+        if non_manifold_edges > 0:
+            self.report({'WARNING'}, f"Lager erstellt, aber {non_manifold_edges} nicht-manifold Kanten erkannt.")
+        else:
+            self.report(
+                {'INFO'},
+                f"Wälzlager funktionsfähig erzeugt (ØRoller={spec['roller_d']:.2f} mm, n={spec['element_count']}).",
+            )
         return {'FINISHED'}
 
 
@@ -378,7 +441,6 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
         box.prop(props, "precision_class")
         box.prop(props, "radial_clearance")
         box.prop(props, "use_preset")
-
         if props.use_preset:
             box.prop(props, "series_code")
             box.operator("uni_bearing.apply_series_preset", icon='PRESET')
@@ -394,6 +456,8 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
         roller.label(text="4) Wälzkörper")
         roller.prop(props, "roller_diameter")
         roller.prop(props, "element_count")
+        roller.prop(props, "gap_factor")
+        roller.prop(props, "auto_fit")
 
         if props.bearing_type in {"NEEDLE", "CYLINDRICAL"}:
             roller.label(text="Hinweis: Zylindrische Rollen werden erzeugt.")
@@ -402,8 +466,18 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
         elif props.bearing_type == "SPHERICAL":
             roller.label(text="Hinweis: Tonnenrollen werden erzeugt.")
 
+        preview = layout.box()
+        preview.label(text="5) Plausibilitäts-Check")
+        spec, error = _resolve_geometry(props)
+        if error:
+            preview.alert = True
+            preview.label(text=error, icon='ERROR')
+        else:
+            preview.label(text=f"Effektiver Roller-Ø: {spec['roller_d']:.3f} mm")
+            preview.label(text=f"Effektive Anzahl: {spec['element_count']}")
+
         quality = layout.box()
-        quality.label(text="5) Mesh Qualität")
+        quality.label(text="6) Mesh Qualität")
         quality.prop(props, "segments")
 
         layout.separator()
