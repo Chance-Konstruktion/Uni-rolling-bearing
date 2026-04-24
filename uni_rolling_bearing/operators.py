@@ -7,7 +7,7 @@ import math
 import bpy
 
 from . import constants, mesh_builders
-from .geometry import ResolvedBearing, resolve_geometry
+from .geometry import ResolvedBearing, resolve_geometry, suggest_defaults
 
 
 # Blender-Skalierung: UI in mm, Szene in m.
@@ -140,7 +140,23 @@ class UNI_OT_apply_series_preset(bpy.types.Operator):
         if not preset:
             self.report({"WARNING"}, "Kein Preset für die aktuelle Auswahl hinterlegt.")
             return {"CANCELLED"}
-        props.bore_diameter, props.outer_diameter, props.width = preset
+        bore, outer, width = preset
+        props.bore_diameter = bore
+        props.outer_diameter = outer
+        props.width = width
+
+        # Ringstärke/Roller/Anzahl mitziehen, damit das Preset ohne weitere
+        # Eingaben ein funktionierendes Lager liefert.
+        suggestion = suggest_defaults(
+            props.bearing_type,
+            bore,
+            outer,
+            radial_clearance=props.radial_clearance,
+            gap_factor=props.gap_factor,
+        )
+        props.ring_thickness = suggestion.ring_thickness
+        props.roller_diameter = suggestion.roller_diameter
+        props.element_count = suggestion.element_count
         return {"FINISHED"}
 
 
