@@ -80,10 +80,29 @@ Aktueller Stand:
 
 ## Entwicklung
 
+Modulstruktur des Addons:
+
+```
+uni_rolling_bearing/
+├── __init__.py        # bl_info, register/unregister (lazy bpy-Import)
+├── constants.py       # Lagertyp-IDs, Presets, Normhinweise
+├── geometry.py        # Pure Geometriefunktionen (testbar ohne Blender)
+├── mesh_builders.py   # BMesh-Helfer (Ringe, Kugeln, Rollen, Tonnen)
+├── properties.py      # PropertyGroup für das N-Panel
+├── operators.py       # Erstell-/Preset-Operatoren
+└── panel.py           # N-Panel UI
+```
+
 Syntaxcheck lokal:
 
 ```bash
-python -m compileall uni_rolling_bearing/__init__.py
+python -m compileall uni_rolling_bearing/
+```
+
+Unit-Tests (laufen ohne Blender, prüfen die Geometrie-Schicht):
+
+```bash
+python -m unittest discover tests
 ```
 
 ## Lizenz
