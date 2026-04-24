@@ -60,9 +60,25 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
             preview.alert = True
             preview.label(text=error or "Geometrie unzulässig.", icon="ERROR")
         else:
-            preview.label(text=f"Effektiver Roller-Ø: {spec.roller_d:.3f} mm")
-            preview.label(text=f"Effektive Anzahl: {spec.element_count}")
+            roller_label = f"Effektiver Roller-Ø: {spec.roller_d:.3f} mm"
+            count_label = f"Effektive Anzahl: {spec.element_count}"
+            roller_clamped = spec.roller_d + 1e-4 < props.roller_diameter
+            count_clamped = spec.element_count < props.element_count
+            if roller_clamped:
+                roller_label += f"  (angefragt: {props.roller_diameter:.3f})"
+            if count_clamped:
+                count_label += f"  (angefragt: {props.element_count})"
+            preview.label(
+                text=roller_label,
+                icon="MODIFIER" if roller_clamped else "NONE",
+            )
+            preview.label(
+                text=count_label,
+                icon="MODIFIER" if count_clamped else "NONE",
+            )
             preview.label(text=f"Teilkreis-Ø: {spec.pitch_d:.3f} mm")
+            if roller_clamped or count_clamped:
+                preview.label(text="Auto-Fit hat Werte angepasst.", icon="INFO")
 
         quality = layout.box()
         quality.label(text="6) Mesh-Qualität")

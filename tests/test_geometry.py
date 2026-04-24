@@ -16,6 +16,7 @@ from uni_rolling_bearing.geometry import (  # noqa: E402
     max_elements_for_pitch,
     resolve_geometry,
     roller_length_for_type,
+    suggest_defaults,
 )
 
 
@@ -166,6 +167,46 @@ class TestPresets(unittest.TestCase):
                 with self.subTest(type=type_id, preset=code):
                     self.assertIsNone(error, msg=f"{type_id}/{code}: {error}")
                     self.assertGreater(spec.roller_d, 0.0)
+
+
+class TestSuggestDefaults(unittest.TestCase):
+    def test_resolves_without_auto_fit_for_all_presets(self):
+        # Vorgeschlagene Defaults dürfen den Resolver auch ohne Auto-Fit nicht
+        # in einen Fehler laufen lassen.
+        for type_id, presets in constants.SERIES_PRESETS.items():
+            for code, (d, big_d, b) in presets.items():
+                suggestion = suggest_defaults(type_id, d, big_d)
+                spec, error = resolve_geometry(
+                    bearing_type=type_id,
+                    bore_diameter=d,
+                    outer_diameter=big_d,
+                    width=b,
+                    ring_thickness=suggestion.ring_thickness,
+                    roller_diameter=suggestion.roller_diameter,
+                    element_count=suggestion.element_count,
+                    radial_clearance=0.02,
+                    gap_factor=0.10,
+                    auto_fit=False,
+                )
+                with self.subTest(type=type_id, preset=code):
+                    self.assertIsNone(error, msg=f"{type_id}/{code}: {error}")
+                    self.assertGreaterEqual(spec.element_count, 3)
+
+    def test_min_ring_thickness(self):
+        # Sehr enges Lager – Ringstärke darf nicht unter dem harten Minimum liegen.
+        s = suggest_defaults(constants.NEEDLE, 10.0, 11.0)
+        self.assertGreaterEqual(s.ring_thickness, 0.5)
+
+    def test_max_ring_thickness_capped(self):
+        # Sehr breites Lager – Ringstärke wird gedeckelt, statt unsinnig groß zu werden.
+        s = suggest_defaults(constants.BALL, 20.0, 200.0)
+        self.assertLessEqual(s.ring_thickness, 8.0)
+
+    def test_degenerate_input_does_not_raise(self):
+        s = suggest_defaults(constants.BALL, 30.0, 20.0)
+        self.assertGreater(s.ring_thickness, 0.0)
+        self.assertGreater(s.roller_diameter, 0.0)
+        self.assertGreaterEqual(s.element_count, 3)
 
 
 if __name__ == "__main__":

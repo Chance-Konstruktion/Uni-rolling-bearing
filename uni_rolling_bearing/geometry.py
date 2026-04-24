@@ -15,6 +15,16 @@ MIN_USABLE_SPACE_MM = 0.2
 # zwischen Wälzkörper und Laufbahn.
 ROLLER_SAFETY_FRACTION = 0.98
 
+# Verhältnis Ringstärke zu Radial-Bereich (D-d) für Preset-Vorschläge:
+# entspricht etwa der Praxis bei Standard-Wälzlagern.
+SUGGESTED_RING_THICKNESS_FRACTION = 1.0 / 6.0
+MIN_SUGGESTED_RING_THICKNESS_MM = 0.5
+MAX_SUGGESTED_RING_THICKNESS_MM = 8.0
+
+# Wie viel des nutzbaren Spalts (nach Abzug der Lagerluft) der vorgeschlagene
+# Wälzkörper-Ø einnimmt. Lässt etwas Spielraum gegenüber dem harten Maximum.
+SUGGESTED_ROLLER_FILL = 0.90
+
 
 @dataclass(frozen=True)
 class BearingDims:
@@ -139,3 +149,56 @@ def resolve_geometry(
         element_count=max(3, resolved_count),
     )
     return spec, None
+
+
+@dataclass(frozen=True)
+class SuggestedDefaults:
+    """Geometrisch plausible Defaults zu einer Hauptmaß-Vorgabe."""
+
+    ring_thickness: float
+    roller_diameter: float
+    element_count: int
+
+
+def suggest_defaults(
+    bearing_type: str,
+    bore_diameter: float,
+    outer_diameter: float,
+    *,
+    radial_clearance: float = 0.02,
+    gap_factor: float = 0.10,
+) -> SuggestedDefaults:
+    """Liefert ring_thickness/roller_d/Anzahl, mit denen ein Preset sofort funktioniert.
+
+    Der Wälzkörper-Ø nimmt rund 90 % des nutzbaren Spalts ein, die Anzahl wird auf den
+    maximalen umfangskonformen Wert gesetzt.
+    """
+    if bore_diameter >= outer_diameter:
+        # Degenerate Eingabe – minimaler Default damit nichts crasht.
+        return SuggestedDefaults(MIN_SUGGESTED_RING_THICKNESS_MM, 0.5, 3)
+
+    radial_band = outer_diameter - bore_diameter
+    ring_thickness = max(
+        MIN_SUGGESTED_RING_THICKNESS_MM,
+        min(
+            MAX_SUGGESTED_RING_THICKNESS_MM,
+            radial_band * SUGGESTED_RING_THICKNESS_FRACTION,
+        ),
+    )
+
+    dims = compute_dims(bore_diameter, outer_diameter, ring_thickness)
+    usable = max(MIN_USABLE_SPACE_MM, dims.radial_space - 2.0 * radial_clearance)
+    roller_d = max(0.5, usable * SUGGESTED_ROLLER_FILL)
+    pitch_d = dims.inner_outer_d + roller_d + 2.0 * radial_clearance
+    count = max_elements_for_pitch(pitch_d, roller_d, gap_factor)
+
+    # bearing_type beeinflusst nur die Rollenlänge (über width); die Vorschläge
+    # für d/Anzahl/Ringstärke sind typunabhängig. Argument bleibt für künftige
+    # typabhängige Heuristiken erhalten.
+    del bearing_type
+
+    return SuggestedDefaults(
+        ring_thickness=ring_thickness,
+        roller_diameter=roller_d,
+        element_count=count,
+    )
