@@ -11,7 +11,7 @@ from typing import Iterable, Tuple
 
 import bmesh
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 # Mindestauflösungen zur Absicherung gegen zu geringe User-Eingaben.
 MIN_RING_SEGMENTS = 8
@@ -208,6 +208,29 @@ def add_barrel_roller(
     return _finish_bmesh(name, bm, collection)
 
 
+def add_box(
+    name: str,
+    size: Tuple[float, float, float],
+    location: Tuple[float, float, float],
+    rotation_z: float,
+    collection,
+) -> bpy.types.Object:
+    """Achsenausgerichteter Quader, optional um Z gedreht. Manifold."""
+    sx, sy, sz = size
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0)
+    bmesh.ops.scale(bm, vec=Vector((sx, sy, sz)), verts=bm.verts)
+    if rotation_z:
+        bmesh.ops.rotate(
+            bm,
+            cent=Vector((0.0, 0.0, 0.0)),
+            matrix=Matrix.Rotation(rotation_z, 4, "Z"),
+            verts=bm.verts,
+        )
+    bmesh.ops.translate(bm, vec=Vector(location), verts=bm.verts)
+    return _finish_bmesh(name, bm, collection)
+
+
 def count_non_manifold_edges(mesh: bpy.types.Mesh) -> int:
     bm = bmesh.new()
     bm.from_mesh(mesh)
@@ -229,6 +252,7 @@ def get_or_create_collection(name: str) -> bpy.types.Collection:
 
 __all__ = [
     "add_barrel_roller",
+    "add_box",
     "add_cylinder",
     "add_tapered_roller",
     "add_uv_sphere",

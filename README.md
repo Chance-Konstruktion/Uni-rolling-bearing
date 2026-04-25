@@ -72,11 +72,21 @@ Aktueller Stand:
 - Jeder Ring/Wälzkörper wird als eigenes manifold Mesh erzeugt.
 - Pro Erzeugung wird eine eigene Collection `Bearing_<Typ>` angelegt.
 
+## Käfig (optional)
+
+Über die Checkbox **Käfig erzeugen** wird ein einfacher parametrischer
+Leiter-Käfig miterzeugt: zwei axiale Endplatten zwischen Lagerrand und
+Wälzkörperende, verbunden durch tangentiale Webs in den Lücken zwischen den
+Wälzkörpern. Der Käfig wird als eigene `Cage`-Sub-Assembly unter dem
+Bearing-Empty geparented. Ist zu wenig Bauraum vorhanden (Wälzkörper füllen
+fast die ganze Breite, kein Tangentialspalt o. Ä.), meldet das Addon eine
+Warnung und überspringt den Käfig.
+
 ## Einschränkungen
 
 - Keine FEM-/Kontaktmechanik.
 - Keine exakte DIN/ISO-Tabellenabdeckung aller Reihen.
-- Keine automatische Käfigkonstruktion in v0.2.0.
+- Käfig ist eine vereinfachte Leiterstruktur ohne typ-spezifische Pockets.
 
 ## Entwicklung
 

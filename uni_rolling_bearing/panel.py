@@ -45,6 +45,7 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
         rollers.prop(props, "element_count")
         rollers.prop(props, "gap_factor")
         rollers.prop(props, "auto_fit")
+        rollers.prop(props, "use_cage")
 
         if props.bearing_type in (constants.CYLINDRICAL, constants.NEEDLE):
             rollers.label(text="Hinweis: Zylindrische Rollen werden erzeugt.")

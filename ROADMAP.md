@@ -26,6 +26,15 @@
 - Manifold-orientierte Erzeugung je Ring/Wälzkörper via BMesh.
 - Non-manifold-Kantenprüfung pro erzeugter Komponente.
 
+### Käfig (v0.4.0)
+- Optionaler parametrischer Käfig im Stil "Leitercage": zwei axiale Endplatten
+  zwischen Lagerrand und Wälzkörperende, dazwischen tangentiale Webs in den
+  Lücken zwischen den Wälzkörpern.
+- Endplatten werden gegen die Laufbahnen geclippt (Sicherheitsabstand), Webs
+  nutzen den verbleibenden Tangentialspalt.
+- UI-Toggle ``Käfig erzeugen``; bei zu wenig Platz wird der Käfig
+  übersprungen und eine Warnung gemeldet.
+
 ---
 
 ## Als Nächstes (kurzfristig) 🟡
@@ -38,9 +47,10 @@
    - Geometrisch genauere raceway-Profile pro Lagertyp.
    - Verbesserte Kegelgeometrie (Kontaktwinkel-basiert).
 
-3. **Käfig (Cage) hinzufügen**
-   - Parametrischer Käfig je Lagertyp.
-   - Slot-Geometrie für Wälzkörperführung.
+3. **Käfig-Ausbaustufe**
+   - Typ-spezifische Pocket-Geometrie (sphärische Pockets für Kugellager,
+     trapezförmig für Kegelrollen).
+   - Werkstoffvarianten (Stahlblech, Messing, Polymer) als Metadatum.
 
 4. **Fehlerfeedback erweitern**
    - Detailliertere UI-Meldungen mit konkreten Korrekturvorschlägen.
