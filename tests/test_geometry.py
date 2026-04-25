@@ -12,6 +12,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from uni_rolling_bearing import constants  # noqa: E402
 from uni_rolling_bearing.geometry import (  # noqa: E402
+    cage_dimensions,
     compute_dims,
     max_elements_for_pitch,
     resolve_geometry,
@@ -207,6 +208,95 @@ class TestSuggestDefaults(unittest.TestCase):
         self.assertGreater(s.ring_thickness, 0.0)
         self.assertGreater(s.roller_diameter, 0.0)
         self.assertGreaterEqual(s.element_count, 3)
+
+
+class TestCageDimensions(unittest.TestCase):
+    def _resolve_default(self, **overrides):
+        spec, error = resolve_geometry(**_base_kwargs(**overrides))
+        self.assertIsNone(error)
+        return spec
+
+    def test_basic_cage_fits(self):
+        spec = self._resolve_default()
+        cage = cage_dimensions(
+            pitch_d=spec.pitch_d,
+            roller_d=spec.roller_d,
+            roller_length=spec.roller_length,
+            width=14.0,
+            element_count=spec.element_count,
+            inner_race_d=spec.inner_outer_d,
+            outer_race_d=spec.outer_inner_d,
+        )
+        self.assertIsNotNone(cage)
+        self.assertGreater(cage.plate_thickness, 0.0)
+        # Endplatte muss innerhalb der Lagerstirnflächen liegen.
+        self.assertLess(cage.plate_z_offset + cage.plate_thickness * 0.5, 14.0 * 0.5)
+        # Plattenring überspannt die Pitch-Linie und bleibt zwischen den Laufbahnen.
+        self.assertLess(cage.plate_inner_d, spec.pitch_d)
+        self.assertGreater(cage.plate_outer_d, spec.pitch_d)
+        self.assertGreaterEqual(cage.plate_inner_d, spec.inner_outer_d)
+        self.assertLessEqual(cage.plate_outer_d, spec.outer_inner_d)
+        self.assertEqual(cage.web_count, spec.element_count)
+
+    def test_no_axial_room_returns_none(self):
+        # Eine Nadel füllt fast die ganze Breite – kein Platz für Endplatten.
+        spec = self._resolve_default(bearing_type=constants.NEEDLE)
+        cage = cage_dimensions(
+            pitch_d=spec.pitch_d,
+            roller_d=spec.roller_d,
+            roller_length=spec.roller_length,
+            width=spec.roller_length + 0.05,
+            element_count=spec.element_count,
+            inner_race_d=spec.inner_outer_d,
+            outer_race_d=spec.outer_inner_d,
+        )
+        self.assertIsNone(cage)
+
+    def test_too_many_elements_blocks_webs(self):
+        # Wälzkörper dicht an dicht ⇒ kein Tangentialspalt für Webs.
+        spec = self._resolve_default()
+        cage = cage_dimensions(
+            pitch_d=spec.pitch_d,
+            roller_d=spec.roller_d,
+            roller_length=spec.roller_length,
+            width=14.0,
+            element_count=200,
+            inner_race_d=spec.inner_outer_d,
+            outer_race_d=spec.outer_inner_d,
+        )
+        self.assertIsNone(cage)
+
+    def test_plate_stays_clear_of_races(self):
+        spec = self._resolve_default()
+        cage = cage_dimensions(
+            pitch_d=spec.pitch_d,
+            roller_d=spec.roller_d,
+            roller_length=spec.roller_length,
+            width=14.0,
+            element_count=spec.element_count,
+            inner_race_d=spec.inner_outer_d,
+            outer_race_d=spec.outer_inner_d,
+        )
+        self.assertIsNotNone(cage)
+        # Plattenfenster überschreitet den Wälzkörper-Querschnitt nicht in die Laufbahn.
+        self.assertGreater(cage.plate_inner_d, spec.inner_outer_d)
+        self.assertLess(cage.plate_outer_d, spec.outer_inner_d)
+
+    def test_invalid_inputs_return_none(self):
+        defaults = dict(roller_length=10.0, width=14.0, inner_race_d=15.0, outer_race_d=45.0)
+        self.assertIsNone(
+            cage_dimensions(pitch_d=0.0, roller_d=5.0, element_count=10, **defaults)
+        )
+        self.assertIsNone(
+            cage_dimensions(pitch_d=30.0, roller_d=5.0, element_count=2, **defaults)
+        )
+        # Ringe in falscher Reihenfolge.
+        self.assertIsNone(
+            cage_dimensions(
+                pitch_d=30.0, roller_d=5.0, roller_length=10.0, width=14.0,
+                element_count=10, inner_race_d=45.0, outer_race_d=15.0,
+            )
+        )
 
 
 if __name__ == "__main__":

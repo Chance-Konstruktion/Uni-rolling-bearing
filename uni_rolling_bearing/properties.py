@@ -41,6 +41,12 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         default=True,
     )
 
+    use_cage: BoolProperty(
+        name="Käfig erzeugen",
+        description="Erzeugt einen einfachen parametrischen Käfig (zwei Endplatten + Webs zwischen den Wälzkörpern)",
+        default=False,
+    )
+
     segments: IntProperty(name="Auflösung Segmente", default=48, min=12, max=256)
     precision_class: EnumProperty(name="Toleranzklasse", items=PRECISION_CLASSES, default="NORMAL")
     radial_clearance: FloatProperty(name="Radiale Lagerluft [mm]", default=0.02, min=0.0)

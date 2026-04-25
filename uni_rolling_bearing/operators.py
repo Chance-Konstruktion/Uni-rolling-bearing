@@ -7,7 +7,13 @@ import math
 import bpy
 
 from . import constants, mesh_builders
-from .geometry import ResolvedBearing, resolve_geometry, suggest_defaults
+from .geometry import (
+    CageDims,
+    ResolvedBearing,
+    cage_dimensions,
+    resolve_geometry,
+    suggest_defaults,
+)
 
 
 # Blender-Skalierung: UI in mm, Szene in m.
@@ -97,6 +103,38 @@ def _build_rolling_elements(props, spec: ResolvedBearing, collection):
     return elements
 
 
+def _build_cage(props, spec: ResolvedBearing, cage: CageDims, collection):
+    """Erzeugt Käfig-Komponenten (zwei Endplatten + Webs) und gibt sie zurück."""
+    parts = []
+
+    for sign, label in ((+1, "Top"), (-1, "Bottom")):
+        plate = mesh_builders.make_hollow_ring(
+            f"CagePlate_{label}",
+            cage.plate_inner_d,
+            cage.plate_outer_d,
+            cage.plate_thickness,
+            props.segments,
+            collection=collection,
+        )
+        plate.location.z = sign * cage.plate_z_offset
+        parts.append(plate)
+
+    angular_pitch = 2.0 * math.pi / spec.element_count
+    for i in range(spec.element_count):
+        # Web sitzt mittig zwischen Wälzkörper i und i+1.
+        theta = (i + 0.5) * angular_pitch
+        web = mesh_builders.add_box(
+            f"CageWeb_{i + 1:02d}",
+            size=(cage.web_radial_size, cage.web_tangential_size, cage.web_axial_length),
+            location=(cage.web_pitch_r * math.cos(theta), cage.web_pitch_r * math.sin(theta), 0.0),
+            rotation_z=theta,
+            collection=collection,
+        )
+        parts.append(web)
+
+    return parts
+
+
 def _build_bearing(props, spec: ResolvedBearing, collection):
     inner_ring = mesh_builders.make_hollow_ring(
         "InnerRing",
@@ -121,11 +159,34 @@ def _build_bearing(props, spec: ResolvedBearing, collection):
     assembly.empty_display_type = "PLAIN_AXES"
 
     parts = [inner_ring, outer_ring, *elements]
+
+    cage_built = False
+    if props.use_cage:
+        cage = cage_dimensions(
+            pitch_d=spec.pitch_d,
+            roller_d=spec.roller_d,
+            roller_length=spec.roller_length,
+            width=props.width,
+            element_count=spec.element_count,
+            inner_race_d=spec.inner_outer_d,
+            outer_race_d=spec.outer_inner_d,
+        )
+        if cage is not None:
+            cage_parent = bpy.data.objects.new("Cage", None)
+            collection.objects.link(cage_parent)
+            cage_parent.empty_display_type = "PLAIN_AXES"
+            cage_parent.parent = assembly
+            for cage_part in _build_cage(props, spec, cage, collection):
+                cage_part.parent = cage_parent
+                parts.append(cage_part)
+            cage_built = True
+
     for part in parts:
-        part.parent = assembly
+        if part.parent is None:
+            part.parent = assembly
 
     non_manifold = sum(mesh_builders.count_non_manifold_edges(p.data) for p in parts)
-    return assembly, non_manifold
+    return assembly, non_manifold, cage_built
 
 
 class UNI_OT_apply_series_preset(bpy.types.Operator):
@@ -175,7 +236,7 @@ class UNI_OT_create_bearing(bpy.types.Operator):
 
         cursor_location = context.scene.cursor.location.copy()
         collection = mesh_builders.get_or_create_collection(f"Bearing_{props.bearing_type}")
-        assembly, non_manifold = _build_bearing(props, spec, collection)
+        assembly, non_manifold, cage_built = _build_bearing(props, spec, collection)
 
         assembly.scale = (MM_TO_M, MM_TO_M, MM_TO_M)
         assembly.location = cursor_location
@@ -186,15 +247,22 @@ class UNI_OT_create_bearing(bpy.types.Operator):
         assembly["resolved_roller_d_mm"] = spec.roller_d
         assembly["resolved_element_count"] = spec.element_count
         assembly["resolved_pitch_d_mm"] = spec.pitch_d
+        assembly["has_cage"] = cage_built
 
         if non_manifold > 0:
             self.report(
                 {"WARNING"},
                 f"Lager erstellt, aber {non_manifold} nicht-manifold Kanten erkannt.",
             )
+        elif props.use_cage and not cage_built:
+            self.report(
+                {"WARNING"},
+                "Lager erzeugt, aber für den Käfig war zu wenig Platz – Käfig übersprungen.",
+            )
         else:
+            cage_msg = " inkl. Käfig" if cage_built else ""
             self.report(
                 {"INFO"},
-                f"Wälzlager erzeugt (ØRoller={spec.roller_d:.2f} mm, n={spec.element_count}).",
+                f"Wälzlager erzeugt{cage_msg} (ØRoller={spec.roller_d:.2f} mm, n={spec.element_count}).",
             )
         return {"FINISHED"}

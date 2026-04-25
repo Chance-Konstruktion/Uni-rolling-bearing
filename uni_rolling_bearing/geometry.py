@@ -202,3 +202,110 @@ def suggest_defaults(
         roller_diameter=roller_d,
         element_count=count,
     )
+
+
+# ---------------------------------------------------------------------------
+# Käfig (Cage)
+# ---------------------------------------------------------------------------
+
+# Mindestmaße in mm, damit die Käfig-Geometrie nicht in degenerate Zustände kippt.
+MIN_CAGE_PLATE_THICKNESS_MM = 0.2
+MIN_CAGE_WEB_RADIAL_MM = 0.4
+MIN_CAGE_WEB_TANGENTIAL_MM = 0.3
+# Axiales Spiel zwischen Wälzkörperende und innerer Plattenfläche.
+CAGE_AXIAL_CLEARANCE_MM = 0.1
+# Radialer Sicherheitsabstand zwischen Käfig und Laufbahn (an Innen-/Außenring).
+CAGE_RACE_CLEARANCE_MM = 0.2
+# Radialer Überstand der Endplatten gegenüber dem Wälzkörper-Querschnitt – wird
+# notfalls durch die Laufbahn-Clearance gedeckelt.
+CAGE_PLATE_RADIAL_OVERHANG_FACTOR = 0.15
+# Anteil des tangentialen Spalts zwischen Wälzkörpern, den ein Web ausnutzt.
+CAGE_WEB_TANGENTIAL_FILL = 0.6
+
+
+@dataclass(frozen=True)
+class CageDims:
+    """Geometrie eines simplen 'Leiter'-Käfigs (zwei Endplatten + Webs)."""
+
+    plate_inner_d: float        # Innen-Ø der Endplatten (an beiden Lagerenden)
+    plate_outer_d: float        # Außen-Ø der Endplatten
+    plate_thickness: float      # Axiale Stärke je Platte
+    plate_z_offset: float       # |z| Mittenposition jeder Platte
+    web_pitch_r: float          # Radius, auf dem die Webs sitzen
+    web_radial_size: float      # Radialdicke je Web
+    web_tangential_size: float  # Tangentialbreite je Web
+    web_axial_length: float     # Gesamt-Z-Länge eines Webs (Plattenmitte zu Plattenmitte)
+    web_count: int              # Anzahl Webs (= Anzahl Wälzkörper)
+
+
+def cage_dimensions(
+    *,
+    pitch_d: float,
+    roller_d: float,
+    roller_length: float,
+    width: float,
+    element_count: int,
+    inner_race_d: float,
+    outer_race_d: float,
+) -> Optional[CageDims]:
+    """Berechnet die Käfigmaße. Liefert ``None``, wenn kein Platz vorhanden ist.
+
+    ``inner_race_d`` ist der Außen-Ø des Innenrings (Innenlaufbahn-Ø),
+    ``outer_race_d`` ist der Innen-Ø des Außenrings (Außenlaufbahn-Ø).
+    Die Endplatten werden so dimensioniert, dass sie den Wälzkörper-Querschnitt
+    radial abdecken, ohne die Laufbahnen zu berühren.
+    """
+    if element_count < 3 or pitch_d <= 0.0 or roller_d <= 0.0 or width <= 0.0:
+        return None
+    if inner_race_d <= 0.0 or outer_race_d <= inner_race_d:
+        return None
+
+    pitch_r = pitch_d * 0.5
+    roller_r = roller_d * 0.5
+
+    # Wunschmaße: Plattenrand reicht knapp über den Wälzkörper-Querschnitt hinaus,
+    # bleibt aber mit ``CAGE_RACE_CLEARANCE_MM`` Abstand zur Laufbahn.
+    overhang = roller_d * CAGE_PLATE_RADIAL_OVERHANG_FACTOR
+    plate_inner_d_target = pitch_d - roller_d - overhang
+    plate_outer_d_target = pitch_d + roller_d + overhang
+
+    plate_inner_d = max(plate_inner_d_target, inner_race_d + 2.0 * CAGE_RACE_CLEARANCE_MM)
+    plate_outer_d = min(plate_outer_d_target, outer_race_d - 2.0 * CAGE_RACE_CLEARANCE_MM)
+    if plate_outer_d - plate_inner_d <= 2.0 * MIN_CAGE_WEB_RADIAL_MM:
+        return None
+
+    # Axialer Restraum zwischen Wälzkörperende und Lagerstirn.
+    half_elem = max(roller_r, roller_length * 0.5)
+    bearing_half_w = width * 0.5
+    free_axial = bearing_half_w - half_elem - CAGE_AXIAL_CLEARANCE_MM
+    if free_axial <= MIN_CAGE_PLATE_THICKNESS_MM:
+        return None
+
+    plate_thickness = max(MIN_CAGE_PLATE_THICKNESS_MM, min(2.0, free_axial * 0.8))
+    plate_z_offset = half_elem + CAGE_AXIAL_CLEARANCE_MM + plate_thickness * 0.5
+
+    # Tangentiale Lücke zwischen Wälzkörpern auf dem Teilkreis.
+    angular_pitch = 2.0 * math.pi / element_count
+    tangential_gap = pitch_r * angular_pitch - roller_d
+    if tangential_gap <= MIN_CAGE_WEB_TANGENTIAL_MM:
+        return None
+
+    web_radial_size = max(MIN_CAGE_WEB_RADIAL_MM, min(2.0, roller_r * 0.4))
+    web_tangential_size = max(
+        MIN_CAGE_WEB_TANGENTIAL_MM,
+        tangential_gap * CAGE_WEB_TANGENTIAL_FILL,
+    )
+    # Web reicht zwischen die Plattenmittel (mit leichter Überlappung).
+    web_axial_length = 2.0 * plate_z_offset
+
+    return CageDims(
+        plate_inner_d=plate_inner_d,
+        plate_outer_d=plate_outer_d,
+        plate_thickness=plate_thickness,
+        plate_z_offset=plate_z_offset,
+        web_pitch_r=pitch_r,
+        web_radial_size=web_radial_size,
+        web_tangential_size=web_tangential_size,
+        web_axial_length=web_axial_length,
+        web_count=element_count,
+    )
