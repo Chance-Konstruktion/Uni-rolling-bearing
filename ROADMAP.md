@@ -35,6 +35,13 @@
 - UI-Toggle ``Käfig erzeugen``; bei zu wenig Platz wird der Käfig
   übersprungen und eine Warnung gemeldet.
 
+### Kegelrollen-Kontaktwinkel (v0.5.0)
+- Eigenschaft ``contact_angle_deg`` (Default 14°), nur für TAPERED sichtbar.
+- Wälzkörper werden im Mesh-Frame um die lokale Y-Achse gekippt; alle Achsen
+  treffen sich auf der Lagerachse in einem gemeinsamen Apex.
+- Apex-Z wird als ``tapered_apex_z_mm`` am Assembly hinterlegt.
+- Laufbahnen bleiben vorerst zylindrisch (echte Kegellaufbahnen folgen).
+
 ---
 
 ## Als Nächstes (kurzfristig) 🟡
@@ -45,7 +52,8 @@
 
 2. **Typ-spezifische Laufbahnen verbessern**
    - Geometrisch genauere raceway-Profile pro Lagertyp.
-   - Verbesserte Kegelgeometrie (Kontaktwinkel-basiert).
+   - Konische Laufbahnen für Kegelrollenlager (Roller-Kontaktwinkel ist seit
+     v0.5.0 vorhanden, aber Innen-/Außenring sind noch zylindrisch).
 
 3. **Käfig-Ausbaustufe**
    - Typ-spezifische Pocket-Geometrie (sphärische Pockets für Kugellager,

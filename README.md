@@ -72,6 +72,15 @@ Aktueller Stand:
 - Jeder Ring/Wälzkörper wird als eigenes manifold Mesh erzeugt.
 - Pro Erzeugung wird eine eigene Collection `Bearing_<Typ>` angelegt.
 
+## Kegelrollenlager: Kontaktwinkel
+
+Für Kegelrollenlager ist der Kontaktwinkel α einstellbar (Default 14°). Die
+Wälzkörper werden im Mesh-Frame um die lokale Y-Achse gekippt, *bevor* sie auf
+den Teilkreis rotiert werden – die Achsen aller Rollen treffen sich daher
+exakt auf der Lagerachse in einem gemeinsamen Apex. Der berechnete Apex-Z
+wird als Metadatum (`tapered_apex_z_mm`) am Bearing-Empty hinterlegt. Die
+Laufbahnen (Innen-/Außenring) bleiben in v0.5.0 noch zylindrisch.
+
 ## Käfig (optional)
 
 Über die Checkbox **Käfig erzeugen** wird ein einfacher parametrischer

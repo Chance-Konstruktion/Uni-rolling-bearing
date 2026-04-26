@@ -13,6 +13,7 @@ from .geometry import (
     cage_dimensions,
     resolve_geometry,
     suggest_defaults,
+    tapered_apex_z,
 )
 
 
@@ -49,6 +50,7 @@ def _build_rolling_elements(props, spec: ResolvedBearing, collection):
     ring_r = spec.pitch_d * 0.5
     roller_r = spec.roller_d * 0.5
     segments = props.segments
+    tapered_tilt = math.radians(props.contact_angle_deg)
 
     for i in range(spec.element_count):
         a = 2.0 * math.pi * i / spec.element_count
@@ -82,6 +84,7 @@ def _build_rolling_elements(props, spec: ResolvedBearing, collection):
                 location=position,
                 segments=max(12, segments // 2),
                 collection=collection,
+                tilt=tapered_tilt,
             )
             obj.rotation_euler[2] = a
         elif props.bearing_type == constants.SPHERICAL:
@@ -248,6 +251,11 @@ class UNI_OT_create_bearing(bpy.types.Operator):
         assembly["resolved_element_count"] = spec.element_count
         assembly["resolved_pitch_d_mm"] = spec.pitch_d
         assembly["has_cage"] = cage_built
+        if props.bearing_type == constants.TAPERED:
+            assembly["contact_angle_deg"] = props.contact_angle_deg
+            assembly["tapered_apex_z_mm"] = tapered_apex_z(
+                spec.pitch_d, spec.roller_length, math.radians(props.contact_angle_deg)
+            )
 
         if non_manifold > 0:
             self.report(

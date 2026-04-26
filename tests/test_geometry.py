@@ -18,6 +18,7 @@ from uni_rolling_bearing.geometry import (  # noqa: E402
     resolve_geometry,
     roller_length_for_type,
     suggest_defaults,
+    tapered_apex_z,
 )
 
 
@@ -297,6 +298,41 @@ class TestCageDimensions(unittest.TestCase):
                 element_count=10, inner_race_d=45.0, outer_race_d=15.0,
             )
         )
+
+
+class TestTaperedApex(unittest.TestCase):
+    def test_zero_angle_returns_neg_inf(self):
+        # Achsen sind dann parallel zur Lagerachse – kein endlicher Apex.
+        self.assertEqual(tapered_apex_z(35.0, 12.0, 0.0), float("-inf"))
+
+    def test_negative_angle_returns_neg_inf(self):
+        self.assertEqual(tapered_apex_z(35.0, 12.0, -0.1), float("-inf"))
+
+    def test_apex_below_origin(self):
+        # Mit positivem Winkel zeigt die Konvention den Apex unter z=0
+        # (kleine Stirn radial nach innen, axial nach unten).
+        z = tapered_apex_z(35.0, 12.0, math.radians(14.0))
+        self.assertLess(z, 0.0)
+
+    def test_apex_distance_matches_geometry(self):
+        # Apex muss exakt auf der Verlängerung der kleinen-Stirn-Achse liegen:
+        # Abstand vom kleinen Stirn-Mittelpunkt (pitch_r - sin α · L/2, 0, -cos α · L/2)
+        # entlang Richtung (-sin α, 0, -cos α) ist (pitch_r - sin α · L/2)/sin α.
+        pitch_d, length = 35.0, 12.0
+        alpha = math.radians(20.0)
+        z = tapered_apex_z(pitch_d, length, alpha)
+        pitch_r = pitch_d * 0.5
+        sin_a, cos_a = math.sin(alpha), math.cos(alpha)
+        small_x = pitch_r - sin_a * length * 0.5
+        small_z = -cos_a * length * 0.5
+        expected = small_z - (small_x / sin_a) * cos_a
+        self.assertAlmostEqual(z, expected)
+
+    def test_steeper_angle_brings_apex_closer(self):
+        # Bei steilerem Kontaktwinkel rückt der Apex näher an z=0.
+        z_small = tapered_apex_z(35.0, 12.0, math.radians(10.0))
+        z_large = tapered_apex_z(35.0, 12.0, math.radians(30.0))
+        self.assertLess(z_small, z_large)
 
 
 if __name__ == "__main__":

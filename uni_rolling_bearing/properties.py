@@ -47,6 +47,15 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         default=False,
     )
 
+    contact_angle_deg: FloatProperty(
+        name="Kontaktwinkel α [°]",
+        description="Nur für Kegelrollenlager: Winkel zwischen Wälzkörper- und Lagerachse. Alle Rollenachsen treffen sich auf der Lagerachse in einem gemeinsamen Apex.",
+        default=14.0,
+        min=0.0,
+        max=45.0,
+        soft_max=30.0,
+    )
+
     segments: IntProperty(name="Auflösung Segmente", default=48, min=12, max=256)
     precision_class: EnumProperty(name="Toleranzklasse", items=PRECISION_CLASSES, default="NORMAL")
     radial_clearance: FloatProperty(name="Radiale Lagerluft [mm]", default=0.02, min=0.0)

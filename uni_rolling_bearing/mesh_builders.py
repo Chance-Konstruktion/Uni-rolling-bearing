@@ -138,7 +138,14 @@ def add_tapered_roller(
     location,
     segments: int,
     collection,
+    tilt: float = 0.0,
 ) -> bpy.types.Object:
+    """Kegelrolle, optional um die lokale Y-Achse gekippt (Kontaktwinkel).
+
+    Die Kippung wird im Mesh-Frame angewendet, *bevor* nach ``location``
+    verschoben wird. Anschließend kann das Objekt über ``rotation_euler[2]``
+    um die Lagerachse rotiert werden, ohne den Kontaktwinkel zu verfälschen.
+    """
     bm = bmesh.new()
     bmesh.ops.create_cone(
         bm,
@@ -149,6 +156,13 @@ def add_tapered_roller(
         radius2=radius_large,
         depth=depth,
     )
+    if tilt:
+        bmesh.ops.rotate(
+            bm,
+            cent=Vector((0.0, 0.0, 0.0)),
+            matrix=Matrix.Rotation(tilt, 4, "Y"),
+            verts=bm.verts,
+        )
     bmesh.ops.translate(bm, vec=Vector(location), verts=bm.verts)
     return _finish_bmesh(name, bm, collection)
 
