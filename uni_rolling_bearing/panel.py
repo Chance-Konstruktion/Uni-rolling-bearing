@@ -51,6 +51,7 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
             rollers.label(text="Hinweis: Zylindrische Rollen werden erzeugt.")
         elif props.bearing_type == constants.TAPERED:
             rollers.label(text="Hinweis: Kegelrollen werden erzeugt.")
+            rollers.prop(props, "contact_angle_deg")
         elif props.bearing_type == constants.SPHERICAL:
             rollers.label(text="Hinweis: Tonnenrollen werden erzeugt.")
 

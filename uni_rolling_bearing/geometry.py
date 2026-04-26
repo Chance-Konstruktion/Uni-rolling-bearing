@@ -205,6 +205,37 @@ def suggest_defaults(
 
 
 # ---------------------------------------------------------------------------
+# Kegelrollenlager (Tapered)
+# ---------------------------------------------------------------------------
+
+
+def tapered_apex_z(pitch_d: float, roller_length: float, contact_angle_rad: float) -> float:
+    """Z-Position des Apex (gemeinsamer Treffpunkt aller Kegelrollen-Achsen).
+
+    Annahmen: Roller-Mittelpunkt liegt auf dem Teilkreis-Radius bei z=0 und ist um
+    ``contact_angle_rad`` um die lokale Y-Achse gekippt (kleine Stirnseite zur
+    Lagerachse hin, große von ihr weg). Der Apex liegt auf der Lagerachse (x=y=0)
+    auf der Seite der kleinen Stirn.
+
+    Für ``contact_angle_rad <= 0`` ist die Roller-Achse parallel zur Lagerachse;
+    in dem Fall liefert die Funktion ``-inf``.
+    """
+    if contact_angle_rad <= 0.0:
+        return float("-inf")
+    pitch_r = pitch_d * 0.5
+    sin_a = math.sin(contact_angle_rad)
+    cos_a = math.cos(contact_angle_rad)
+    # Kleine Stirn nach dem Tilt liegt bei (pitch_r - sin α · L/2, 0, -cos α · L/2).
+    # Apex erreicht man durch Verlängern der Achse bis x=0:
+    small_x = pitch_r - sin_a * roller_length * 0.5
+    small_z = -cos_a * roller_length * 0.5
+    if sin_a == 0.0:
+        return float("-inf")
+    t = small_x / sin_a  # Schritte entlang der negativen Achsenrichtung
+    return small_z - t * cos_a
+
+
+# ---------------------------------------------------------------------------
 # Käfig (Cage)
 # ---------------------------------------------------------------------------
 
