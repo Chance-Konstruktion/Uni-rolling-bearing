@@ -1,4 +1,9 @@
-"""N-Panel für das UNI-Bearing-Addon."""
+"""N-Panel für das UNI-Bearing-Addon.
+
+Jede Sektion bekommt einen kleinen Info-Button (Fragezeichen). Beim Hovern
+zeigt Blender den ``bl_description``-Text als Tooltip; ein Klick öffnet ein
+Popup mit der gleichen Erklärung in mehreren Zeilen.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +11,15 @@ import bpy
 
 from . import constants
 from .operators import safe_resolve_geometry
+
+
+def _section_header(layout, title: str, info_op: str) -> bpy.types.UILayout:
+    """Erzeugt eine Box mit Titel und ``?``-Hover-Hilfe und liefert die Box zurück."""
+    box = layout.box()
+    header = box.row(align=True)
+    header.label(text=title)
+    header.operator(info_op, text="", icon="QUESTION", emboss=False)
+    return box
 
 
 class UNI_PT_bearing_panel(bpy.types.Panel):
@@ -19,12 +33,13 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
         layout = self.layout
         props = context.scene.uni_bearing
 
-        col = layout.column(align=True)
-        col.label(text="1) Lagertyp wählen")
-        col.prop(props, "bearing_type", text="")
+        bearing_box = _section_header(layout, "1) Lagertyp wählen", "uni_bearing.info_lagertyp")
+        bearing_box.prop(props, "bearing_type", text="")
+        norm_hint = constants.NORM_HINTS.get(props.bearing_type, "")
+        if norm_hint:
+            bearing_box.label(text=norm_hint, icon="INFO")
 
-        norms = layout.box()
-        norms.label(text="2) Normen & Presets")
+        norms = _section_header(layout, "2) Normen & Presets", "uni_bearing.info_normen")
         norms.prop(props, "precision_class")
         norms.prop(props, "radial_clearance")
         norms.prop(props, "use_preset")
@@ -32,15 +47,13 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
             norms.prop(props, "series_code")
             norms.operator("uni_bearing.apply_series_preset", icon="PRESET")
 
-        dims = layout.box()
-        dims.label(text="3) Geometrie")
+        dims = _section_header(layout, "3) Geometrie", "uni_bearing.info_geometrie")
         dims.prop(props, "bore_diameter")
         dims.prop(props, "outer_diameter")
         dims.prop(props, "width")
         dims.prop(props, "ring_thickness")
 
-        rollers = layout.box()
-        rollers.label(text="4) Wälzkörper")
+        rollers = _section_header(layout, "4) Wälzkörper", "uni_bearing.info_waelzkoerper")
         rollers.prop(props, "roller_diameter")
         rollers.prop(props, "element_count")
         rollers.prop(props, "gap_factor")
@@ -50,13 +63,15 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
         if props.bearing_type in (constants.CYLINDRICAL, constants.NEEDLE):
             rollers.label(text="Hinweis: Zylindrische Rollen werden erzeugt.")
         elif props.bearing_type == constants.TAPERED:
-            rollers.label(text="Hinweis: Kegelrollen werden erzeugt.")
-            rollers.prop(props, "contact_angle_deg")
+            tapered_row = rollers.row(align=True)
+            tapered_row.prop(props, "contact_angle_deg")
+            tapered_row.operator(
+                "uni_bearing.info_kontaktwinkel", text="", icon="QUESTION", emboss=False
+            )
         elif props.bearing_type == constants.SPHERICAL:
             rollers.label(text="Hinweis: Tonnenrollen werden erzeugt.")
 
-        preview = layout.box()
-        preview.label(text="5) Plausibilitäts-Check")
+        preview = _section_header(layout, "5) Plausibilitäts-Check", "uni_bearing.info_check")
         spec, error = safe_resolve_geometry(props)
         if error or spec is None:
             preview.alert = True
@@ -82,8 +97,7 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
             if roller_clamped or count_clamped:
                 preview.label(text="Auto-Fit hat Werte angepasst.", icon="INFO")
 
-        quality = layout.box()
-        quality.label(text="6) Mesh-Qualität")
+        quality = _section_header(layout, "6) Mesh-Qualität", "uni_bearing.info_qualitaet")
         quality.prop(props, "segments")
 
         layout.separator()

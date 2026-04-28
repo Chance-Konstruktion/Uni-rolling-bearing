@@ -27,12 +27,29 @@ bl_info = {
 
 
 def _classes():
-    from .operators import UNI_OT_apply_series_preset, UNI_OT_create_bearing
+    from .operators import (
+        UNI_OT_apply_series_preset,
+        UNI_OT_create_bearing,
+        UNI_OT_info_check,
+        UNI_OT_info_geometrie,
+        UNI_OT_info_kontaktwinkel,
+        UNI_OT_info_lagertyp,
+        UNI_OT_info_normen,
+        UNI_OT_info_qualitaet,
+        UNI_OT_info_waelzkoerper,
+    )
     from .panel import UNI_PT_bearing_panel
     from .properties import UNI_Bearing_Properties
 
     return (
         UNI_Bearing_Properties,
+        UNI_OT_info_lagertyp,
+        UNI_OT_info_normen,
+        UNI_OT_info_geometrie,
+        UNI_OT_info_waelzkoerper,
+        UNI_OT_info_kontaktwinkel,
+        UNI_OT_info_check,
+        UNI_OT_info_qualitaet,
         UNI_OT_apply_series_preset,
         UNI_OT_create_bearing,
         UNI_PT_bearing_panel,
