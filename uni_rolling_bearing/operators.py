@@ -44,6 +44,39 @@ def safe_resolve_geometry(props):
         return None, f"Interner Fehler: {exc}"
 
 
+def _tapered_roller_radii(props, spec: ResolvedBearing) -> tuple:
+    """Berechnet (r_small, r_large) für die Kegelrolle so, dass sie nach dem
+    Kippen um den Kontaktwinkel im zylindrischen Laufbahnspalt bleibt."""
+    contact_angle = math.radians(props.contact_angle_deg)
+    half_cone = contact_angle * 0.5  # β ≈ α/2 (klassische Apex-Geometrie)
+    length = spec.roller_length
+    mean_r = spec.roller_d * 0.5
+
+    sin_a = math.sin(contact_angle)
+    cos_a = max(math.cos(contact_angle), 1e-6)
+
+    # Radial verfügbarer Halbspalt um den (mittigen) Teilkreis.
+    radial_half_gap = (spec.outer_inner_d - spec.inner_outer_d) * 0.5
+    clearance = props.radial_clearance
+    # Nach dem Tilt wandert das große Stirnflächenzentrum um sin(α)·L/2 nach
+    # außen. Dort darf radius_large·cos α nicht über den Restspalt hinaus.
+    max_face_r = max(
+        0.05,
+        (radial_half_gap * 0.5 - sin_a * length * 0.5 - clearance) / cos_a,
+    )
+
+    delta = math.sin(half_cone) * length * 0.5
+    radius_small = max(0.05, mean_r - delta)
+    radius_large = mean_r + delta
+
+    if radius_large > max_face_r:
+        scale = max_face_r / radius_large
+        radius_large = max_face_r
+        radius_small = max(0.05, radius_small * scale)
+
+    return radius_small, radius_large
+
+
 def _build_rolling_elements(props, spec: ResolvedBearing, collection):
     """Erzeugt alle Wälzkörper und liefert die entstandenen Objekte als Liste."""
     elements = []
@@ -51,6 +84,9 @@ def _build_rolling_elements(props, spec: ResolvedBearing, collection):
     roller_r = spec.roller_d * 0.5
     segments = props.segments
     tapered_tilt = math.radians(props.contact_angle_deg)
+
+    if props.bearing_type == constants.TAPERED:
+        taper_r_small, taper_r_large = _tapered_roller_radii(props, spec)
 
     for i in range(spec.element_count):
         a = 2.0 * math.pi * i / spec.element_count
@@ -78,8 +114,8 @@ def _build_rolling_elements(props, spec: ResolvedBearing, collection):
         elif props.bearing_type == constants.TAPERED:
             obj = mesh_builders.add_tapered_roller(
                 f"TaperRoller_{i + 1:02d}",
-                radius_small=roller_r * 0.75,
-                radius_large=roller_r * 1.15,
+                radius_small=taper_r_small,
+                radius_large=taper_r_large,
                 depth=spec.roller_length,
                 location=position,
                 segments=max(12, segments // 2),
@@ -90,8 +126,8 @@ def _build_rolling_elements(props, spec: ResolvedBearing, collection):
         elif props.bearing_type == constants.SPHERICAL:
             obj = mesh_builders.add_barrel_roller(
                 f"BarrelRoller_{i + 1:02d}",
-                radius_mid=roller_r * 1.05,
-                radius_end=roller_r * 0.80,
+                radius_mid=roller_r,
+                radius_end=roller_r * 0.78,
                 length=spec.roller_length,
                 location=position,
                 segments=max(12, segments // 2),
@@ -190,6 +226,126 @@ def _build_bearing(props, spec: ResolvedBearing, collection):
 
     non_manifold = sum(mesh_builders.count_non_manifold_edges(p.data) for p in parts)
     return assembly, non_manifold, cage_built
+
+
+class _UNI_InfoPopupBase(bpy.types.Operator):
+    """Basis für Hilfe-/Info-Buttons.
+
+    Beim *Hovern* zeigt Blender den ``bl_description``-Text als Tooltip an –
+    das ist die primäre Erklärungsquelle. Beim *Klick* öffnet sich zusätzlich
+    ein Popup mit dem gleichen Text in mehreren Zeilen, falls der Tooltip zu
+    schnell ausgeblendet wird.
+    """
+
+    bl_options = {"INTERNAL"}
+
+    def execute(self, context):
+        text = self.__class__.bl_description
+        title = self.__class__.bl_label
+
+        def _draw(self_popup, _ctx):
+            for line in text.split("\n"):
+                self_popup.layout.label(text=line)
+
+        context.window_manager.popup_menu(_draw, title=title, icon="INFO")
+        return {"FINISHED"}
+
+
+class UNI_OT_info_lagertyp(_UNI_InfoPopupBase):
+    bl_idname = "uni_bearing.info_lagertyp"
+    bl_label = "Lagertyp wählen"
+    bl_description = (
+        "Lagerbauformen im Überblick:\n"
+        "• Kugellager (DIN 625 / ISO 15): Kugeln, hohe Drehzahl, kombinierte Last.\n"
+        "• Zylinderrollenlager (DIN 5412): zylindrische Rollen, hohe Radiallast.\n"
+        "• Nadellager (DIN 617): lange dünne Rollen, kompakte Bauhöhe.\n"
+        "• Kegelrollenlager (DIN 720 / ISO 355): kombinierte Radial-/Axiallast.\n"
+        "• Tonnenlager / Pendelrollen (DIN 635): Schiefstellung ausgleichbar.\n"
+        "Die Auswahl steuert Wälzkörperform, verfügbare Presets und ob der "
+        "Kontaktwinkel α einstellbar ist."
+    )
+
+
+class UNI_OT_info_normen(_UNI_InfoPopupBase):
+    bl_idname = "uni_bearing.info_normen"
+    bl_label = "Normen & Presets"
+    bl_description = (
+        "Norm-Bezugssystem (Stand v0.5):\n"
+        "• DIN ISO 15 / DIN 616 – Hauptmaßreihen (d, D, B).\n"
+        "• DIN 623 – Bezeichnungssystem (z. B. 6204, 30206, 22210).\n"
+        "• ISO 492 / DIN 620 – Toleranzklassen (Normal, P6, P5, P4).\n"
+        "• ISO 5753 / DIN 620 – Lagerluftgruppen (C0, C2, C3, ...).\n"
+        "• ISO 281 / ISO 76 – dynamische/statische Tragzahl (geplant).\n"
+        "Presets enthalten nur d/D/B; abgeleitete Werte (Wälzkörper-Ø, "
+        "Anzahl, Ringstärke) werden vom Resolver gerechnet."
+    )
+
+
+class UNI_OT_info_geometrie(_UNI_InfoPopupBase):
+    bl_idname = "uni_bearing.info_geometrie"
+    bl_label = "Geometrie-Eingabe"
+    bl_description = (
+        "Hauptmaße (alle in mm, DIN ISO 15):\n"
+        "• d  – Bohrungs-Ø (Wellensitz).\n"
+        "• D  – Außen-Ø (Gehäusesitz).\n"
+        "• B  – Lagerbreite in Achsrichtung.\n"
+        "• Ringstärke – radiale Wandstärke pro Ring; üblich (D−d)/6.\n"
+        "Aus diesen Werten ergeben sich Innenlaufbahn-Ø, Außenlaufbahn-Ø und "
+        "der nutzbare Wälzkörperraum."
+    )
+
+
+class UNI_OT_info_waelzkoerper(_UNI_InfoPopupBase):
+    bl_idname = "uni_bearing.info_waelzkoerper"
+    bl_label = "Wälzkörper-Parameter"
+    bl_description = (
+        "Wälzkörperauslegung:\n"
+        "• Wälzkörper-Ø: Kugel/Roller-Ø; max. Laufbahnspalt minus Lagerluft.\n"
+        "• Anzahl: wird durch Umfang/Pitch begrenzt (siehe Umfangsspalt).\n"
+        "• Umfangsspalt-Faktor: relative Lücke zwischen Wälzkörpern auf dem "
+        "Teilkreis (0.10 ≈ 10 %).\n"
+        "• Auto-Fit: kürzt zu großen Ø und zu hohe Anzahl automatisch, statt "
+        "Fehler zu melden.\n"
+        "• Käfig: optionaler einfacher Leiter-Käfig zwischen den Wälzkörpern."
+    )
+
+
+class UNI_OT_info_kontaktwinkel(_UNI_InfoPopupBase):
+    bl_idname = "uni_bearing.info_kontaktwinkel"
+    bl_label = "Kontaktwinkel α"
+    bl_description = (
+        "Kontaktwinkel α (DIN 720 / ISO 355):\n"
+        "Winkel zwischen Wälzkörperachse und Lagerachse. Alle Rollenachsen "
+        "treffen sich auf der Lagerachse in einem gemeinsamen Apex.\n"
+        "• 10–18°  Standardreihen (z. B. 30000-Reihe).\n"
+        "• 25–30°  steile Reihen (höhere Axialtragfähigkeit).\n"
+        "Der berechnete Apex-Z wird als 'tapered_apex_z_mm' am Bearing-Empty "
+        "hinterlegt."
+    )
+
+
+class UNI_OT_info_check(_UNI_InfoPopupBase):
+    bl_idname = "uni_bearing.info_check"
+    bl_label = "Plausibilitäts-Check"
+    bl_description = (
+        "Live-Vorschau der vom Resolver verwendeten Werte:\n"
+        "• Effektiver Roller-Ø: tatsächlich erzeugter Wälzkörper-Ø.\n"
+        "• Effektive Anzahl: tatsächliche Anzahl auf dem Teilkreis.\n"
+        "• Teilkreis-Ø: zentral zwischen Innen- und Außenlaufbahn.\n"
+        "Auto-Fit-Korrekturen werden mit Modifier-Symbol markiert."
+    )
+
+
+class UNI_OT_info_qualitaet(_UNI_InfoPopupBase):
+    bl_idname = "uni_bearing.info_qualitaet"
+    bl_label = "Mesh-Qualität"
+    bl_description = (
+        "Auflösung der erzeugten Meshes:\n"
+        "• 12–24  niedrige Vorschau, kantig.\n"
+        "• 48     Standard – guter Kompromiss zwischen Optik und Größe.\n"
+        "• 96–256 für Renderings/Subdivision Surface.\n"
+        "Höhere Werte erhöhen Polygonzahl entsprechend linear (Kugel: ~quadratisch)."
+    )
 
 
 class UNI_OT_apply_series_preset(bpy.types.Operator):

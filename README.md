@@ -36,11 +36,36 @@ Geplant (siehe ROADMAP):
 
 ## Installation
 
-1. Repository als ZIP herunterladen (oder Addon-Ordner separat zippen).
-2. In Blender: `Edit > Preferences > Add-ons > Install...`
-3. ZIP auswählen und Addon aktivieren.
-4. In der 3D-View mit `N` das Sidebar-Panel öffnen.
+### Variante A – Fertige ZIP bauen (empfohlen)
+
+```bash
+python build_addon_zip.py
+```
+
+Das Skript schreibt `dist/uni_rolling_bearing.zip`. Diese ZIP enthält genau
+den Addon-Ordner (ohne README, Tests, `.git` o. Ä.) – also genau das Format,
+das Blender erwartet.
+
+In Blender:
+
+1. `Edit > Preferences > Add-ons > Install…`
+2. `dist/uni_rolling_bearing.zip` auswählen.
+3. Addon-Häkchen aktivieren („UNI Rolling Bearing Generator“).
+4. In der 3D-View mit `N` das Sidebar öffnen.
 5. Tab **UNI Bearings** auswählen.
+
+### Variante B – Direkt aus dem Repo (Entwickler)
+
+Den Ordner `uni_rolling_bearing/` (nicht das ganze Repo!) in das Blender-
+Addon-Verzeichnis kopieren bzw. symlinken:
+
+| OS      | Pfad |
+|---------|------|
+| Windows | `%APPDATA%\Blender Foundation\Blender\<version>\scripts\addons\` |
+| macOS   | `~/Library/Application Support/Blender/<version>/scripts/addons/` |
+| Linux   | `~/.config/blender/<version>/scripts/addons/` |
+
+Anschließend in Blender im Add-on-Dialog aktivieren.
 
 ## Bedienung
 

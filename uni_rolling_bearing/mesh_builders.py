@@ -164,6 +164,7 @@ def add_tapered_roller(
             verts=bm.verts,
         )
     bmesh.ops.translate(bm, vec=Vector(location), verts=bm.verts)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     return _finish_bmesh(name, bm, collection)
 
 

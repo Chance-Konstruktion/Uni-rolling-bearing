@@ -28,11 +28,17 @@ SUGGESTED_ROLLER_FILL = 0.90
 
 @dataclass(frozen=True)
 class BearingDims:
-    """Abgeleitete Hauptmaße in mm."""
+    """Abgeleitete Hauptmaße in mm.
+
+    ``radial_space`` ist die *radiale Spaltbreite* zwischen Innen- und Außen-
+    laufbahn (= ``(outer_inner_d - inner_outer_d) / 2``). Der nutzbare
+    Wälzkörper-Ø darf maximal so groß werden wie diese Spaltbreite (abzüglich
+    Lagerluft).
+    """
 
     inner_outer_d: float  # Außen-Ø des Innenrings = Innenlaufbahn
     outer_inner_d: float  # Innen-Ø des Außenrings = Außenlaufbahn
-    radial_space: float  # Roher Laufbahnspalt (ohne Lagerluft-Abzug)
+    radial_space: float   # Radiale Spaltbreite (Innenlaufbahn → Außenlaufbahn)
 
 
 @dataclass(frozen=True)
@@ -55,7 +61,7 @@ def compute_dims(
     """Leitet Laufbahn-Durchmesser und radialen Rohspalt aus den Hauptmaßen ab."""
     inner_outer_d = bore_diameter + 2.0 * ring_thickness
     outer_inner_d = outer_diameter - 2.0 * ring_thickness
-    radial_space = outer_inner_d - inner_outer_d
+    radial_space = (outer_inner_d - inner_outer_d) * 0.5
     return BearingDims(inner_outer_d, outer_inner_d, radial_space)
 
 
@@ -126,7 +132,13 @@ def resolve_geometry(
     else:
         roller_d = roller_diameter
 
-    pitch_d = dims.inner_outer_d + roller_d + 2.0 * radial_clearance
+    # Wälzkörper sitzen mittig zwischen Innen- und Außenlaufbahn (Teilkreis-Ø
+    # ist der Mittelwert der Laufbahn-Durchmesser). So bleibt zwischen Roller
+    # und beiden Laufbahnen jeweils der gleiche Restspalt – frühere Versionen
+    # rechneten ``inner_outer_d + roller_d + 2*clearance`` und drückten den
+    # Wälzkörper an die Innenlaufbahn, wodurch er bei großem Ø in den Außenring
+    # ragte.
+    pitch_d = (dims.inner_outer_d + dims.outer_inner_d) * 0.5
     max_count = max_elements_for_pitch(pitch_d, roller_d, gap_factor)
     if element_count > max_count:
         if not auto_fit:
@@ -189,7 +201,7 @@ def suggest_defaults(
     dims = compute_dims(bore_diameter, outer_diameter, ring_thickness)
     usable = max(MIN_USABLE_SPACE_MM, dims.radial_space - 2.0 * radial_clearance)
     roller_d = max(0.5, usable * SUGGESTED_ROLLER_FILL)
-    pitch_d = dims.inner_outer_d + roller_d + 2.0 * radial_clearance
+    pitch_d = (dims.inner_outer_d + dims.outer_inner_d) * 0.5
     count = max_elements_for_pitch(pitch_d, roller_d, gap_factor)
 
     # bearing_type beeinflusst nur die Rollenlänge (über width); die Vorschläge

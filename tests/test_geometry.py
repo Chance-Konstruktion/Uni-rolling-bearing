@@ -45,7 +45,8 @@ class TestComputeDims(unittest.TestCase):
         dims = compute_dims(20.0, 47.0, 4.0)
         self.assertAlmostEqual(dims.inner_outer_d, 28.0)
         self.assertAlmostEqual(dims.outer_inner_d, 39.0)
-        self.assertAlmostEqual(dims.radial_space, 11.0)
+        # Radiale Spaltbreite (nicht Durchmesser-Differenz!).
+        self.assertAlmostEqual(dims.radial_space, 5.5)
 
     def test_zero_radial_space(self):
         # bore=4, D=20, ring=4 → inner_outer=12, outer_inner=12, kein Spalt.
@@ -88,7 +89,22 @@ class TestResolveGeometry(unittest.TestCase):
         self.assertIsNotNone(spec)
         self.assertGreater(spec.roller_d, 0.0)
         self.assertGreaterEqual(spec.element_count, 3)
-        self.assertAlmostEqual(spec.pitch_d, spec.inner_outer_d + spec.roller_d + 2 * 0.02)
+        # Wälzkörper sitzen mittig zwischen den Laufbahnen.
+        self.assertAlmostEqual(
+            spec.pitch_d, (spec.inner_outer_d + spec.outer_inner_d) * 0.5
+        )
+
+    def test_roller_does_not_clip_outer_race(self):
+        # Selbst bei maximalem Wälzkörper-Ø darf der äußere Punkt der Rolle
+        # nicht in den Außenring ragen.
+        spec, error = resolve_geometry(
+            **_base_kwargs(roller_diameter=50.0, auto_fit=True)
+        )
+        self.assertIsNone(error)
+        outer_extent = spec.pitch_d * 0.5 + spec.roller_d * 0.5
+        self.assertLessEqual(outer_extent, spec.outer_inner_d * 0.5 + 1e-6)
+        inner_extent = spec.pitch_d * 0.5 - spec.roller_d * 0.5
+        self.assertGreaterEqual(inner_extent, spec.inner_outer_d * 0.5 - 1e-6)
 
     def test_bore_not_smaller_than_outer(self):
         spec, error = resolve_geometry(**_base_kwargs(bore_diameter=50.0, outer_diameter=47.0))
@@ -112,8 +128,9 @@ class TestResolveGeometry(unittest.TestCase):
         spec, error = resolve_geometry(**_base_kwargs(roller_diameter=50.0, auto_fit=True))
         self.assertIsNone(error)
         self.assertLess(spec.roller_d, 50.0)
-        # radial_space = (47 - 2*4) - (20 + 2*4) = 11, Lagerluft 2*0.02 = 0.04.
-        max_allowed = (11.0 - 0.04) * 0.98
+        # Radiale Spaltbreite = ((47 - 2·4) - (20 + 2·4)) / 2 = 5.5 mm,
+        # abzgl. Lagerluft 2·0.02 = 0.04 mm.
+        max_allowed = (5.5 - 0.04) * 0.98
         self.assertAlmostEqual(spec.roller_d, max_allowed, places=4)
 
     def test_too_many_elements_without_auto_fit(self):
