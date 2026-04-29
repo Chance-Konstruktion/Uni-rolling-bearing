@@ -29,6 +29,7 @@ bl_info = {
 def _classes():
     from .operators import (
         UNI_OT_apply_series_preset,
+        UNI_OT_auto_calculate,
         UNI_OT_create_bearing,
         UNI_OT_info_check,
         UNI_OT_info_geometrie,
@@ -51,6 +52,7 @@ def _classes():
         UNI_OT_info_check,
         UNI_OT_info_qualitaet,
         UNI_OT_apply_series_preset,
+        UNI_OT_auto_calculate,
         UNI_OT_create_bearing,
         UNI_PT_bearing_panel,
     )

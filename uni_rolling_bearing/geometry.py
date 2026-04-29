@@ -180,40 +180,75 @@ def suggest_defaults(
     radial_clearance: float = 0.02,
     gap_factor: float = 0.10,
 ) -> SuggestedDefaults:
-    """Liefert ring_thickness/roller_d/Anzahl, mit denen ein Preset sofort funktioniert.
+    """Liefert ring_thickness/roller_d/Anzahl, mit denen ein Lager sofort funktioniert.
 
-    Der Wälzkörper-Ø nimmt rund 90 % des nutzbaren Spalts ein, die Anzahl wird auf den
-    maximalen umfangskonformen Wert gesetzt.
+    Pro Lagertyp wird ein eigener Ringstärke-Anteil und Wälzkörper-Füllgrad
+    verwendet (siehe ``constants.TYPE_RING_THICKNESS_RATIO`` und
+    ``TYPE_ROLLER_FILL``). Damit erhält man typische Industriewerte für
+    Wandstärke und Wälzkörper-Ø ohne manuelle Berechnung.
     """
     if bore_diameter >= outer_diameter:
         # Degenerate Eingabe – minimaler Default damit nichts crasht.
         return SuggestedDefaults(MIN_SUGGESTED_RING_THICKNESS_MM, 0.5, 3)
 
     radial_band = outer_diameter - bore_diameter
+    thickness_ratio = constants.TYPE_RING_THICKNESS_RATIO.get(
+        bearing_type, SUGGESTED_RING_THICKNESS_FRACTION
+    )
     ring_thickness = max(
         MIN_SUGGESTED_RING_THICKNESS_MM,
-        min(
-            MAX_SUGGESTED_RING_THICKNESS_MM,
-            radial_band * SUGGESTED_RING_THICKNESS_FRACTION,
-        ),
+        min(MAX_SUGGESTED_RING_THICKNESS_MM, radial_band * thickness_ratio),
     )
 
     dims = compute_dims(bore_diameter, outer_diameter, ring_thickness)
     usable = max(MIN_USABLE_SPACE_MM, dims.radial_space - 2.0 * radial_clearance)
-    roller_d = max(0.5, usable * SUGGESTED_ROLLER_FILL)
+    fill = constants.TYPE_ROLLER_FILL.get(bearing_type, SUGGESTED_ROLLER_FILL)
+    roller_d = max(0.5, usable * fill)
     pitch_d = (dims.inner_outer_d + dims.outer_inner_d) * 0.5
     count = max_elements_for_pitch(pitch_d, roller_d, gap_factor)
-
-    # bearing_type beeinflusst nur die Rollenlänge (über width); die Vorschläge
-    # für d/Anzahl/Ringstärke sind typunabhängig. Argument bleibt für künftige
-    # typabhängige Heuristiken erhalten.
-    del bearing_type
 
     return SuggestedDefaults(
         ring_thickness=ring_thickness,
         roller_diameter=roller_d,
         element_count=count,
     )
+
+
+def validate_against_suggestion(
+    *,
+    bearing_type: str,
+    bore_diameter: float,
+    outer_diameter: float,
+    ring_thickness: float,
+    roller_diameter: float,
+    element_count: int,
+    radial_clearance: float,
+    gap_factor: float,
+    tolerance: float = 0.10,
+) -> Tuple[bool, str]:
+    """Prüft, ob die aktuellen Werte nahe am typabhängigen Vorschlag liegen.
+
+    ``tolerance`` ist die zulässige relative Abweichung (0.10 = ±10 %).
+    Liefert ``(ok, hint)``. Bei ``ok == True`` ist die Konfiguration nahe an
+    der Empfehlung; ansonsten enthält ``hint`` einen Korrekturhinweis.
+    """
+    s = suggest_defaults(
+        bearing_type,
+        bore_diameter,
+        outer_diameter,
+        radial_clearance=radial_clearance,
+        gap_factor=gap_factor,
+    )
+    deltas = []
+    if abs(ring_thickness - s.ring_thickness) > max(0.1, s.ring_thickness * tolerance):
+        deltas.append(f"Ringstärke {ring_thickness:.2f} ↔ Vorschlag {s.ring_thickness:.2f} mm")
+    if abs(roller_diameter - s.roller_diameter) > max(0.1, s.roller_diameter * tolerance):
+        deltas.append(f"Wälzkörper-Ø {roller_diameter:.2f} ↔ Vorschlag {s.roller_diameter:.2f} mm")
+    if abs(element_count - s.element_count) > max(1, int(round(s.element_count * tolerance))):
+        deltas.append(f"Anzahl {element_count} ↔ Vorschlag {s.element_count}")
+    if not deltas:
+        return True, "Werte entsprechen der Empfehlung."
+    return False, "; ".join(deltas)
 
 
 # ---------------------------------------------------------------------------

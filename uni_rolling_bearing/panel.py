@@ -10,6 +10,7 @@ from __future__ import annotations
 import bpy
 
 from . import constants
+from .geometry import validate_against_suggestion
 from .operators import safe_resolve_geometry
 
 
@@ -53,12 +54,33 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
         dims.prop(props, "width")
         dims.prop(props, "ring_thickness")
 
+        # Auto-Berechnen: füllt Ringstärke + Wälzkörper-Ø + Anzahl typgerecht.
+        auto_row = dims.row(align=True)
+        auto_row.operator("uni_bearing.auto_calculate", icon="MOD_SOLIDIFY")
+        auto_row.prop(props, "auto_recompute", text="live", toggle=True)
+
         rollers = _section_header(layout, "4) Wälzkörper", "uni_bearing.info_waelzkoerper")
         rollers.prop(props, "roller_diameter")
         rollers.prop(props, "element_count")
         rollers.prop(props, "gap_factor")
         rollers.prop(props, "auto_fit")
         rollers.prop(props, "use_cage")
+
+        # Validierung: wie weit liegen die aktuellen Werte vom Vorschlag entfernt?
+        ok, hint = validate_against_suggestion(
+            bearing_type=props.bearing_type,
+            bore_diameter=props.bore_diameter,
+            outer_diameter=props.outer_diameter,
+            ring_thickness=props.ring_thickness,
+            roller_diameter=props.roller_diameter,
+            element_count=props.element_count,
+            radial_clearance=props.radial_clearance,
+            gap_factor=props.gap_factor,
+        )
+        rollers.label(
+            text=hint if ok else f"Abweichung: {hint}",
+            icon="CHECKMARK" if ok else "INFO",
+        )
 
         if props.bearing_type in (constants.CYLINDRICAL, constants.NEEDLE):
             rollers.label(text="Hinweis: Zylindrische Rollen werden erzeugt.")
