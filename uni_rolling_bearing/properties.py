@@ -21,6 +21,17 @@ def _series_items(self, _context):
     return [(code, code, f"Preset {code}") for code in presets]
 
 
+def _on_dimension_changed(self, _context):
+    """Wenn 'Auto-Berechnen live' aktiv ist, Ringstärke/Roller/Anzahl
+    automatisch aus den aktuellen Hauptmaßen ableiten."""
+    if not getattr(self, "auto_recompute", False):
+        return
+    # Lazy-Import vermeidet Zyklus, da operators.py auf properties.py via
+    # bpy.types.Scene zugreift.
+    from .operators import apply_suggested_defaults
+    apply_suggested_defaults(self)
+
+
 class UNI_Bearing_Properties(bpy.types.PropertyGroup):
     bearing_type: EnumProperty(
         name="Lagertyp",
@@ -31,6 +42,7 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         ),
         items=BEARING_TYPES,
         default="BALL",
+        update=_on_dimension_changed,
     )
     series_code: EnumProperty(
         name="Normreihe",
@@ -59,6 +71,7 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         ),
         default=20.0,
         min=1.0,
+        update=_on_dimension_changed,
     )
     outer_diameter: FloatProperty(
         name="Außendurchmesser D [mm]",
@@ -69,6 +82,7 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         ),
         default=47.0,
         min=2.0,
+        update=_on_dimension_changed,
     )
     width: FloatProperty(
         name="Breite B [mm]",
@@ -131,6 +145,16 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
             "Deaktivieren, um stattdessen Fehler zu sehen."
         ),
         default=True,
+    )
+    auto_recompute: BoolProperty(
+        name="Auto-Berechnen live",
+        description=(
+            "Wenn aktiv, werden Ringstärke, Wälzkörper-Ø und Anzahl bei jeder "
+            "Änderung von d, D oder Lagertyp automatisch neu aus typabhängigen "
+            "Faustformeln (Industriewerte) berechnet. Deaktivieren, um nur "
+            "manuell über den 'Auto-Berechnen'-Button zu rechnen."
+        ),
+        default=False,
     )
 
     use_cage: BoolProperty(

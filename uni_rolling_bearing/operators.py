@@ -14,11 +14,41 @@ from .geometry import (
     resolve_geometry,
     suggest_defaults,
     tapered_apex_z,
+    validate_against_suggestion,
 )
 
 
 # Blender-Skalierung: UI in mm, Szene in m.
 MM_TO_M = 0.001
+
+# Verhindert rekursive Updates, wenn der Auto-Recompute-Callback Properties
+# zurückschreibt, die selbst an den Callback gebunden sind.
+_AUTO_RECOMPUTE_GUARD = False
+
+
+def apply_suggested_defaults(props) -> None:
+    """Schreibt die typabhängigen Vorschläge in ``props`` zurück.
+
+    Wird sowohl vom expliziten 'Auto-Berechnen'-Operator als auch vom
+    Update-Callback der Geometrie-Felder genutzt.
+    """
+    global _AUTO_RECOMPUTE_GUARD
+    if _AUTO_RECOMPUTE_GUARD:
+        return
+    _AUTO_RECOMPUTE_GUARD = True
+    try:
+        suggestion = suggest_defaults(
+            props.bearing_type,
+            props.bore_diameter,
+            props.outer_diameter,
+            radial_clearance=props.radial_clearance,
+            gap_factor=props.gap_factor,
+        )
+        props.ring_thickness = suggestion.ring_thickness
+        props.roller_diameter = suggestion.roller_diameter
+        props.element_count = suggestion.element_count
+    finally:
+        _AUTO_RECOMPUTE_GUARD = False
 
 
 def _props_to_resolve_kwargs(props) -> dict:
@@ -367,16 +397,33 @@ class UNI_OT_apply_series_preset(bpy.types.Operator):
 
         # Ringstärke/Roller/Anzahl mitziehen, damit das Preset ohne weitere
         # Eingaben ein funktionierendes Lager liefert.
-        suggestion = suggest_defaults(
-            props.bearing_type,
-            bore,
-            outer,
-            radial_clearance=props.radial_clearance,
-            gap_factor=props.gap_factor,
+        apply_suggested_defaults(props)
+        return {"FINISHED"}
+
+
+class UNI_OT_auto_calculate(bpy.types.Operator):
+    bl_idname = "uni_bearing.auto_calculate"
+    bl_label = "Auto-Berechnen"
+    bl_description = (
+        "Berechnet Ringstärke, Wälzkörper-Ø und Anzahl automatisch aus den "
+        "aktuellen Hauptmaßen (d, D) und dem Lagertyp – typische Industrie-"
+        "Faustwerte, kein Taschenrechner nötig"
+    )
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        props = context.scene.uni_bearing
+        if props.bore_diameter >= props.outer_diameter:
+            self.report({"ERROR"}, "Innendurchmesser muss kleiner als Außendurchmesser sein.")
+            return {"CANCELLED"}
+        apply_suggested_defaults(props)
+        self.report(
+            {"INFO"},
+            (
+                f"Ringstärke={props.ring_thickness:.2f} mm, "
+                f"Roller-Ø={props.roller_diameter:.2f} mm, n={props.element_count}"
+            ),
         )
-        props.ring_thickness = suggestion.ring_thickness
-        props.roller_diameter = suggestion.roller_diameter
-        props.element_count = suggestion.element_count
         return {"FINISHED"}
 
 

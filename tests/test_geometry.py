@@ -19,6 +19,7 @@ from uni_rolling_bearing.geometry import (  # noqa: E402
     roller_length_for_type,
     suggest_defaults,
     tapered_apex_z,
+    validate_against_suggestion,
 )
 
 
@@ -226,6 +227,51 @@ class TestSuggestDefaults(unittest.TestCase):
         self.assertGreater(s.ring_thickness, 0.0)
         self.assertGreater(s.roller_diameter, 0.0)
         self.assertGreaterEqual(s.element_count, 3)
+
+    def test_type_specific_ratios_differ(self):
+        # Nadellager sollen dünnere Ringe und schlankere Wälzkörper bekommen
+        # als ein Kugellager bei gleichen Hauptmaßen.
+        ball = suggest_defaults(constants.BALL, 30.0, 72.0)
+        needle = suggest_defaults(constants.NEEDLE, 30.0, 72.0)
+        self.assertLess(needle.ring_thickness, ball.ring_thickness)
+        # Nadeln füllen den Spalt anteilig stärker → größerer Roller-Ø trotz
+        # dünnerer Ringe ist plausibel; aber Anzahl muss in beiden Fällen ≥ 3.
+        self.assertGreaterEqual(needle.element_count, 3)
+        self.assertGreaterEqual(ball.element_count, 3)
+
+
+class TestValidateAgainstSuggestion(unittest.TestCase):
+    def _kwargs(self, **overrides):
+        base = dict(
+            bearing_type=constants.BALL,
+            bore_diameter=20.0,
+            outer_diameter=47.0,
+            ring_thickness=4.5,
+            roller_diameter=2.5,
+            element_count=10,
+            radial_clearance=0.02,
+            gap_factor=0.10,
+        )
+        base.update(overrides)
+        return base
+
+    def test_suggestion_validates_itself(self):
+        s = suggest_defaults(constants.BALL, 20.0, 47.0)
+        ok, hint = validate_against_suggestion(
+            **self._kwargs(
+                ring_thickness=s.ring_thickness,
+                roller_diameter=s.roller_diameter,
+                element_count=s.element_count,
+            )
+        )
+        self.assertTrue(ok, msg=hint)
+
+    def test_far_off_values_flagged(self):
+        ok, hint = validate_against_suggestion(
+            **self._kwargs(ring_thickness=0.5, roller_diameter=0.5, element_count=3)
+        )
+        self.assertFalse(ok)
+        self.assertIn("Vorschlag", hint)
 
 
 class TestCageDimensions(unittest.TestCase):

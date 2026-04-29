@@ -68,3 +68,33 @@ ROLLER_LENGTH_RATIO: Dict[str, float] = {
     TAPERED: 0.90,
     SPHERICAL: 0.85,
 }
+
+# Empfohlene Ringstärke als Anteil von (D − d). Praxisorientierte Faustwerte:
+# Standardlager bei ≈ 1/6, Nadellager dünnwandig bei ≈ 1/12.
+TYPE_RING_THICKNESS_RATIO: Dict[str, float] = {
+    BALL: 1.0 / 6.0,
+    CYLINDRICAL: 1.0 / 7.0,
+    NEEDLE: 1.0 / 12.0,
+    TAPERED: 1.0 / 6.0,
+    SPHERICAL: 1.0 / 6.0,
+}
+
+# Empfohlener Anteil des nutzbaren Radial-Spalts, den der Wälzkörper-Ø
+# einnimmt. Höhere Werte = mehr Tragfähigkeit, weniger Schmierfilmreserve.
+TYPE_ROLLER_FILL: Dict[str, float] = {
+    BALL: 0.55,
+    CYLINDRICAL: 0.78,
+    NEEDLE: 0.88,
+    TAPERED: 0.62,
+    SPHERICAL: 0.70,
+}
+
+# Ziel-Umfangsspalt-Faktor pro Typ (relative Lücke zwischen Wälzkörpern auf
+# dem Teilkreis). Nadellager sitzen dichter, Kugellager großzügiger.
+TYPE_GAP_FACTOR: Dict[str, float] = {
+    BALL: 0.12,
+    CYLINDRICAL: 0.10,
+    NEEDLE: 0.06,
+    TAPERED: 0.10,
+    SPHERICAL: 0.10,
+}
