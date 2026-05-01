@@ -97,14 +97,34 @@ Aktueller Stand:
 - Jeder Ring/Wälzkörper wird als eigenes manifold Mesh erzeugt.
 - Pro Erzeugung wird eine eigene Collection `Bearing_<Typ>` angelegt.
 
+## Laufbahnen (ab v0.6)
+
+Die Innen- und Außenringe werden seit v0.6 nicht mehr als reine Hohlzylinder
+erzeugt, sondern aus einem typabhängigen Querschnittsprofil zu einem manifold
+Volumen revolviert (Modul `raceway.py`). Folgende Laufbahnen werden modelliert:
+
+- **Kugellager** – Rillen-Bogen (groove) mit Konformitätsfaktor f = r_groove/d_ball
+  in Innen- und Außenring. Reicht der Bogen geometrisch nicht bis zur Schulter
+  (z. B. weil der Wälzkörper-Ø sehr klein gewählt wurde), fällt das Profil
+  automatisch auf einen Hohlzylinder zurück.
+- **Zylinderrollen-/Nadellager** – NU-Bauart: Außenring mit zwei radial nach
+  innen vorstehenden Borden, die die Rollen axial halten; Innenring zylindrisch.
+  Bei zu engem Bauraum (Rolle füllt nahezu die ganze Lagerbreite) wird der
+  Bord automatisch weggelassen.
+- **Kegelrollenlager** – Beide Ringe haben tatsächlich konische Laufbahnen,
+  geneigt mit dem Kontaktwinkel α (siehe nächster Abschnitt).
+- **Tonnenlager / Pendelrollenlager** – Außenring mit sphärischer
+  Innenlaufbahn, deren Sphärenradius automatisch aus Pitch-Ø und
+  Wälzkörperabmaßen abgeleitet wird.
+
 ## Kegelrollenlager: Kontaktwinkel
 
 Für Kegelrollenlager ist der Kontaktwinkel α einstellbar (Default 14°). Die
 Wälzkörper werden im Mesh-Frame um die lokale Y-Achse gekippt, *bevor* sie auf
 den Teilkreis rotiert werden – die Achsen aller Rollen treffen sich daher
 exakt auf der Lagerachse in einem gemeinsamen Apex. Der berechnete Apex-Z
-wird als Metadatum (`tapered_apex_z_mm`) am Bearing-Empty hinterlegt. Die
-Laufbahnen (Innen-/Außenring) bleiben in v0.5.0 noch zylindrisch.
+wird als Metadatum (`tapered_apex_z_mm`) am Bearing-Empty hinterlegt. Seit
+v0.6 sind die Laufbahnen passend zu α geneigt (vorher zylindrisch).
 
 ## Käfig (optional)
 
@@ -131,7 +151,8 @@ uni_rolling_bearing/
 ├── __init__.py        # bl_info, register/unregister (lazy bpy-Import)
 ├── constants.py       # Lagertyp-IDs, Presets, Normhinweise
 ├── geometry.py        # Pure Geometriefunktionen (testbar ohne Blender)
-├── mesh_builders.py   # BMesh-Helfer (Ringe, Kugeln, Rollen, Tonnen)
+├── raceway.py         # Laufbahn-Querschnittsprofile (testbar ohne Blender)
+├── mesh_builders.py   # BMesh-Helfer (Ringe, Revolution, Kugeln, Rollen, Tonnen)
 ├── properties.py      # PropertyGroup für das N-Panel
 ├── operators.py       # Erstell-/Preset-Operatoren
 └── panel.py           # N-Panel UI

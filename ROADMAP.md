@@ -40,7 +40,19 @@
 - Wälzkörper werden im Mesh-Frame um die lokale Y-Achse gekippt; alle Achsen
   treffen sich auf der Lagerachse in einem gemeinsamen Apex.
 - Apex-Z wird als ``tapered_apex_z_mm`` am Assembly hinterlegt.
-- Laufbahnen bleiben vorerst zylindrisch (echte Kegellaufbahnen folgen).
+
+### Echte Laufbahnen (v0.6.0)
+- Neues Modul ``raceway.py`` mit typspezifischen Querschnittsprofilen, das
+  per Z-Achsen-Revolution zu manifold Ringen vermesht wird.
+- Kugellager: Konformitätsbogen (groove) in Innen- und Außenring; bei zu
+  kleinem Wälzkörper-Ø Fallback auf Hohlzylinder.
+- Zylinder-/Nadellager: Außenring mit zwei Borden (NU-Bauart), automatischer
+  Verzicht bei zu engem Bauraum.
+- Kegelrollenlager: konische Laufbahnen passend zum Kontaktwinkel.
+- Tonnenlager: sphärische Innenlaufbahn am Außenring.
+- Mesh-Builder ``make_revolved_ring`` für beliebige geschlossene Profile.
+- Default-Wälzkörper-Füllgrad für Kugellager auf 0.95 angehoben (real-näher,
+  Voraussetzung für sichtbare Rille bei Auto-Berechnung).
 
 ---
 
@@ -50,10 +62,10 @@
    - Vollständige Reihen für DIN 625 / ISO 15 implementieren.
    - Automatische Code-Generierung nach DIN 623.
 
-2. **Typ-spezifische Laufbahnen verbessern**
-   - Geometrisch genauere raceway-Profile pro Lagertyp.
-   - Konische Laufbahnen für Kegelrollenlager (Roller-Kontaktwinkel ist seit
-     v0.5.0 vorhanden, aber Innen-/Außenring sind noch zylindrisch).
+2. **Laufbahnen weiter verfeinern**
+   - Konformitätsfaktor (Rille) als UI-Parameter exponieren.
+   - Pendelrollen: Innenring mit zwei separaten Laufbahnen (heute zylindrisch).
+   - Kegelrollen: Bord am Innenring (große Stirnseite) ergänzen.
 
 3. **Käfig-Ausbaustufe**
    - Typ-spezifische Pocket-Geometrie (sphärische Pockets für Kugellager,
