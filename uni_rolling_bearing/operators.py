@@ -6,7 +6,7 @@ import math
 
 import bpy
 
-from . import constants, mesh_builders
+from . import constants, mesh_builders, raceway
 from .geometry import (
     CageDims,
     ResolvedBearing,
@@ -204,20 +204,87 @@ def _build_cage(props, spec: ResolvedBearing, cage: CageDims, collection):
     return parts
 
 
+def _inner_ring_profile(props, spec: ResolvedBearing):
+    """Wählt das passende Innenring-Querschnittsprofil je Lagertyp."""
+    bt = props.bearing_type
+    if bt == constants.BALL:
+        return raceway.ball_inner_ring_profile(
+            bore_d=props.bore_diameter,
+            shoulder_d=spec.inner_outer_d,
+            width=props.width,
+            ball_d=spec.roller_d,
+            pitch_d=spec.pitch_d,
+        )
+    if bt == constants.TAPERED:
+        return raceway.tapered_inner_ring_profile(
+            bore_d=props.bore_diameter,
+            shoulder_d=spec.inner_outer_d,
+            width=props.width,
+            contact_angle_rad=math.radians(props.contact_angle_deg),
+        )
+    # Zylinder-, Nadel- und Pendelrollenlager nutzen einen einfachen
+    # zylindrischen Innenring (Bord/Sphäre liegen jeweils am Außenring).
+    return raceway.cylindrical_inner_ring_profile(
+        bore_d=props.bore_diameter,
+        shoulder_d=spec.inner_outer_d,
+        width=props.width,
+    )
+
+
+def _outer_ring_profile(props, spec: ResolvedBearing):
+    """Wählt das passende Außenring-Querschnittsprofil je Lagertyp."""
+    bt = props.bearing_type
+    if bt == constants.BALL:
+        return raceway.ball_outer_ring_profile(
+            shoulder_d=spec.outer_inner_d,
+            outer_d=props.outer_diameter,
+            width=props.width,
+            ball_d=spec.roller_d,
+            pitch_d=spec.pitch_d,
+        )
+    if bt in (constants.CYLINDRICAL, constants.NEEDLE):
+        return raceway.cylindrical_outer_ring_profile(
+            shoulder_d=spec.outer_inner_d,
+            outer_d=props.outer_diameter,
+            width=props.width,
+            roller_length=spec.roller_length,
+            roller_d=spec.roller_d,
+        )
+    if bt == constants.TAPERED:
+        return raceway.tapered_outer_ring_profile(
+            shoulder_d=spec.outer_inner_d,
+            outer_d=props.outer_diameter,
+            width=props.width,
+            contact_angle_rad=math.radians(props.contact_angle_deg),
+        )
+    if bt == constants.SPHERICAL:
+        return raceway.spherical_outer_ring_profile(
+            shoulder_d=spec.outer_inner_d,
+            outer_d=props.outer_diameter,
+            width=props.width,
+            pitch_d=spec.pitch_d,
+            roller_d=spec.roller_d,
+        )
+    # Fallback: einfacher Hohlzylinder.
+    return raceway.cylindrical_outer_ring_profile(
+        shoulder_d=spec.outer_inner_d,
+        outer_d=props.outer_diameter,
+        width=props.width,
+        roller_length=spec.roller_length,
+        roller_d=spec.roller_d,
+    )
+
+
 def _build_bearing(props, spec: ResolvedBearing, collection):
-    inner_ring = mesh_builders.make_hollow_ring(
+    inner_ring = mesh_builders.make_revolved_ring(
         "InnerRing",
-        props.bore_diameter,
-        spec.inner_outer_d,
-        props.width,
+        _inner_ring_profile(props, spec),
         props.segments,
         collection=collection,
     )
-    outer_ring = mesh_builders.make_hollow_ring(
+    outer_ring = mesh_builders.make_revolved_ring(
         "OuterRing",
-        spec.outer_inner_d,
-        props.outer_diameter,
-        props.width,
+        _outer_ring_profile(props, spec),
         props.segments,
         collection=collection,
     )

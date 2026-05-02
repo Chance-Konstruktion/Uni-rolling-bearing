@@ -81,8 +81,11 @@ TYPE_RING_THICKNESS_RATIO: Dict[str, float] = {
 
 # Empfohlener Anteil des nutzbaren Radial-Spalts, den der Wälzkörper-Ø
 # einnimmt. Höhere Werte = mehr Tragfähigkeit, weniger Schmierfilmreserve.
+# Kugellager: hoher Wert nötig, damit die Rille (groove arc) die Schulter
+# tatsächlich schneidet und sichtbar ins Material taucht; reale Rillenkugellager
+# füllen den Spalt knapp, der Rest sind Lagerluft + Konformitätsreserve.
 TYPE_ROLLER_FILL: Dict[str, float] = {
-    BALL: 0.55,
+    BALL: 0.95,
     CYLINDRICAL: 0.78,
     NEEDLE: 0.88,
     TAPERED: 0.62,

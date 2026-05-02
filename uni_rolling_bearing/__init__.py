@@ -4,6 +4,7 @@ Die einzelnen Module sind:
 
 * ``constants``      – Lagertyp-IDs, Presets, Normhinweise.
 * ``geometry``       – Reine Geometrieberechnungen (Blender-frei testbar).
+* ``raceway``        – Querschnittsprofile der Innen-/Außenringe (Laufbahnen).
 * ``mesh_builders``  – BMesh-Helfer für Ringe und Wälzkörper.
 * ``properties``     – ``PropertyGroup`` für die UI.
 * ``operators``      – Operatoren ``apply_series_preset`` und ``create``.
@@ -18,10 +19,10 @@ from __future__ import annotations
 bl_info = {
     "name": "UNI Rolling Bearing Generator",
     "author": "Codex",
-    "version": (0, 5, 0),
+    "version": (0, 6, 0),
     "blender": (3, 6, 0),
     "location": "View3D > Sidebar > UNI Bearings",
-    "description": "Erstellt parametrische, funktionsfähige Wälzlager mit Norm-Presets",
+    "description": "Erstellt parametrische, funktionsfähige Wälzlager mit Norm-Presets und realistischen Laufbahnen",
     "category": "Add Mesh",
 }
 

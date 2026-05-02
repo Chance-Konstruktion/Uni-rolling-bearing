@@ -7,7 +7,7 @@ zurück und arbeiten in Millimetern im lokalen Koordinatensystem.
 from __future__ import annotations
 
 import math
-from typing import Iterable, Tuple
+from typing import Iterable, List, Sequence, Tuple
 
 import bmesh
 import bpy
@@ -84,6 +84,45 @@ def make_hollow_ring(
         for i in range(seg):
             j = (i + 1) % seg
             _quad_safe(bm, (loops[li][i], loops[li][j], loops[nxt][j], loops[nxt][i]))
+
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return _finish_bmesh(name, bm, collection)
+
+
+def make_revolved_ring(
+    name: str,
+    profile: Sequence[Tuple[float, float]],
+    segments: int,
+    collection,
+) -> bpy.types.Object:
+    """Revolviert ein geschlossenes ``(r, z)``-Profil um die Z-Achse.
+
+    Das Profil ist eine Folge von Punkten in der ``r-z``-Ebene; die letzte
+    Kante schließt automatisch zum ersten Punkt. Jeder Profilpunkt ergibt eine
+    Kreislinie aus ``segments`` Vertices, jede Profilkante ergibt einen
+    Quad-Ring – das Ergebnis ist ein manifold geschlossener Volumenkörper,
+    sofern kein Profilpunkt auf der Drehachse liegt (``r > 0`` für alle
+    Punkte).
+    """
+    seg = max(MIN_RING_SEGMENTS, segments)
+    if len(profile) < 3:
+        raise ValueError("Profil benötigt mindestens 3 Punkte.")
+
+    bm = bmesh.new()
+    rings: List[List[bmesh.types.BMVert]] = []
+    for r, z in profile:
+        ring: List[bmesh.types.BMVert] = []
+        for i in range(seg):
+            angle = 2.0 * math.pi * i / seg
+            ring.append(bm.verts.new((r * math.cos(angle), r * math.sin(angle), z)))
+        rings.append(ring)
+
+    K = len(rings)
+    for k in range(K):
+        nk = (k + 1) % K
+        for i in range(seg):
+            ni = (i + 1) % seg
+            _quad_safe(bm, (rings[k][i], rings[k][ni], rings[nk][ni], rings[nk][i]))
 
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     return _finish_bmesh(name, bm, collection)
@@ -274,4 +313,5 @@ __all__ = [
     "count_non_manifold_edges",
     "get_or_create_collection",
     "make_hollow_ring",
+    "make_revolved_ring",
 ]
