@@ -293,6 +293,62 @@ def count_non_manifold_edges(mesh: bpy.types.Mesh) -> int:
     return non_manifold
 
 
+def apply_boolean_difference(
+    target: bpy.types.Object,
+    cutters: Sequence[bpy.types.Object],
+    *,
+    solver: str = "EXACT",
+) -> int:
+    """Subtrahiert ``cutters`` von ``target`` per Boolean-Modifier (DIFFERENCE).
+
+    Wendet pro Cutter einen eigenen Modifier an, sodass ein einzelner
+    fehlschlagender Boolean die übrigen nicht blockiert. Cutter-Objekte werden
+    nach erfolgreicher (oder fehlgeschlagener) Subtraktion aus der Szene
+    entfernt. Liefert die Anzahl erfolgreich angewendeter Booleans.
+    """
+    if not cutters:
+        return 0
+
+    view_layer = bpy.context.view_layer
+    prev_active = view_layer.objects.active
+    prev_selected = list(bpy.context.selected_objects)
+
+    succeeded = 0
+    try:
+        # modifier_apply benötigt Aktivobjekt + selektion.
+        bpy.ops.object.select_all(action="DESELECT")
+        view_layer.objects.active = target
+        target.select_set(True)
+        for cutter in cutters:
+            mod = target.modifiers.new(name="UNI_Pocket", type="BOOLEAN")
+            mod.operation = "DIFFERENCE"
+            mod.object = cutter
+            try:
+                mod.solver = solver
+            except (AttributeError, TypeError):  # pragma: no cover – ältere Blender
+                pass
+            try:
+                bpy.ops.object.modifier_apply(modifier=mod.name)
+                succeeded += 1
+            except RuntimeError:
+                # Boolean fehlgeschlagen (z. B. nicht-manifolder Cutter) –
+                # Modifier entfernen und weiter.
+                if mod.name in target.modifiers:
+                    target.modifiers.remove(mod)
+    finally:
+        for cutter in cutters:
+            if cutter.name in bpy.data.objects:
+                bpy.data.objects.remove(cutter, do_unlink=True)
+        # Vorigen Selektionszustand best möglich wiederherstellen.
+        bpy.ops.object.select_all(action="DESELECT")
+        for obj in prev_selected:
+            if obj.name in bpy.data.objects:
+                obj.select_set(True)
+        if prev_active is not None and prev_active.name in bpy.data.objects:
+            view_layer.objects.active = prev_active
+    return succeeded
+
+
 def get_or_create_collection(name: str) -> bpy.types.Collection:
     """Hole Collection mit passendem Namen oder lege eine neue unter der Szene an."""
     scene = bpy.context.scene
@@ -310,6 +366,7 @@ __all__ = [
     "add_cylinder",
     "add_tapered_roller",
     "add_uv_sphere",
+    "apply_boolean_difference",
     "count_non_manifold_edges",
     "get_or_create_collection",
     "make_hollow_ring",

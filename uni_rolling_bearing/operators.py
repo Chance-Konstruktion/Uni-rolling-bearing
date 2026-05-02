@@ -172,10 +172,19 @@ def _build_rolling_elements(props, spec: ResolvedBearing, collection):
     return elements
 
 
-def _build_cage(props, spec: ResolvedBearing, cage: CageDims, collection):
-    """Erzeugt Käfig-Komponenten (zwei Endplatten + Webs) und gibt sie zurück."""
-    parts = []
+# Radialer Spielraum zwischen Wälzkörper und Pocket-Wand (mm). Real bewegt sich
+# das im Bereich 0.05–0.3 mm; hier etwas größer, damit die Subtraktion auch bei
+# groben Auflösungen sauber durchschneidet.
+POCKET_RADIAL_CLEARANCE_MM = 0.20
+# Axialer Überstand des Cutters über die Wälzkörperenden hinaus (mm), damit der
+# Boolean garantiert durch das Käfig-Material schneidet und keine Filme stehen
+# bleiben.
+POCKET_AXIAL_OVERCUT_MM = 0.40
 
+
+def _ladder_cage_parts(props, spec: ResolvedBearing, cage: CageDims, collection):
+    """Fallback: einfacher Leiter-Käfig (zwei Endplatten + tangentiale Webs)."""
+    parts = []
     for sign, label in ((+1, "Top"), (-1, "Bottom")):
         plate = mesh_builders.make_hollow_ring(
             f"CagePlate_{label}",
@@ -190,7 +199,6 @@ def _build_cage(props, spec: ResolvedBearing, cage: CageDims, collection):
 
     angular_pitch = 2.0 * math.pi / spec.element_count
     for i in range(spec.element_count):
-        # Web sitzt mittig zwischen Wälzkörper i und i+1.
         theta = (i + 0.5) * angular_pitch
         web = mesh_builders.add_box(
             f"CageWeb_{i + 1:02d}",
@@ -200,8 +208,118 @@ def _build_cage(props, spec: ResolvedBearing, cage: CageDims, collection):
             collection=collection,
         )
         parts.append(web)
-
     return parts
+
+
+def _build_pocket_cutter(props, spec: ResolvedBearing, position, angle, name, collection):
+    """Erzeugt einen vergrößerten Wälzkörper-Stempel zur Boolean-Subtraktion."""
+    bt = props.bearing_type
+    roller_r = spec.roller_d * 0.5
+    seg = max(16, props.segments // 2)
+    cutter = None
+
+    if bt == constants.BALL:
+        cutter = mesh_builders.add_uv_sphere(
+            name,
+            radius=roller_r + POCKET_RADIAL_CLEARANCE_MM,
+            location=position,
+            u_segments=seg,
+            v_segments=max(12, props.segments // 4),
+            collection=collection,
+        )
+    elif bt in (constants.CYLINDRICAL, constants.NEEDLE):
+        cutter = mesh_builders.add_cylinder(
+            name,
+            radius=roller_r + POCKET_RADIAL_CLEARANCE_MM,
+            depth=spec.roller_length + 2.0 * POCKET_AXIAL_OVERCUT_MM,
+            location=position,
+            segments=seg,
+            collection=collection,
+        )
+        cutter.rotation_euler[2] = angle
+    elif bt == constants.TAPERED:
+        taper_r_small, taper_r_large = _tapered_roller_radii(props, spec)
+        tilt = math.radians(props.contact_angle_deg)
+        cutter = mesh_builders.add_tapered_roller(
+            name,
+            radius_small=taper_r_small + POCKET_RADIAL_CLEARANCE_MM,
+            radius_large=taper_r_large + POCKET_RADIAL_CLEARANCE_MM,
+            depth=spec.roller_length + 2.0 * POCKET_AXIAL_OVERCUT_MM,
+            location=position,
+            segments=seg,
+            collection=collection,
+            tilt=tilt,
+        )
+        cutter.rotation_euler[2] = angle
+    elif bt == constants.SPHERICAL:
+        cutter = mesh_builders.add_barrel_roller(
+            name,
+            radius_mid=roller_r + POCKET_RADIAL_CLEARANCE_MM,
+            radius_end=roller_r * 0.78 + POCKET_RADIAL_CLEARANCE_MM,
+            length=spec.roller_length + 2.0 * POCKET_AXIAL_OVERCUT_MM,
+            location=position,
+            segments=seg,
+            collection=collection,
+        )
+        cutter.rotation_euler[2] = angle
+    return cutter
+
+
+def _build_pocket_cage(props, spec: ResolvedBearing, cage: CageDims, collection):
+    """Einteiliger Sleeve-Käfig mit typabhängigen Pockets (Boolean-Subtraktion).
+
+    Der Sleeve nutzt die gleichen radialen/axialen Hüllmaße wie der bisherige
+    Leiter-Käfig (Endplatten-Ringfenster) – das stellt sicher, dass weder
+    Innen- noch Außenlaufbahn berührt werden. Aus dem Sleeve werden für jeden
+    Wälzkörper oversized Stempel herausgeschnitten, sodass die Pockets typ-
+    spezifisch (Kugel: sphärisch, Zylinder/Nadel: zylindrisch, Kegel: kegelig,
+    Tonne: tonnenförmig) im Mesh entstehen.
+    """
+    sleeve_width = 2.0 * cage.plate_z_offset + cage.plate_thickness
+    if sleeve_width <= 0.5:
+        return None
+
+    sleeve = mesh_builders.make_hollow_ring(
+        "CageSleeve",
+        cage.plate_inner_d,
+        cage.plate_outer_d,
+        sleeve_width,
+        props.segments,
+        collection=collection,
+    )
+
+    pitch_r = spec.pitch_d * 0.5
+    cutters = []
+    for i in range(spec.element_count):
+        a = 2.0 * math.pi * i / spec.element_count
+        position = (pitch_r * math.cos(a), pitch_r * math.sin(a), 0.0)
+        cutter = _build_pocket_cutter(
+            props, spec, position, a, f"_PocketCutter_{i + 1:02d}", collection
+        )
+        if cutter is not None:
+            cutters.append(cutter)
+
+    succeeded = mesh_builders.apply_boolean_difference(sleeve, cutters)
+    if succeeded == 0:
+        # Kein Pocket konnte geschnitten werden – Sleeve hat keine Funktion mehr.
+        if sleeve.name in bpy.data.objects:
+            bpy.data.objects.remove(sleeve, do_unlink=True)
+        return None
+    return sleeve
+
+
+def _build_cage(props, spec: ResolvedBearing, cage: CageDims, collection):
+    """Erzeugt die Käfig-Komponenten und gibt (parts, style) zurück.
+
+    Bevorzugt wird ein Sleeve-Käfig mit typabhängigen Pockets (eine zusammen-
+    hängende Komponente). Schlägt der Boolean fehl (z. B. wegen Mesh-Auflösung
+    oder degenerierter Cutter), wird der historische Leiter-Käfig als Fallback
+    zurückgegeben. ``style`` ist ``"pocket"`` oder ``"ladder"``.
+    """
+    pocket_part = _build_pocket_cage(props, spec, cage, collection)
+    if pocket_part is not None:
+        return [pocket_part], "pocket"
+    return _ladder_cage_parts(props, spec, cage, collection), "ladder"
 
 
 def _inner_ring_profile(props, spec: ResolvedBearing):
@@ -297,6 +415,7 @@ def _build_bearing(props, spec: ResolvedBearing, collection):
     parts = [inner_ring, outer_ring, *elements]
 
     cage_built = False
+    cage_style = ""
     if props.use_cage:
         cage = cage_dimensions(
             pitch_d=spec.pitch_d,
@@ -312,7 +431,8 @@ def _build_bearing(props, spec: ResolvedBearing, collection):
             collection.objects.link(cage_parent)
             cage_parent.empty_display_type = "PLAIN_AXES"
             cage_parent.parent = assembly
-            for cage_part in _build_cage(props, spec, cage, collection):
+            cage_parts, cage_style = _build_cage(props, spec, cage, collection)
+            for cage_part in cage_parts:
                 cage_part.parent = cage_parent
                 parts.append(cage_part)
             cage_built = True
@@ -322,7 +442,7 @@ def _build_bearing(props, spec: ResolvedBearing, collection):
             part.parent = assembly
 
     non_manifold = sum(mesh_builders.count_non_manifold_edges(p.data) for p in parts)
-    return assembly, non_manifold, cage_built
+    return assembly, non_manifold, cage_built, cage_style
 
 
 class _UNI_InfoPopupBase(bpy.types.Operator):
@@ -509,7 +629,7 @@ class UNI_OT_create_bearing(bpy.types.Operator):
 
         cursor_location = context.scene.cursor.location.copy()
         collection = mesh_builders.get_or_create_collection(f"Bearing_{props.bearing_type}")
-        assembly, non_manifold, cage_built = _build_bearing(props, spec, collection)
+        assembly, non_manifold, cage_built, cage_style = _build_bearing(props, spec, collection)
 
         assembly.scale = (MM_TO_M, MM_TO_M, MM_TO_M)
         assembly.location = cursor_location
@@ -521,6 +641,8 @@ class UNI_OT_create_bearing(bpy.types.Operator):
         assembly["resolved_element_count"] = spec.element_count
         assembly["resolved_pitch_d_mm"] = spec.pitch_d
         assembly["has_cage"] = cage_built
+        if cage_built and cage_style:
+            assembly["cage_style"] = cage_style
         if props.bearing_type == constants.TAPERED:
             assembly["contact_angle_deg"] = props.contact_angle_deg
             assembly["tapered_apex_z_mm"] = tapered_apex_z(
