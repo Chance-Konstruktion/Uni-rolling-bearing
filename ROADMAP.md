@@ -41,6 +41,17 @@
   treffen sich auf der Lagerachse in einem gemeinsamen Apex.
 - Apex-Z wird als ``tapered_apex_z_mm`` am Assembly hinterlegt.
 
+### Pocket-Käfig (v0.7.0)
+- Standard-Käfig ist jetzt ein einteiliger Sleeve mit typabhängigen Pockets,
+  erzeugt per Boolean-Difference aus oversized Wälzkörper-Stempeln.
+- Pocket-Form folgt dem Lagertyp: sphärisch (Kugel), zylindrisch (Zylinder/
+  Nadel), kegelig (Kegelrolle), tonnenförmig (Tonnenlager).
+- Fallback auf den bisherigen Leiter-Käfig, wenn der Boolean nicht
+  durchgreift; ``cage_style`` (``"pocket"``/``"ladder"``) wird als Meta-
+  daten am Assembly hinterlegt.
+- Neue Helfer ``mesh_builders.apply_boolean_difference`` als zentrale
+  Schnittstelle für Boolean-basierte Mesh-Operationen.
+
 ### Echte Laufbahnen (v0.6.0)
 - Neues Modul ``raceway.py`` mit typspezifischen Querschnittsprofilen, das
   per Z-Achsen-Revolution zu manifold Ringen vermesht wird.
@@ -68,9 +79,10 @@
    - Kegelrollen: Bord am Innenring (große Stirnseite) ergänzen.
 
 3. **Käfig-Ausbaustufe**
-   - Typ-spezifische Pocket-Geometrie (sphärische Pockets für Kugellager,
-     trapezförmig für Kegelrollen).
    - Werkstoffvarianten (Stahlblech, Messing, Polymer) als Metadatum.
+   - Optionale Schnapp-/Ribbon-Bauarten (zwei vernietete Halbringe) zusätzlich
+     zum aktuellen Sleeve-Käfig.
+   - Pocket-Spiel als UI-Parameter exponieren (heute Konstante).
 
 4. **Fehlerfeedback erweitern**
    - Detailliertere UI-Meldungen mit konkreten Korrekturvorschlägen.

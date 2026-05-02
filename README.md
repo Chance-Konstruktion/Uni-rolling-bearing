@@ -128,13 +128,25 @@ v0.6 sind die Laufbahnen passend zu α geneigt (vorher zylindrisch).
 
 ## Käfig (optional)
 
-Über die Checkbox **Käfig erzeugen** wird ein einfacher parametrischer
-Leiter-Käfig miterzeugt: zwei axiale Endplatten zwischen Lagerrand und
-Wälzkörperende, verbunden durch tangentiale Webs in den Lücken zwischen den
-Wälzkörpern. Der Käfig wird als eigene `Cage`-Sub-Assembly unter dem
-Bearing-Empty geparented. Ist zu wenig Bauraum vorhanden (Wälzkörper füllen
-fast die ganze Breite, kein Tangentialspalt o. Ä.), meldet das Addon eine
-Warnung und überspringt den Käfig.
+Über die Checkbox **Käfig erzeugen** wird ein parametrischer Käfig miterzeugt
+und als eigene `Cage`-Sub-Assembly unter dem Bearing-Empty geparented.
+
+Seit v0.7 ist der Default ein **einteiliger Sleeve-Käfig mit typabhängigen
+Pockets**: Aus einem Hohlzylinder werden per Boolean-Difference oversized
+Wälzkörper-Stempel herausgeschnitten, sodass die Pockets typgerecht
+sphärisch (Kugel), zylindrisch (Zylinder/Nadel), kegelig (Kegelrolle) oder
+tonnenförmig (Tonnenlager) entstehen. Der erzeugte Pocket-Käfig wird als
+`cage_style = "pocket"` am Bearing-Empty markiert.
+
+Schlägt der Boolean fehl (z. B. wegen degenerierter Cutter bei sehr grober
+Auflösung), fällt das Addon automatisch auf den historischen
+**Leiter-Käfig** zurück (`cage_style = "ladder"`): zwei axiale Endplatten
+zwischen Lagerrand und Wälzkörperende, verbunden durch tangentiale Webs in
+den Lücken zwischen den Wälzkörpern.
+
+Ist zu wenig Bauraum vorhanden (Wälzkörper füllen fast die ganze Breite,
+kein Tangentialspalt o. Ä.), meldet das Addon eine Warnung und überspringt
+den Käfig komplett.
 
 ## Einschränkungen
 
