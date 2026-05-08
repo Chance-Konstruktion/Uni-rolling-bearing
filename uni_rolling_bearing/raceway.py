@@ -431,6 +431,8 @@ def tapered_inner_ring_profile(
     shoulder_d: float,
     width: float,
     contact_angle_rad: float,
+    large_flange_height_mm: float = 0.0,
+    large_flange_axial_mm: float | None = None,
 ) -> Profile:
     """Innenring (Kegel) eines Kegelrollenlagers.
 
@@ -438,6 +440,11 @@ def tapered_inner_ring_profile(
     typischen Aufstellsinn von Kegelrollenlagern (kleine Stirn der Rolle nach
     -z). ``contact_angle_rad`` ist der Kontaktwinkel α; die Flanke der
     Innenlaufbahn wird mit α gegen die Lagerachse geneigt.
+
+    Mit ``large_flange_height_mm > 0`` wird an der großen Stirnseite (+z) ein
+    radial nach außen stehender Bord (Rib) ergänzt, der die Kegelrollen axial
+    führt (DIN 720 / ISO 355). ``large_flange_axial_mm`` setzt die axiale
+    Stärke des Bordes; ohne Angabe wird sie aus der Bordhöhe geschätzt.
     """
     bore_r = bore_d * 0.5
     shoulder_r = shoulder_d * 0.5
@@ -448,13 +455,29 @@ def tapered_inner_ring_profile(
     r_minus = max(bore_r + PROFILE_EPSILON, shoulder_r - delta)
     r_plus = shoulder_r + delta
 
-    profile: Profile = [
+    flange_h = max(0.0, large_flange_height_mm)
+    if flange_h <= PROFILE_EPSILON:
+        return _dedupe_profile([
+            (bore_r, -half_w),
+            (r_minus, -half_w),
+            (r_plus, half_w),
+            (bore_r, half_w),
+        ])
+
+    if large_flange_axial_mm is None:
+        flange_axial = min(half_w * 0.25, max(0.5, flange_h))
+    else:
+        flange_axial = large_flange_axial_mm
+    flange_axial = max(PROFILE_EPSILON, min(flange_axial, half_w * 0.5))
+
+    return _dedupe_profile([
         (bore_r, -half_w),
         (r_minus, -half_w),
-        (r_plus, half_w),
+        (r_plus, half_w - flange_axial),
+        (r_plus + flange_h, half_w - flange_axial),
+        (r_plus + flange_h, half_w),
         (bore_r, half_w),
-    ]
-    return _dedupe_profile(profile)
+    ])
 
 
 def tapered_outer_ring_profile(

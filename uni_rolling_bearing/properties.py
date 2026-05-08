@@ -166,6 +166,31 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         ),
         default=False,
     )
+    cage_material: EnumProperty(
+        name="Käfig-Werkstoff",
+        description=(
+            "Werkstoff des Käfigs. Wird ausschließlich als Metadatum am "
+            "Bearing-Empty hinterlegt (Stahlblech/Messing/Polymer); die "
+            "Geometrie selbst hängt nicht vom Werkstoff ab."
+        ),
+        items=[
+            ("STEEL", "Stahlblech", "Stahlblech-Käfig (Standard, geprägt)"),
+            ("BRASS", "Messing", "Massiv-Messing-Käfig (höhere Drehzahlen)"),
+            ("POLYMER", "Polymer", "Polyamid/PA66-Käfig (leise, leicht)"),
+        ],
+        default="STEEL",
+    )
+    pocket_clearance_mm: FloatProperty(
+        name="Pocket-Spiel [mm]",
+        description=(
+            "Radiales Spiel zwischen Wälzkörper und Pocket-Wand des Sleeve-"
+            "Käfigs. Größere Werte = sauberer Boolean-Schnitt, aber spürbar "
+            "loseres Pocket. Reale Käfige liegen bei 0.05–0.30 mm."
+        ),
+        default=0.20,
+        min=0.0,
+        soft_max=1.0,
+    )
 
     vgroove_depth_mm: FloatProperty(
         name="V-Rillen-Tiefe [mm]",
@@ -214,6 +239,19 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         min=0.51,
         max=0.70,
         precision=3,
+    )
+
+    tapered_flange_height_mm: FloatProperty(
+        name="Bord-Höhe Innenring [mm]",
+        description=(
+            "Nur Kegelrollenlager: radiale Höhe des Bordes (Rib) an der "
+            "großen Stirnseite des Innenrings (DIN 720 / ISO 355). Hält die "
+            "Kegelrollen axial. 0 = ohne Bord. Wird auf den verbleibenden "
+            "Bauraum bis zur Außenlaufbahn begrenzt."
+        ),
+        default=1.0,
+        min=0.0,
+        soft_max=5.0,
     )
 
     contact_angle_deg: FloatProperty(

@@ -65,6 +65,10 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
         rollers.prop(props, "gap_factor")
         rollers.prop(props, "auto_fit")
         rollers.prop(props, "use_cage")
+        if props.use_cage:
+            cage_box = rollers.column(align=True)
+            cage_box.prop(props, "cage_material")
+            cage_box.prop(props, "pocket_clearance_mm")
 
         # Validierung: wie weit liegen die aktuellen Werte vom Vorschlag entfernt?
         ok, hint = validate_against_suggestion(
@@ -90,6 +94,7 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
             tapered_row.operator(
                 "uni_bearing.info_kontaktwinkel", text="", icon="QUESTION", emboss=False
             )
+            rollers.prop(props, "tapered_flange_height_mm")
         elif props.bearing_type == constants.SPHERICAL:
             rollers.label(text="Hinweis: Tonnenrollen werden erzeugt.")
         elif props.bearing_type == constants.VGROOVE:
