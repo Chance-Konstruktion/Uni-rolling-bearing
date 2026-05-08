@@ -586,7 +586,12 @@ class UNI_OT_apply_series_preset(bpy.types.Operator):
         props = context.scene.uni_bearing
         preset = constants.SERIES_PRESETS.get(props.bearing_type, {}).get(props.series_code)
         if not preset:
-            self.report({"WARNING"}, "Kein Preset für die aktuelle Auswahl hinterlegt.")
+            self.report(
+                {"WARNING"},
+                f"Kein Preset '{props.series_code}' für Lagertyp "
+                f"'{props.bearing_type}' hinterlegt. Bitte anderen Reihen-Code "
+                f"wählen oder Hauptmaße manuell eingeben.",
+            )
             return {"CANCELLED"}
         bore, outer, width = preset
         props.bore_diameter = bore
@@ -612,7 +617,12 @@ class UNI_OT_auto_calculate(bpy.types.Operator):
     def execute(self, context):
         props = context.scene.uni_bearing
         if props.bore_diameter >= props.outer_diameter:
-            self.report({"ERROR"}, "Innendurchmesser muss kleiner als Außendurchmesser sein.")
+            self.report(
+                {"ERROR"},
+                f"Innendurchmesser ({props.bore_diameter:.2f} mm) muss kleiner "
+                f"als Außendurchmesser ({props.outer_diameter:.2f} mm) sein. "
+                f"Vorschlag: d auf < {props.outer_diameter:.2f} mm setzen.",
+            )
             return {"CANCELLED"}
         apply_suggested_defaults(props)
         self.report(

@@ -67,6 +67,14 @@
   Rillenkugellager – die Reihe ist mechanisch ein Rillenkugellager mit
   zusätzlicher Außenrille.
 
+### Detailliertes Fehlerfeedback (v0.9.0)
+- Geometrie-Resolver liefert nun konkrete Korrekturvorschläge mit Zahlen
+  (max. zulässige Ringstärke, max. Lagerluft, max. Wälzkörper-Ø/-anzahl)
+  statt rein generischer Meldungen.
+- Operator-Reports (Auto-Berechnen, Preset-Übernahme, Erstellen) geben
+  Hinweise auf konkrete nächste Schritte (z. B. „Auto-Fit aktivieren",
+  „Reihen-Code wechseln").
+
 ### Echte Laufbahnen (v0.6.0)
 - Neues Modul ``raceway.py`` mit typspezifischen Querschnittsprofilen, das
   per Z-Achsen-Revolution zu manifold Ringen vermesht wird.
@@ -101,9 +109,6 @@
    - Optionale Schnapp-/Ribbon-Bauarten (zwei vernietete Halbringe) zusätzlich
      zum aktuellen Sleeve-Käfig.
    - Pocket-Spiel als UI-Parameter exponieren (heute Konstante).
-
-4. **Fehlerfeedback erweitern**
-   - Detailliertere UI-Meldungen mit konkreten Korrekturvorschlägen.
 
 ---
 
