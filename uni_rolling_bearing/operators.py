@@ -122,7 +122,7 @@ def _build_rolling_elements(props, spec: ResolvedBearing, collection):
         a = 2.0 * math.pi * i / spec.element_count
         position = (ring_r * math.cos(a), ring_r * math.sin(a), 0.0)
 
-        if props.bearing_type == constants.BALL:
+        if props.bearing_type in (constants.BALL, constants.VGROOVE):
             obj = mesh_builders.add_uv_sphere(
                 f"Ball_{i + 1:02d}",
                 roller_r,
@@ -218,7 +218,7 @@ def _build_pocket_cutter(props, spec: ResolvedBearing, position, angle, name, co
     seg = max(16, props.segments // 2)
     cutter = None
 
-    if bt == constants.BALL:
+    if bt in (constants.BALL, constants.VGROOVE):
         cutter = mesh_builders.add_uv_sphere(
             name,
             radius=roller_r + POCKET_RADIAL_CLEARANCE_MM,
@@ -325,7 +325,7 @@ def _build_cage(props, spec: ResolvedBearing, cage: CageDims, collection):
 def _inner_ring_profile(props, spec: ResolvedBearing):
     """Wählt das passende Innenring-Querschnittsprofil je Lagertyp."""
     bt = props.bearing_type
-    if bt == constants.BALL:
+    if bt in (constants.BALL, constants.VGROOVE):
         return raceway.ball_inner_ring_profile(
             bore_d=props.bore_diameter,
             shoulder_d=spec.inner_outer_d,
@@ -359,6 +359,17 @@ def _outer_ring_profile(props, spec: ResolvedBearing):
             width=props.width,
             ball_d=spec.roller_d,
             pitch_d=spec.pitch_d,
+        )
+    if bt == constants.VGROOVE:
+        depth = props.vgroove_depth_mm if props.vgroove_depth_mm > 0.0 else None
+        return raceway.vgroove_outer_ring_profile(
+            shoulder_d=spec.outer_inner_d,
+            outer_d=props.outer_diameter,
+            width=props.width,
+            ball_d=spec.roller_d,
+            pitch_d=spec.pitch_d,
+            groove_depth=depth,
+            groove_half_angle_rad=math.radians(props.vgroove_half_angle_deg),
         )
     if bt in (constants.CYLINDRICAL, constants.NEEDLE):
         return raceway.cylindrical_outer_ring_profile(
@@ -648,6 +659,9 @@ class UNI_OT_create_bearing(bpy.types.Operator):
             assembly["tapered_apex_z_mm"] = tapered_apex_z(
                 spec.pitch_d, spec.roller_length, math.radians(props.contact_angle_deg)
             )
+        if props.bearing_type == constants.VGROOVE:
+            assembly["vgroove_depth_mm"] = props.vgroove_depth_mm
+            assembly["vgroove_half_angle_deg"] = props.vgroove_half_angle_deg
 
         if non_manifold > 0:
             self.report(

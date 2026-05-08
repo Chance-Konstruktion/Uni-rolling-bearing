@@ -11,11 +11,14 @@ Ein Blender-Addon zur Erstellung parametrischer Wälzlager (Kugel-, Zylinderroll
 
 ## Unterstützte Lagertypen
 
-- Kugellager
+- Kugellager (Rillenkugellager, DIN 625)
 - Zylinderrollenlager
 - Nadellager
 - Kegelrollenlager
 - Tonnenlager (sphärische Rollen)
+- **U-Rillen-Kugellager / Führungsrolle (SG-Reihe)** – Kugellager mit
+  V-/U-Rille im Außenmantel, Presets `SG10`, `SG15`, `SG20`, `SG25`,
+  `SG35`, `SG66`
 
 ## Normenbezug (aktueller Stand)
 
@@ -36,7 +39,14 @@ Geplant (siehe ROADMAP):
 
 ## Installation
 
-### Variante A – Fertige ZIP bauen (empfohlen)
+### Variante A – Fertige ZIP direkt herunterladen
+
+Im Repo liegt unter [`dist/uni_rolling_bearing.zip`](dist/uni_rolling_bearing.zip)
+eine vorgebaute, Blender-installierbare ZIP. Auf GitHub einfach diese Datei
+über „Download raw file“ herunterladen und in Blender importieren – kein
+lokaler Build nötig.
+
+### Variante B – Fertige ZIP selbst bauen
 
 ```bash
 python build_addon_zip.py
@@ -54,7 +64,7 @@ In Blender:
 4. In der 3D-View mit `N` das Sidebar öffnen.
 5. Tab **UNI Bearings** auswählen.
 
-### Variante B – Direkt aus dem Repo (Entwickler)
+### Variante C – Direkt aus dem Repo (Entwickler)
 
 Den Ordner `uni_rolling_bearing/` (nicht das ganze Repo!) in das Blender-
 Addon-Verzeichnis kopieren bzw. symlinken:
@@ -116,6 +126,12 @@ Volumen revolviert (Modul `raceway.py`). Folgende Laufbahnen werden modelliert:
 - **Tonnenlager / Pendelrollenlager** – Außenring mit sphärischer
   Innenlaufbahn, deren Sphärenradius automatisch aus Pitch-Ø und
   Wälzkörperabmaßen abgeleitet wird.
+- **U-Rillen-Kugellager (SG)** – Innen identisch zum Rillenkugellager,
+  zusätzlich V-Rille im Außenmantel des Außenrings. Tiefe und Halbwinkel
+  der V-Rille sind im Panel einstellbar (`vgroove_depth_mm`,
+  `vgroove_half_angle_deg`); 0 mm Tiefe wählt automatisch ≈35 % der
+  Außenwand. Bei zu wenig Bauraum (sehr dünne Außenwand) fällt das Profil
+  auf das Standard-Kugellager-Außenringprofil zurück.
 
 ## Kegelrollenlager: Kontaktwinkel
 

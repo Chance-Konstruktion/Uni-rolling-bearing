@@ -52,6 +52,21 @@
 - Neue Helfer ``mesh_builders.apply_boolean_difference`` als zentrale
   Schnittstelle für Boolean-basierte Mesh-Operationen.
 
+### U-Rillen-Kugellager / SG-Reihe (v0.8.0)
+- Neuer Lagertyp ``VGROOVE`` (Führungsrollen-Kugellager).
+- Norm-Presets ``SG10``, ``SG15``, ``SG20``, ``SG25``, ``SG35``, ``SG66``
+  mit handelsüblichen Hauptmaßen (Bishop-Wisecarver / Misumi „SG/W“-Reihe).
+- Neue Außenring-Profilfunktion ``raceway.vgroove_outer_ring_profile``:
+  Standard-Kugelrille innen, V-Rille im Außenmantel (Default 90° V, Tiefe
+  ≈35 % der Außenwand). Fällt automatisch auf das Standard-Profil zurück,
+  wenn der Bauraum für die Rille nicht reicht.
+- UI-Parameter ``vgroove_depth_mm`` (0 = automatisch) und
+  ``vgroove_half_angle_deg`` exklusiv für den SG-Typ; Werte werden als
+  Metadaten am Bearing-Empty hinterlegt.
+- Wälzkörper, Käfig-Pockets und Innenring-Profil identisch zum Standard-
+  Rillenkugellager – die Reihe ist mechanisch ein Rillenkugellager mit
+  zusätzlicher Außenrille.
+
 ### Echte Laufbahnen (v0.6.0)
 - Neues Modul ``raceway.py`` mit typspezifischen Querschnittsprofilen, das
   per Z-Achsen-Revolution zu manifold Ringen vermesht wird.
@@ -72,6 +87,9 @@
 1. **Vollständige DIN/ISO-Tabellen**
    - Vollständige Reihen für DIN 625 / ISO 15 implementieren.
    - Automatische Code-Generierung nach DIN 623.
+   - SG-Reihe um Zwischengrößen (SG30, SG40, SG55) sowie U-Profil-Variante
+     (Halbkreis-Rille statt 90°-V) ergänzen, sobald belastbare Maßquellen
+     vorliegen.
 
 2. **Laufbahnen weiter verfeinern**
    - Konformitätsfaktor (Rille) als UI-Parameter exponieren.

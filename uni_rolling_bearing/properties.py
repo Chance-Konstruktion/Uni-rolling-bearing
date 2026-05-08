@@ -167,6 +167,29 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         default=False,
     )
 
+    vgroove_depth_mm: FloatProperty(
+        name="V-Rillen-Tiefe [mm]",
+        description=(
+            "Nur U-Rillen-Kugellager (SG-Reihe): radiale Tiefe der V-Rille im "
+            "Außenmantel des Außenrings. 0 = automatisch (≈35 % der Außenring-"
+            "Wandstärke). Wird auf den verfügbaren Bauraum begrenzt."
+        ),
+        default=0.0,
+        min=0.0,
+        soft_max=10.0,
+    )
+    vgroove_half_angle_deg: FloatProperty(
+        name="V-Rillen-Halbwinkel [°]",
+        description=(
+            "Nur U-Rillen-Kugellager (SG-Reihe): Halber Öffnungswinkel der V-"
+            "Flanke. 45° entspricht der klassischen 90°-V-Rille; kleinere Werte "
+            "ergeben eine schmalere/spitzere Rille (Annäherung an U-Form)."
+        ),
+        default=45.0,
+        min=5.0,
+        max=80.0,
+    )
+
     contact_angle_deg: FloatProperty(
         name="Kontaktwinkel α [°]",
         description=(

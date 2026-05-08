@@ -528,6 +528,43 @@ class TestRacewayProfiles(unittest.TestCase):
         r_at_plus_o = min(r for r, z in outer if abs(z - 15.25 / 2) < 1e-6)
         self.assertGreater(r_at_plus_o, r_at_minus_o)
 
+    def test_vgroove_outer_profile_has_groove(self):
+        from uni_rolling_bearing import raceway
+
+        profile = raceway.vgroove_outer_ring_profile(
+            shoulder_d=10.0,
+            outer_d=13.0,
+            width=6.0,
+            ball_d=2.0,
+            pitch_d=8.5,
+        )
+        self.assertTrue(_is_simple_closed_profile(profile))
+        rs = [r for r, _ in profile]
+        # Außen-Ø wird tatsächlich erreicht, aber NICHT konstant über die Breite,
+        # weil die V-Rille im Mantel sitzt (d. h. der OD-Punkt taucht mehrfach
+        # mit unterschiedlichem z auf, und es gibt einen tieferen Mantel-Punkt
+        # bei z=0).
+        self.assertAlmostEqual(max(rs), 6.5, places=6)
+        outer_zs = sorted({round(z, 4) for r, z in profile if abs(r - 6.5) < 1e-4})
+        self.assertGreaterEqual(len(outer_zs), 4)
+        # Mindestens ein Punkt im Profil liegt zwischen Schulter (5.0) und OD (6.5).
+        self.assertTrue(any(5.0 + 1e-3 < r < 6.5 - 1e-3 for r, z in profile if abs(z) < 0.1))
+
+    def test_vgroove_falls_back_when_too_thin(self):
+        from uni_rolling_bearing import raceway
+
+        # Wand zwischen Schulter und OD ist 0.05 mm – keine sinnvolle Rille.
+        profile = raceway.vgroove_outer_ring_profile(
+            shoulder_d=12.9,
+            outer_d=13.0,
+            width=6.0,
+            ball_d=2.0,
+            pitch_d=8.5,
+        )
+        # Fallback = Standard-Außenringprofil; OD bleibt auf voller Breite konstant.
+        rs_at_od = [z for r, z in profile if abs(r - 6.5) < 1e-6]
+        self.assertEqual(len(rs_at_od), 2)
+
     def test_spherical_outer_profile_is_curved(self):
         from uni_rolling_bearing import raceway
 

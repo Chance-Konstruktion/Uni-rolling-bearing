@@ -242,6 +242,116 @@ def ball_outer_ring_profile(
 
 
 # ---------------------------------------------------------------------------
+# U-/V-Rillen-Führungsrollenlager (SG/W-Reihe)
+# ---------------------------------------------------------------------------
+
+
+# Default-Geometrie der Außenrille einer SG-Führungsrolle. Werte sind
+# Anteile, weil die Reihe stark unterschiedliche Baugrößen umfasst.
+VGROOVE_DEFAULT_DEPTH_FRACTION = 0.35   # Anteil der radialen Außenring-Wand
+VGROOVE_DEFAULT_HALF_ANGLE_DEG = 45.0   # Halbwinkel der V-Flanke (=> 90° V-Rille)
+VGROOVE_MIN_DEPTH_MM = 0.3              # Mindesttiefe, sonst entartet die Rille
+VGROOVE_MIN_FLAT_WIDTH_MM = 0.1         # Mindest-Flachstirn am OD links/rechts
+
+
+def vgroove_outer_ring_profile(
+    *,
+    shoulder_d: float,
+    outer_d: float,
+    width: float,
+    ball_d: float,
+    pitch_d: float,
+    groove_depth: float | None = None,
+    groove_half_angle_rad: float | None = None,
+    conformity: float = BALL_GROOVE_CONFORMITY_OUTER,
+    arc_segments: int = 24,
+) -> Profile:
+    """Außenring eines U-/V-Rillen-Kugellagers (Führungsrolle, SG-Reihe).
+
+    Kombiniert die innere Kugelrille (Laufbahn) mit einer V-förmigen Außenrille
+    auf dem Außenmantel (OD). ``groove_depth`` ist die radiale Tiefe der V-Rille
+    in mm, ``groove_half_angle_rad`` der halbe Öffnungswinkel der V-Flanke. Wird
+    keiner der Werte angegeben, wählt die Funktion sinnvolle Defaults aus
+    Außenring-Wandstärke und 90°-V-Rille.
+    """
+    outer_r = outer_d * 0.5
+    shoulder_r = shoulder_d * 0.5
+    pitch_r = pitch_d * 0.5
+    half_w = width * 0.5
+
+    # --- Defaults / Clamping für die Rillen-Parameter -----------------------
+    wall = max(0.0, outer_r - shoulder_r)
+    if groove_depth is None:
+        groove_depth = wall * VGROOVE_DEFAULT_DEPTH_FRACTION
+    # Tiefe muss klein bleiben gegenüber der Außenwand und gegen die halbe Breite,
+    # sonst kollidiert die Rille mit der Stirnfläche bzw. der Laufbahnschulter.
+    max_depth = max(0.0, min(wall * 0.85, half_w * 0.85))
+    if max_depth < VGROOVE_MIN_DEPTH_MM:
+        # Kein Platz für eine sichtbare Rille: Fallback auf Standard-Außenring.
+        return ball_outer_ring_profile(
+            shoulder_d=shoulder_d,
+            outer_d=outer_d,
+            width=width,
+            ball_d=ball_d,
+            pitch_d=pitch_d,
+            conformity=conformity,
+            arc_segments=arc_segments,
+        )
+    groove_depth = max(VGROOVE_MIN_DEPTH_MM, min(groove_depth, max_depth))
+
+    if groove_half_angle_rad is None:
+        groove_half_angle_rad = math.radians(VGROOVE_DEFAULT_HALF_ANGLE_DEG)
+    groove_half_angle_rad = max(math.radians(5.0), min(groove_half_angle_rad, math.radians(80.0)))
+
+    half_groove_w = math.tan(groove_half_angle_rad) * groove_depth
+    # Mindestens VGROOVE_MIN_FLAT_WIDTH_MM Flachstirn an jeder Seite stehen lassen.
+    half_groove_w = min(half_groove_w, half_w - VGROOVE_MIN_FLAT_WIDTH_MM)
+    if half_groove_w <= PROFILE_EPSILON:
+        return ball_outer_ring_profile(
+            shoulder_d=shoulder_d,
+            outer_d=outer_d,
+            width=width,
+            ball_d=ball_d,
+            pitch_d=pitch_d,
+            conformity=conformity,
+            arc_segments=arc_segments,
+        )
+    groove_bottom_r = max(shoulder_r + PROFILE_EPSILON, outer_r - groove_depth)
+
+    # --- Innere Laufbahn-Rille (Kugel) --------------------------------------
+    groove_r = conformity * ball_d
+    radial_gap = shoulder_r - pitch_r
+    z_arc = 0.0
+    inner_arc: Profile = []
+    if radial_gap > PROFILE_EPSILON:
+        z_arc = _ball_groove_z_arc(
+            radial_gap=radial_gap, groove_r=groove_r, ball_d=ball_d, width=width
+        )
+        if z_arc > PROFILE_EPSILON:
+            inner_arc = _arc_points_outer(pitch_r, groove_r, z_arc, arc_segments)
+
+    # --- Profil aufbauen ----------------------------------------------------
+    # Reihenfolge analog ball_outer_ring_profile, aber mit V-Kerbe im Außen-
+    # mantel (von -half_w nach +half_w, mittig). Bei vorhandener inneren Rille
+    # wird der Bogen am Ende eingehängt; ohne Rille bleibt die Innenfläche
+    # zylindrisch (shoulder_r).
+    profile: Profile = [
+        (shoulder_r, -half_w),
+        (outer_r, -half_w),
+        (outer_r, -half_groove_w),
+        (groove_bottom_r, 0.0),
+        (outer_r, half_groove_w),
+        (outer_r, half_w),
+        (shoulder_r, half_w),
+    ]
+    if inner_arc:
+        profile.append((shoulder_r, z_arc))
+        profile.extend(reversed(inner_arc))
+        profile.append((shoulder_r, -z_arc))
+    return _dedupe_profile(profile)
+
+
+# ---------------------------------------------------------------------------
 # Zylinder-/Nadelrollenlager
 # ---------------------------------------------------------------------------
 
@@ -438,4 +548,5 @@ __all__ = [
     "spherical_outer_ring_profile",
     "tapered_inner_ring_profile",
     "tapered_outer_ring_profile",
+    "vgroove_outer_ring_profile",
 ]

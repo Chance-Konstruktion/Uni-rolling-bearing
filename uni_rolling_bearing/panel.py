@@ -92,6 +92,10 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
             )
         elif props.bearing_type == constants.SPHERICAL:
             rollers.label(text="Hinweis: Tonnenrollen werden erzeugt.")
+        elif props.bearing_type == constants.VGROOVE:
+            rollers.label(text="Hinweis: V-Rille im Außenmantel (SG/W-Reihe).")
+            rollers.prop(props, "vgroove_depth_mm")
+            rollers.prop(props, "vgroove_half_angle_deg")
 
         preview = _section_header(layout, "5) Plausibilitäts-Check", "uni_bearing.info_check")
         spec, error = safe_resolve_geometry(props)
