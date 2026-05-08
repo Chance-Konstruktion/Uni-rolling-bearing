@@ -172,14 +172,18 @@ def _build_rolling_elements(props, spec: ResolvedBearing, collection):
     return elements
 
 
-# Radialer Spielraum zwischen Wälzkörper und Pocket-Wand (mm). Real bewegt sich
-# das im Bereich 0.05–0.3 mm; hier etwas größer, damit die Subtraktion auch bei
-# groben Auflösungen sauber durchschneidet.
+# Default-Pocket-Spiel, wenn keine UI-Property gesetzt ist (mm). Real bewegt
+# sich das im Bereich 0.05–0.3 mm; hier etwas größer, damit die Subtraktion
+# auch bei groben Auflösungen sauber durchschneidet.
 POCKET_RADIAL_CLEARANCE_MM = 0.20
 # Axialer Überstand des Cutters über die Wälzkörperenden hinaus (mm), damit der
 # Boolean garantiert durch das Käfig-Material schneidet und keine Filme stehen
 # bleiben.
 POCKET_AXIAL_OVERCUT_MM = 0.40
+
+
+def _pocket_clearance(props) -> float:
+    return float(getattr(props, "pocket_clearance_mm", POCKET_RADIAL_CLEARANCE_MM))
 
 
 def _ladder_cage_parts(props, spec: ResolvedBearing, cage: CageDims, collection):
@@ -221,7 +225,7 @@ def _build_pocket_cutter(props, spec: ResolvedBearing, position, angle, name, co
     if bt in (constants.BALL, constants.VGROOVE):
         cutter = mesh_builders.add_uv_sphere(
             name,
-            radius=roller_r + POCKET_RADIAL_CLEARANCE_MM,
+            radius=roller_r + _pocket_clearance(props),
             location=position,
             u_segments=seg,
             v_segments=max(12, props.segments // 4),
@@ -230,7 +234,7 @@ def _build_pocket_cutter(props, spec: ResolvedBearing, position, angle, name, co
     elif bt in (constants.CYLINDRICAL, constants.NEEDLE):
         cutter = mesh_builders.add_cylinder(
             name,
-            radius=roller_r + POCKET_RADIAL_CLEARANCE_MM,
+            radius=roller_r + _pocket_clearance(props),
             depth=spec.roller_length + 2.0 * POCKET_AXIAL_OVERCUT_MM,
             location=position,
             segments=seg,
@@ -242,8 +246,8 @@ def _build_pocket_cutter(props, spec: ResolvedBearing, position, angle, name, co
         tilt = math.radians(props.contact_angle_deg)
         cutter = mesh_builders.add_tapered_roller(
             name,
-            radius_small=taper_r_small + POCKET_RADIAL_CLEARANCE_MM,
-            radius_large=taper_r_large + POCKET_RADIAL_CLEARANCE_MM,
+            radius_small=taper_r_small + _pocket_clearance(props),
+            radius_large=taper_r_large + _pocket_clearance(props),
             depth=spec.roller_length + 2.0 * POCKET_AXIAL_OVERCUT_MM,
             location=position,
             segments=seg,
@@ -254,8 +258,8 @@ def _build_pocket_cutter(props, spec: ResolvedBearing, position, angle, name, co
     elif bt == constants.SPHERICAL:
         cutter = mesh_builders.add_barrel_roller(
             name,
-            radius_mid=roller_r + POCKET_RADIAL_CLEARANCE_MM,
-            radius_end=roller_r * 0.78 + POCKET_RADIAL_CLEARANCE_MM,
+            radius_mid=roller_r + _pocket_clearance(props),
+            radius_end=roller_r * 0.78 + _pocket_clearance(props),
             length=spec.roller_length + 2.0 * POCKET_AXIAL_OVERCUT_MM,
             location=position,
             segments=seg,
@@ -335,11 +339,20 @@ def _inner_ring_profile(props, spec: ResolvedBearing):
             conformity=props.groove_conformity_inner,
         )
     if bt == constants.TAPERED:
+        # Bordhöhe so begrenzen, dass der Bord die Außenlaufbahn nicht berührt.
+        flange_h = max(0.0, float(getattr(props, "tapered_flange_height_mm", 0.0)))
+        if flange_h > 0.0:
+            half_w = props.width * 0.5
+            delta = math.tan(math.radians(max(0.0, props.contact_angle_deg))) * half_w
+            r_plus = spec.inner_outer_d * 0.5 + delta
+            max_flange = max(0.0, spec.outer_inner_d * 0.5 - r_plus - props.radial_clearance)
+            flange_h = min(flange_h, max_flange)
         return raceway.tapered_inner_ring_profile(
             bore_d=props.bore_diameter,
             shoulder_d=spec.inner_outer_d,
             width=props.width,
             contact_angle_rad=math.radians(props.contact_angle_deg),
+            large_flange_height_mm=flange_h,
         )
     # Zylinder-, Nadel- und Pendelrollenlager nutzen einen einfachen
     # zylindrischen Innenring (Bord/Sphäre liegen jeweils am Außenring).
@@ -667,11 +680,14 @@ class UNI_OT_create_bearing(bpy.types.Operator):
         assembly["has_cage"] = cage_built
         if cage_built and cage_style:
             assembly["cage_style"] = cage_style
+            assembly["cage_material"] = props.cage_material
+            assembly["pocket_clearance_mm"] = props.pocket_clearance_mm
         if props.bearing_type == constants.TAPERED:
             assembly["contact_angle_deg"] = props.contact_angle_deg
             assembly["tapered_apex_z_mm"] = tapered_apex_z(
                 spec.pitch_d, spec.roller_length, math.radians(props.contact_angle_deg)
             )
+            assembly["tapered_flange_height_mm"] = props.tapered_flange_height_mm
         if props.bearing_type == constants.VGROOVE:
             assembly["vgroove_depth_mm"] = props.vgroove_depth_mm
             assembly["vgroove_half_angle_deg"] = props.vgroove_half_angle_deg

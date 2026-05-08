@@ -102,6 +102,17 @@
 
 ---
 
+### Käfig-Ausbau & Kegelrollen-Bord (v0.10.0)
+- Käfig-Werkstoff (``Stahlblech``/``Messing``/``Polymer``) als UI-Auswahl,
+  wird als Metadatum ``cage_material`` am Bearing-Empty hinterlegt.
+- Pocket-Spiel als UI-Parameter ``pocket_clearance_mm`` (Default 0.20 mm,
+  Bereich 0–1 mm) – ersetzt die bisherige Konstante in den Boolean-Cuttern.
+- Kegelrollenlager: optionaler Bord am Innenring (große Stirnseite,
+  ``tapered_flange_height_mm``, Default 1.0 mm). Höhe wird auf den verbleibenden
+  Bauraum bis zur Außenlaufbahn (abzgl. Lagerluft) begrenzt.
+
+---
+
 ## Als Nächstes (kurzfristig) 🟡
 
 1. **Vollständige DIN/ISO-Tabellen**
@@ -113,13 +124,10 @@
 
 2. **Laufbahnen weiter verfeinern**
    - Pendelrollen: Innenring mit zwei separaten Laufbahnen (heute zylindrisch).
-   - Kegelrollen: Bord am Innenring (große Stirnseite) ergänzen.
 
 3. **Käfig-Ausbaustufe**
-   - Werkstoffvarianten (Stahlblech, Messing, Polymer) als Metadatum.
    - Optionale Schnapp-/Ribbon-Bauarten (zwei vernietete Halbringe) zusätzlich
      zum aktuellen Sleeve-Käfig.
-   - Pocket-Spiel als UI-Parameter exponieren (heute Konstante).
 
 ---
 

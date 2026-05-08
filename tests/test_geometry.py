@@ -528,6 +528,45 @@ class TestRacewayProfiles(unittest.TestCase):
         r_at_plus_o = min(r for r, z in outer if abs(z - 15.25 / 2) < 1e-6)
         self.assertGreater(r_at_plus_o, r_at_minus_o)
 
+    def test_tapered_inner_flange_extends_above_raceway(self):
+        from uni_rolling_bearing import raceway
+
+        width = 15.25
+        contact_angle = math.radians(14.0)
+        plain = raceway.tapered_inner_ring_profile(
+            bore_d=20.0, shoulder_d=30.0, width=width,
+            contact_angle_rad=contact_angle,
+        )
+        flanged = raceway.tapered_inner_ring_profile(
+            bore_d=20.0, shoulder_d=30.0, width=width,
+            contact_angle_rad=contact_angle,
+            large_flange_height_mm=1.5,
+        )
+        self.assertTrue(_is_simple_closed_profile(flanged))
+        # Bord ragt radial über die Laufbahn-Großstirn (r_plus) hinaus.
+        r_plus = max(r for r, _ in plain)
+        self.assertGreater(max(r for r, _ in flanged), r_plus + 1.0 - 1e-6)
+        # Bord sitzt am +z-Ende (große Stirn), nicht am -z-Ende.
+        zmax = width * 0.5
+        flange_zs = [z for r, z in flanged if r > r_plus + 1e-3]
+        self.assertTrue(flange_zs)
+        self.assertGreater(min(flange_zs), 0.0)
+        self.assertAlmostEqual(max(flange_zs), zmax, places=6)
+
+    def test_tapered_inner_flange_zero_matches_plain(self):
+        from uni_rolling_bearing import raceway
+
+        a = raceway.tapered_inner_ring_profile(
+            bore_d=20.0, shoulder_d=30.0, width=15.25,
+            contact_angle_rad=math.radians(14.0),
+        )
+        b = raceway.tapered_inner_ring_profile(
+            bore_d=20.0, shoulder_d=30.0, width=15.25,
+            contact_angle_rad=math.radians(14.0),
+            large_flange_height_mm=0.0,
+        )
+        self.assertEqual(a, b)
+
     def test_vgroove_outer_profile_has_groove(self):
         from uni_rolling_bearing import raceway
 
