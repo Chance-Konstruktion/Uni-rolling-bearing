@@ -67,6 +67,26 @@
   Rillenkugellager – die Reihe ist mechanisch ein Rillenkugellager mit
   zusätzlicher Außenrille.
 
+### Konformitätsfaktor als UI-Parameter (v0.9.1)
+- Neue Properties ``groove_conformity_inner`` (Default 0.58) und
+  ``groove_conformity_outer`` (Default 0.60) für Rillenkugellager und
+  SG-Reihe (VGROOVE).
+- Werden an ``raceway.ball_inner_ring_profile``,
+  ``raceway.ball_outer_ring_profile`` und
+  ``raceway.vgroove_outer_ring_profile`` durchgereicht und als Metadaten
+  ``groove_conformity_inner/_outer`` am Bearing-Empty hinterlegt.
+- UI: Im Wälzkörper-Abschnitt nur sichtbar bei BALL/VGROOVE. Bereich
+  0.51–0.70 deckt reale Lager (0.515–0.535) und visualisierungsfreundliche
+  Werte ab.
+
+### Detailliertes Fehlerfeedback (v0.9.0)
+- Geometrie-Resolver liefert nun konkrete Korrekturvorschläge mit Zahlen
+  (max. zulässige Ringstärke, max. Lagerluft, max. Wälzkörper-Ø/-anzahl)
+  statt rein generischer Meldungen.
+- Operator-Reports (Auto-Berechnen, Preset-Übernahme, Erstellen) geben
+  Hinweise auf konkrete nächste Schritte (z. B. „Auto-Fit aktivieren",
+  „Reihen-Code wechseln").
+
 ### Echte Laufbahnen (v0.6.0)
 - Neues Modul ``raceway.py`` mit typspezifischen Querschnittsprofilen, das
   per Z-Achsen-Revolution zu manifold Ringen vermesht wird.
@@ -92,7 +112,6 @@
      vorliegen.
 
 2. **Laufbahnen weiter verfeinern**
-   - Konformitätsfaktor (Rille) als UI-Parameter exponieren.
    - Pendelrollen: Innenring mit zwei separaten Laufbahnen (heute zylindrisch).
    - Kegelrollen: Bord am Innenring (große Stirnseite) ergänzen.
 
@@ -101,9 +120,6 @@
    - Optionale Schnapp-/Ribbon-Bauarten (zwei vernietete Halbringe) zusätzlich
      zum aktuellen Sleeve-Käfig.
    - Pocket-Spiel als UI-Parameter exponieren (heute Konstante).
-
-4. **Fehlerfeedback erweitern**
-   - Detailliertere UI-Meldungen mit konkreten Korrekturvorschlägen.
 
 ---
 

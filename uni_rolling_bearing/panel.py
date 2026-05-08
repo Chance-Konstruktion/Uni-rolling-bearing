@@ -97,6 +97,11 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
             rollers.prop(props, "vgroove_depth_mm")
             rollers.prop(props, "vgroove_half_angle_deg")
 
+        if props.bearing_type in (constants.BALL, constants.VGROOVE):
+            conformity = rollers.column(align=True)
+            conformity.prop(props, "groove_conformity_inner")
+            conformity.prop(props, "groove_conformity_outer")
+
         preview = _section_header(layout, "5) Plausibilitäts-Check", "uni_bearing.info_check")
         spec, error = safe_resolve_geometry(props)
         if error or spec is None:

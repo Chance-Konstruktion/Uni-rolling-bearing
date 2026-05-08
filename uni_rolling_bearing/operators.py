@@ -332,6 +332,7 @@ def _inner_ring_profile(props, spec: ResolvedBearing):
             width=props.width,
             ball_d=spec.roller_d,
             pitch_d=spec.pitch_d,
+            conformity=props.groove_conformity_inner,
         )
     if bt == constants.TAPERED:
         return raceway.tapered_inner_ring_profile(
@@ -359,6 +360,7 @@ def _outer_ring_profile(props, spec: ResolvedBearing):
             width=props.width,
             ball_d=spec.roller_d,
             pitch_d=spec.pitch_d,
+            conformity=props.groove_conformity_outer,
         )
     if bt == constants.VGROOVE:
         depth = props.vgroove_depth_mm if props.vgroove_depth_mm > 0.0 else None
@@ -370,6 +372,7 @@ def _outer_ring_profile(props, spec: ResolvedBearing):
             pitch_d=spec.pitch_d,
             groove_depth=depth,
             groove_half_angle_rad=math.radians(props.vgroove_half_angle_deg),
+            conformity=props.groove_conformity_outer,
         )
     if bt in (constants.CYLINDRICAL, constants.NEEDLE):
         return raceway.cylindrical_outer_ring_profile(
@@ -586,7 +589,12 @@ class UNI_OT_apply_series_preset(bpy.types.Operator):
         props = context.scene.uni_bearing
         preset = constants.SERIES_PRESETS.get(props.bearing_type, {}).get(props.series_code)
         if not preset:
-            self.report({"WARNING"}, "Kein Preset für die aktuelle Auswahl hinterlegt.")
+            self.report(
+                {"WARNING"},
+                f"Kein Preset '{props.series_code}' für Lagertyp "
+                f"'{props.bearing_type}' hinterlegt. Bitte anderen Reihen-Code "
+                f"wählen oder Hauptmaße manuell eingeben.",
+            )
             return {"CANCELLED"}
         bore, outer, width = preset
         props.bore_diameter = bore
@@ -612,7 +620,12 @@ class UNI_OT_auto_calculate(bpy.types.Operator):
     def execute(self, context):
         props = context.scene.uni_bearing
         if props.bore_diameter >= props.outer_diameter:
-            self.report({"ERROR"}, "Innendurchmesser muss kleiner als Außendurchmesser sein.")
+            self.report(
+                {"ERROR"},
+                f"Innendurchmesser ({props.bore_diameter:.2f} mm) muss kleiner "
+                f"als Außendurchmesser ({props.outer_diameter:.2f} mm) sein. "
+                f"Vorschlag: d auf < {props.outer_diameter:.2f} mm setzen.",
+            )
             return {"CANCELLED"}
         apply_suggested_defaults(props)
         self.report(
@@ -662,6 +675,9 @@ class UNI_OT_create_bearing(bpy.types.Operator):
         if props.bearing_type == constants.VGROOVE:
             assembly["vgroove_depth_mm"] = props.vgroove_depth_mm
             assembly["vgroove_half_angle_deg"] = props.vgroove_half_angle_deg
+        if props.bearing_type in (constants.BALL, constants.VGROOVE):
+            assembly["groove_conformity_inner"] = props.groove_conformity_inner
+            assembly["groove_conformity_outer"] = props.groove_conformity_outer
 
         if non_manifold > 0:
             self.report(

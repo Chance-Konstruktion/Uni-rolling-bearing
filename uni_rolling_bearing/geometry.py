@@ -111,22 +111,37 @@ def resolve_geometry(
     Mit ``auto_fit=True`` werden unplausible Werte stillschweigend korrigiert.
     """
     if bore_diameter >= outer_diameter:
-        return None, "Innendurchmesser muss kleiner als Außendurchmesser sein."
+        return None, (
+            f"Innendurchmesser ({bore_diameter:.2f} mm) muss kleiner als "
+            f"Außendurchmesser ({outer_diameter:.2f} mm) sein. "
+            f"Vorschlag: d auf < {outer_diameter:.2f} mm setzen oder D erhöhen."
+        )
 
     dims = compute_dims(bore_diameter, outer_diameter, ring_thickness)
     if dims.radial_space <= 0.0:
-        return None, "Ringstärke/Abmessungen erzeugen keinen Laufbahnspalt."
+        max_thickness = (outer_diameter - bore_diameter) * 0.45
+        return None, (
+            f"Ringstärke ({ring_thickness:.2f} mm) lässt keinen Laufbahnspalt. "
+            f"Vorschlag: Ringstärke auf ≤ {max_thickness:.2f} mm reduzieren."
+        )
 
     usable_space = dims.radial_space - 2.0 * radial_clearance
     if usable_space <= MIN_USABLE_SPACE_MM:
-        return None, "Zu wenig Platz zwischen den Ringen nach Abzug der Lagerluft."
+        max_clearance = max(0.0, (dims.radial_space - MIN_USABLE_SPACE_MM) * 0.5)
+        return None, (
+            f"Nach Abzug der Lagerluft ({radial_clearance:.3f} mm) bleibt nur "
+            f"{usable_space:.3f} mm Wälzkörperraum. "
+            f"Vorschlag: Lagerluft auf ≤ {max_clearance:.3f} mm reduzieren "
+            f"oder Ringstärke verkleinern."
+        )
 
     max_roller_d = usable_space * ROLLER_SAFETY_FRACTION
     if roller_diameter > max_roller_d:
         if not auto_fit:
             return None, (
                 f"Wälzkörper-Ø ({roller_diameter:.2f} mm) ist zu groß. "
-                f"Maximal zulässig: {max_roller_d:.2f} mm."
+                f"Vorschlag: Wälzkörper-Ø auf ≤ {max_roller_d:.2f} mm setzen "
+                f"oder Auto-Fit aktivieren."
             )
         roller_d = max_roller_d
     else:
@@ -143,8 +158,10 @@ def resolve_geometry(
     if element_count > max_count:
         if not auto_fit:
             return None, (
-                f"Zu viele Wälzkörper ({element_count}). "
-                f"Maximal zulässig: {max_count} für aktuellen Pitch/Ø."
+                f"Zu viele Wälzkörper ({element_count}) für Teilkreis "
+                f"Ø{pitch_d:.2f} mm und Wälzkörper-Ø {roller_d:.2f} mm. "
+                f"Vorschlag: Anzahl auf ≤ {max_count} reduzieren, "
+                f"Wälzkörper-Ø verkleinern oder Auto-Fit aktivieren."
             )
         resolved_count = max_count
     else:
