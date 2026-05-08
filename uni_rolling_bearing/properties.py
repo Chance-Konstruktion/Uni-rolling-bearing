@@ -190,6 +190,32 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         max=80.0,
     )
 
+    groove_conformity_inner: FloatProperty(
+        name="Konformität f_i (Innenring)",
+        description=(
+            "Nur Kugellager (Standard und SG-Reihe): Verhältnis Rillenradius "
+            "zu Kugel-Ø am Innenring (f_i = r_groove / d_ball). Reale Lager "
+            "liegen bei 0.515–0.535 (engerer Bogen = höhere Tragzahl, mehr "
+            "Reibung). Default 0.58 ist visualisierungsoptimiert."
+        ),
+        default=0.58,
+        min=0.51,
+        max=0.70,
+        precision=3,
+    )
+    groove_conformity_outer: FloatProperty(
+        name="Konformität f_o (Außenring)",
+        description=(
+            "Nur Kugellager (Standard und SG-Reihe): Verhältnis Rillenradius "
+            "zu Kugel-Ø am Außenring (f_o = r_groove / d_ball). Traditionell "
+            "etwas größer als f_i. Default 0.60."
+        ),
+        default=0.60,
+        min=0.51,
+        max=0.70,
+        precision=3,
+    )
+
     contact_angle_deg: FloatProperty(
         name="Kontaktwinkel α [°]",
         description=(
