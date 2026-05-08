@@ -10,6 +10,7 @@ CYLINDRICAL = "CYLINDRICAL"
 NEEDLE = "NEEDLE"
 TAPERED = "TAPERED"
 SPHERICAL = "SPHERICAL"
+VGROOVE = "VGROOVE"
 
 BEARING_TYPES = [
     (BALL, "Kugellager", "Rillenkugellager nach DIN 625 / ISO 15"),
@@ -17,6 +18,7 @@ BEARING_TYPES = [
     (NEEDLE, "Nadellager", "Nadellager nach DIN 617 / ISO 15 Maßreihen"),
     (TAPERED, "Kegelrollenlager", "Kegelrollenlager nach DIN 720 / ISO 355"),
     (SPHERICAL, "Tonnenlager", "Pendelrollenlager (Tonnenlager) nach DIN 635 / ISO 15"),
+    (VGROOVE, "U-Rillen-Kugellager (SG)", "Führungsrollen-Kugellager mit V-/U-Rille am Außenring (SG/W-Reihe)"),
 ]
 
 PRECISION_CLASSES = [
@@ -49,6 +51,19 @@ SERIES_PRESETS: Dict[str, Dict[str, Tuple[float, float, float]]] = {
         "22206": (30.0, 62.0, 20.0),
         "22210": (50.0, 90.0, 23.0),
     },
+    # U-/V-Rillen-Führungsrollen-Kugellager (SG- bzw. W-Reihe).
+    # Hauptmaße orientieren sich an handelsüblichen Katalogwerten der
+    # Bishop-Wisecarver "DualVee"-/Misumi "SG"-Familien (d, D, B in mm).
+    # Die Rille selbst sitzt im Außenmantel des Außenrings; Innenmaße
+    # entsprechen einem Standard-Rillenkugellager.
+    VGROOVE: {
+        "SG10": (4.0, 13.0, 6.0),
+        "SG15": (5.0, 17.0, 8.0),
+        "SG20": (6.0, 24.0, 11.0),
+        "SG25": (8.0, 30.73, 11.1),
+        "SG35": (12.0, 45.72, 15.88),
+        "SG66": (15.0, 62.0, 20.0),
+    },
 }
 
 # Normhinweis, der als Metadatum am erzeugten Assembly gespeichert wird.
@@ -58,6 +73,7 @@ NORM_HINTS: Dict[str, str] = {
     NEEDLE: "DIN 617 / ISO 15 (Preset-basiert)",
     TAPERED: "DIN 720 / ISO 355 (Preset-basiert)",
     SPHERICAL: "DIN 635 / ISO 15 (Preset-basiert)",
+    VGROOVE: "Führungsrolle SG/W-Reihe (Hersteller-Katalogwerte)",
 }
 
 # Anteil der Lagerbreite, der von der Wälzkörperlänge ausgefüllt wird.
@@ -77,6 +93,9 @@ TYPE_RING_THICKNESS_RATIO: Dict[str, float] = {
     NEEDLE: 1.0 / 12.0,
     TAPERED: 1.0 / 6.0,
     SPHERICAL: 1.0 / 6.0,
+    # SG-Führungsrollen sind klein gebaut – gleiche Wandstärke-Faustregel wie
+    # bei Standard-Rillenkugellagern, sonst bleibt für die Kugel kein Spalt.
+    VGROOVE: 1.0 / 6.0,
 }
 
 # Empfohlener Anteil des nutzbaren Radial-Spalts, den der Wälzkörper-Ø
@@ -90,6 +109,7 @@ TYPE_ROLLER_FILL: Dict[str, float] = {
     NEEDLE: 0.88,
     TAPERED: 0.62,
     SPHERICAL: 0.70,
+    VGROOVE: 0.92,
 }
 
 # Ziel-Umfangsspalt-Faktor pro Typ (relative Lücke zwischen Wälzkörpern auf
@@ -100,4 +120,5 @@ TYPE_GAP_FACTOR: Dict[str, float] = {
     NEEDLE: 0.06,
     TAPERED: 0.10,
     SPHERICAL: 0.10,
+    VGROOVE: 0.12,
 }
