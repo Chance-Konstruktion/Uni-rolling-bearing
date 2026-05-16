@@ -15,6 +15,7 @@ from .geometry import (
     suggest_defaults,
     tapered_apex_z,
 )
+from .tolerances import apply_tolerances
 
 
 # Blender-Skalierung: UI in mm, Szene in m.
@@ -50,12 +51,24 @@ def apply_suggested_defaults(props) -> None:
         _AUTO_RECOMPUTE_GUARD = False
 
 
+def _effective_dims(props):
+    """Wendet ISO-492-Toleranzklasse und gewählte Toleranzlage auf d/D/B an."""
+    return apply_tolerances(
+        bore_diameter_mm=props.bore_diameter,
+        outer_diameter_mm=props.outer_diameter,
+        width_mm=props.width,
+        precision_class=props.precision_class,
+        position=getattr(props, "tolerance_position", "MEAN"),
+    )
+
+
 def _props_to_resolve_kwargs(props) -> dict:
+    eff = _effective_dims(props)
     return dict(
         bearing_type=props.bearing_type,
-        bore_diameter=props.bore_diameter,
-        outer_diameter=props.outer_diameter,
-        width=props.width,
+        bore_diameter=eff.bore_diameter,
+        outer_diameter=eff.outer_diameter,
+        width=eff.width,
         ring_thickness=props.ring_thickness,
         roller_diameter=props.roller_diameter,
         element_count=props.element_count,
@@ -153,16 +166,30 @@ def _build_rolling_elements(props, spec: ResolvedBearing, collection):
             )
             obj.rotation_euler[2] = a
         elif props.bearing_type == constants.SPHERICAL:
-            obj = mesh_builders.add_barrel_roller(
-                f"BarrelRoller_{i + 1:02d}",
-                radius_mid=roller_r,
-                radius_end=roller_r * 0.78,
-                length=spec.roller_length,
-                location=position,
-                segments=max(12, segments // 2),
-                collection=collection,
+            # Zweireihig (DIN 635-2): jede Position erzeugt zwei Rollen
+            # symmetrisch um z=0, jeweils um ±α gekippt.
+            alpha = math.radians(float(getattr(props, "spherical_contact_angle_deg", 10.0)))
+            row_z = raceway.spherical_inner_row_z(
+                _effective_dims(props).width, spec.roller_length, alpha
             )
-            obj.rotation_euler[2] = a
+            for sign, label in ((-1, "A"), (+1, "B")):
+                pos = (position[0], position[1], sign * row_z)
+                row_obj = mesh_builders.add_barrel_roller(
+                    f"BarrelRoller_{i + 1:02d}{label}",
+                    radius_mid=roller_r,
+                    radius_end=roller_r * 0.78,
+                    length=spec.roller_length,
+                    location=pos,
+                    segments=max(12, segments // 2),
+                    collection=collection,
+                )
+                row_obj.rotation_euler[2] = a
+                # Tonnen kippen radial nach außen → kleine Stirn zur Lagermitte.
+                row_obj.rotation_euler[1] = -sign * alpha
+                elements.append(row_obj)
+            # Erste obj-Variable überspringen; wir haben bereits über elements
+            # erweitert und brauchen kein zusätzliches Element.
+            continue
         else:
             raise ValueError(f"Unbekannter Lagertyp: {props.bearing_type}")
 
@@ -328,11 +355,12 @@ def _build_cage(props, spec: ResolvedBearing, cage: CageDims, collection):
 def _inner_ring_profile(props, spec: ResolvedBearing):
     """Wählt das passende Innenring-Querschnittsprofil je Lagertyp."""
     bt = props.bearing_type
+    eff = _effective_dims(props)
     if bt in (constants.BALL, constants.VGROOVE):
         return raceway.ball_inner_ring_profile(
-            bore_d=props.bore_diameter,
+            bore_d=eff.bore_diameter,
             shoulder_d=spec.inner_outer_d,
-            width=props.width,
+            width=eff.width,
             ball_d=spec.roller_d,
             pitch_d=spec.pitch_d,
             conformity=props.groove_conformity_inner,
@@ -342,35 +370,48 @@ def _inner_ring_profile(props, spec: ResolvedBearing):
         # Bordhöhe so begrenzen, dass der Bord die Außenlaufbahn nicht berührt.
         flange_h = max(0.0, float(getattr(props, "tapered_flange_height_mm", 0.0)))
         if flange_h > 0.0:
-            half_w = props.width * 0.5
+            half_w = eff.width * 0.5
             delta = math.tan(math.radians(max(0.0, props.contact_angle_deg))) * half_w
             r_plus = spec.inner_outer_d * 0.5 + delta
             max_flange = max(0.0, spec.outer_inner_d * 0.5 - r_plus - props.radial_clearance)
             flange_h = min(flange_h, max_flange)
         return raceway.tapered_inner_ring_profile(
-            bore_d=props.bore_diameter,
+            bore_d=eff.bore_diameter,
             shoulder_d=spec.inner_outer_d,
-            width=props.width,
+            width=eff.width,
             contact_angle_rad=math.radians(props.contact_angle_deg),
             large_flange_height_mm=flange_h,
         )
-    # Zylinder-, Nadel- und Pendelrollenlager nutzen einen einfachen
-    # zylindrischen Innenring (Bord/Sphäre liegen jeweils am Außenring).
+    if bt == constants.SPHERICAL:
+        return raceway.spherical_inner_ring_profile(
+            bore_d=eff.bore_diameter,
+            shoulder_d=spec.inner_outer_d,
+            width=eff.width,
+            pitch_d=spec.pitch_d,
+            roller_d=spec.roller_d,
+            roller_length=spec.roller_length,
+            contact_angle_rad=math.radians(
+                float(getattr(props, "spherical_contact_angle_deg", 10.0))
+            ),
+        )
+    # Zylinder- und Nadellager nutzen einen einfachen zylindrischen Innenring
+    # (Bord liegt am Außenring).
     return raceway.cylindrical_inner_ring_profile(
-        bore_d=props.bore_diameter,
+        bore_d=eff.bore_diameter,
         shoulder_d=spec.inner_outer_d,
-        width=props.width,
+        width=eff.width,
     )
 
 
 def _outer_ring_profile(props, spec: ResolvedBearing):
     """Wählt das passende Außenring-Querschnittsprofil je Lagertyp."""
     bt = props.bearing_type
+    eff = _effective_dims(props)
     if bt == constants.BALL:
         return raceway.ball_outer_ring_profile(
             shoulder_d=spec.outer_inner_d,
-            outer_d=props.outer_diameter,
-            width=props.width,
+            outer_d=eff.outer_diameter,
+            width=eff.width,
             ball_d=spec.roller_d,
             pitch_d=spec.pitch_d,
             conformity=props.groove_conformity_outer,
@@ -380,8 +421,8 @@ def _outer_ring_profile(props, spec: ResolvedBearing):
         depth = props.vgroove_depth_mm if props.vgroove_depth_mm > 0.0 else None
         return raceway.vgroove_outer_ring_profile(
             shoulder_d=spec.outer_inner_d,
-            outer_d=props.outer_diameter,
-            width=props.width,
+            outer_d=eff.outer_diameter,
+            width=eff.width,
             ball_d=spec.roller_d,
             pitch_d=spec.pitch_d,
             groove_depth=depth,
@@ -392,31 +433,31 @@ def _outer_ring_profile(props, spec: ResolvedBearing):
     if bt in (constants.CYLINDRICAL, constants.NEEDLE):
         return raceway.cylindrical_outer_ring_profile(
             shoulder_d=spec.outer_inner_d,
-            outer_d=props.outer_diameter,
-            width=props.width,
+            outer_d=eff.outer_diameter,
+            width=eff.width,
             roller_length=spec.roller_length,
             roller_d=spec.roller_d,
         )
     if bt == constants.TAPERED:
         return raceway.tapered_outer_ring_profile(
             shoulder_d=spec.outer_inner_d,
-            outer_d=props.outer_diameter,
-            width=props.width,
+            outer_d=eff.outer_diameter,
+            width=eff.width,
             contact_angle_rad=math.radians(props.contact_angle_deg),
         )
     if bt == constants.SPHERICAL:
         return raceway.spherical_outer_ring_profile(
             shoulder_d=spec.outer_inner_d,
-            outer_d=props.outer_diameter,
-            width=props.width,
+            outer_d=eff.outer_diameter,
+            width=eff.width,
             pitch_d=spec.pitch_d,
             roller_d=spec.roller_d,
         )
     # Fallback: einfacher Hohlzylinder.
     return raceway.cylindrical_outer_ring_profile(
         shoulder_d=spec.outer_inner_d,
-        outer_d=props.outer_diameter,
-        width=props.width,
+        outer_d=eff.outer_diameter,
+        width=eff.width,
         roller_length=spec.roller_length,
         roller_d=spec.roller_d,
     )
@@ -450,7 +491,7 @@ def _build_bearing(props, spec: ResolvedBearing, collection):
             pitch_d=spec.pitch_d,
             roller_d=spec.roller_d,
             roller_length=spec.roller_length,
-            width=props.width,
+            width=_effective_dims(props).width,
             element_count=spec.element_count,
             inner_race_d=spec.inner_outer_d,
             outer_race_d=spec.outer_inner_d,
@@ -519,7 +560,8 @@ class UNI_OT_info_normen(_UNI_InfoPopupBase):
         "Norm-Bezugssystem (Stand v0.5):\n"
         "• DIN ISO 15 / DIN 616 – Hauptmaßreihen (d, D, B).\n"
         "• DIN 623 – Bezeichnungssystem (z. B. 6204, 30206, 22210).\n"
-        "• ISO 492 / DIN 620 – Toleranzklassen (Normal, P6, P5, P4).\n"
+        "• ISO 492 / DIN 620 – Toleranzklassen (Normal, P6, P5, P4) – \n"
+        "  werden über 'Toleranzlage' (oberes/Mitten-/unteres Maß) in d, D, B umgerechnet.\n"
         "• ISO 5753 / DIN 620 – Lagerluftgruppen (C0, C2, C3, ...).\n"
         "• ISO 281 / ISO 76 – dynamische/statische Tragzahl (geplant).\n"
         "Presets enthalten nur d/D/B; abgeleitete Werte (Wälzkörper-Ø, "
@@ -675,6 +717,14 @@ class UNI_OT_create_bearing(bpy.types.Operator):
         assembly["bearing_type"] = props.bearing_type
         assembly["norm_hint"] = constants.NORM_HINTS.get(props.bearing_type, "")
         assembly["precision_class"] = props.precision_class
+        assembly["tolerance_position"] = props.tolerance_position
+        eff = _effective_dims(props)
+        assembly["bore_deviation_um"] = round(eff.bore_offset_um, 3)
+        assembly["od_deviation_um"] = round(eff.od_offset_um, 3)
+        assembly["width_deviation_um"] = round(eff.width_offset_um, 3)
+        assembly["effective_bore_mm"] = eff.bore_diameter
+        assembly["effective_outer_mm"] = eff.outer_diameter
+        assembly["effective_width_mm"] = eff.width
         assembly["radial_clearance_mm"] = props.radial_clearance
         assembly["resolved_roller_d_mm"] = spec.roller_d
         assembly["resolved_element_count"] = spec.element_count

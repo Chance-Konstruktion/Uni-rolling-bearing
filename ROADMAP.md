@@ -139,7 +139,8 @@
      vorliegen.
 
 2. **Laufbahnen weiter verfeinern**
-   - Pendelrollen: Innenring mit zwei separaten Laufbahnen (heute zylindrisch).
+   - ✅ Pendelrollen: Innenring mit zwei separaten Laufbahnen + Mittelbord
+     (``spherical_inner_ring_profile``); zwei Rollenreihen unter Kontaktwinkel α.
 
 3. **Käfig-Ausbaustufe**
    - Optionale Schnapp-/Ribbon-Bauarten (zwei vernietete Halbringe) zusätzlich
@@ -154,7 +155,9 @@
    - Auswahl nach Reihe + Bohrungskennzahl.
 
 2. **Toleranzen / Passungen**
-   - ISO 492-/DIN 620-Toleranzfenster in Geometrie umsetzen.
+   - ✅ ISO 492-/DIN 620-Toleranzfenster werden in d, D, B umgerechnet
+     (``tolerances.py``); Klassen NORMAL/P6/P5/P4 + Toleranzlage MAX/MEAN/MIN.
+     Abweichungen werden in µm am Bearing-Empty hinterlegt.
    - Passungen für Welle/Gehäuse (DIN 5418-orientiert).
 
 3. **Technische Kennwerte**
