@@ -604,6 +604,88 @@ class TestRacewayProfiles(unittest.TestCase):
         rs_at_od = [z for r, z in profile if abs(r - 6.5) < 1e-6]
         self.assertEqual(len(rs_at_od), 2)
 
+    def test_ball_inner_chamfer_replaces_bore_corners(self):
+        from uni_rolling_bearing import raceway
+
+        c = 0.6
+        profile = raceway.ball_inner_ring_profile(
+            bore_d=20.0, shoulder_d=29.0, width=14.0, ball_d=5.2, pitch_d=33.5,
+            chamfer_mm=c,
+        )
+        self.assertTrue(_is_simple_closed_profile(profile))
+        # Klassische scharfe Bohrungs-Ecken (10.0, ±7.0) dürfen nicht mehr vorkommen.
+        sharp_corners = [(r, z) for r, z in profile
+                         if abs(r - 10.0) < 1e-9 and abs(abs(z) - 7.0) < 1e-9]
+        self.assertEqual(sharp_corners, [])
+        # Fasen-Endpunkte: (bore_r, ±(half_w - c)) und (bore_r + c, ±half_w).
+        self.assertTrue(any(abs(r - 10.0) < 1e-9 and abs(z - (-7.0 + c)) < 1e-9 for r, z in profile))
+        self.assertTrue(any(abs(r - (10.0 + c)) < 1e-9 and abs(z - (-7.0)) < 1e-9 for r, z in profile))
+        # Bohrungs-Innenfläche bleibt auf r=bore_r, Schulter unverändert.
+        self.assertAlmostEqual(min(r for r, _ in profile), 10.0, places=6)
+        self.assertAlmostEqual(max(r for r, _ in profile), 14.5, places=6)
+
+    def test_ball_outer_chamfer_replaces_od_corners(self):
+        from uni_rolling_bearing import raceway
+
+        c = 0.6
+        profile = raceway.ball_outer_ring_profile(
+            shoulder_d=38.0, outer_d=47.0, width=14.0, ball_d=5.2, pitch_d=33.5,
+            chamfer_mm=c,
+        )
+        self.assertTrue(_is_simple_closed_profile(profile))
+        # Klassische scharfe OD-Ecken (23.5, ±7.0) dürfen nicht mehr vorkommen.
+        sharp_corners = [(r, z) for r, z in profile
+                         if abs(r - 23.5) < 1e-9 and abs(abs(z) - 7.0) < 1e-9]
+        self.assertEqual(sharp_corners, [])
+        # Fasen-Endpunkte vorhanden.
+        self.assertTrue(any(abs(r - (23.5 - c)) < 1e-9 and abs(z - (-7.0)) < 1e-9 for r, z in profile))
+        self.assertTrue(any(abs(r - 23.5) < 1e-9 and abs(z - (-7.0 + c)) < 1e-9 for r, z in profile))
+
+    def test_chamfer_zero_matches_plain_profile(self):
+        # chamfer_mm=0 muss exakt das alte Profil reproduzieren.
+        from uni_rolling_bearing import raceway
+
+        for fn, kwargs in (
+            (raceway.ball_inner_ring_profile,
+             dict(bore_d=20.0, shoulder_d=29.0, width=14.0, ball_d=5.2, pitch_d=33.5)),
+            (raceway.ball_outer_ring_profile,
+             dict(shoulder_d=38.0, outer_d=47.0, width=14.0, ball_d=5.2, pitch_d=33.5)),
+        ):
+            self.assertEqual(fn(**kwargs), fn(**kwargs, chamfer_mm=0.0))
+
+    def test_chamfer_clamped_when_too_large(self):
+        # Übergroße Fase (10 mm) bei Mini-Lager (SG10) muss heruntergeclampt
+        # werden, statt die Bohrung „aufzufressen“ oder die Geometrie zu kippen.
+        from uni_rolling_bearing import raceway
+
+        profile = raceway.ball_inner_ring_profile(
+            bore_d=4.0, shoulder_d=7.0, width=6.0, ball_d=1.3, pitch_d=8.5,
+            chamfer_mm=10.0,
+        )
+        self.assertTrue(_is_simple_closed_profile(profile))
+        # Bohrungs-Innenfläche bleibt auf r=2.0, Schulter bei r=3.5.
+        self.assertAlmostEqual(min(r for r, _ in profile), 2.0, places=6)
+        self.assertAlmostEqual(max(r for r, _ in profile), 3.5, places=6)
+        # Maximal genutzte Fase = 0.45 × min(wall=1.5, half_w=3.0) = 0.675.
+        max_chamfer_axial = 3.0 - min(abs(z) for r, z in profile if abs(r - 2.0) < 1e-6)
+        self.assertLessEqual(max_chamfer_axial, 0.675 + 1e-6)
+
+    def test_vgroove_chamfer_does_not_collide_with_v_groove(self):
+        from uni_rolling_bearing import raceway
+
+        c = 0.5
+        profile = raceway.vgroove_outer_ring_profile(
+            shoulder_d=10.0, outer_d=13.0, width=6.0, ball_d=2.0, pitch_d=8.5,
+            chamfer_mm=c,
+        )
+        self.assertTrue(_is_simple_closed_profile(profile))
+        # Außenkanten gefast: (6.5, ±3.0) darf nicht auftauchen.
+        sharp = [(r, z) for r, z in profile
+                 if abs(r - 6.5) < 1e-9 and abs(abs(z) - 3.0) < 1e-9]
+        self.assertEqual(sharp, [])
+        # V-Rille bleibt erhalten: Mantelpunkt zwischen Schulter und OD bei z≈0.
+        self.assertTrue(any(5.0 + 1e-3 < r < 6.5 - 1e-3 for r, z in profile if abs(z) < 0.1))
+
     def test_spherical_outer_profile_is_curved(self):
         from uni_rolling_bearing import raceway
 

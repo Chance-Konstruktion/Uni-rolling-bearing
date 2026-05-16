@@ -111,6 +111,22 @@
   ``tapered_flange_height_mm``, Default 1.0 mm). Höhe wird auf den verbleibenden
   Bauraum bis zur Außenlaufbahn (abzgl. Lagerluft) begrenzt.
 
+### Kantenfasen am Kugellager (v0.10.1)
+- Neue Property ``bearing_chamfer_mm`` (Default 0.3 mm) für Standard- und
+  SG-Kugellager: 45°-Fase nach DIN 620 / ISO 582 an Bohrung (Innenring) und
+  Außenmantel (Außenring), bei VGROOVE links/rechts der V-Rille.
+- Fase wird in ``raceway.ball_inner_ring_profile``,
+  ``raceway.ball_outer_ring_profile`` und
+  ``raceway.vgroove_outer_ring_profile`` direkt ins Querschnittsprofil
+  eingebaut – kein nachträglicher Bevel-Modifier nötig, der Ring bleibt
+  manifold.
+- Bei zu wenig Bauraum (sehr dünne Wand, sehr schmales Lager, V-Rille frisst
+  den Flachstirn auf) wird die Fase automatisch auf 45 % des verfügbaren
+  Bauraums geclampt; ``0`` lässt die Kante scharf.
+- Wert wird als Metadatum ``bearing_chamfer_mm`` am Bearing-Empty hinterlegt.
+- Build-Skript ``build_addon_zip.py`` wiederhergestellt (war versehentlich
+  gelöscht, README verwies aber weiter darauf).
+
 ---
 
 ## Als Nächstes (kurzfristig) 🟡

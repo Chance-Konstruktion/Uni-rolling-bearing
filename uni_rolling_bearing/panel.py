@@ -106,6 +106,7 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
             conformity = rollers.column(align=True)
             conformity.prop(props, "groove_conformity_inner")
             conformity.prop(props, "groove_conformity_outer")
+            conformity.prop(props, "bearing_chamfer_mm")
 
         preview = _section_header(layout, "5) Plausibilitäts-Check", "uni_bearing.info_check")
         spec, error = safe_resolve_geometry(props)
