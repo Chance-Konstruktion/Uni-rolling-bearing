@@ -667,6 +667,103 @@ def spherical_outer_ring_profile(
     return _dedupe_profile(profile)
 
 
+def spherical_inner_ring_profile(
+    *,
+    bore_d: float,
+    shoulder_d: float,
+    width: float,
+    pitch_d: float,
+    roller_d: float,
+    roller_length: float,
+    contact_angle_rad: float = 0.0,
+    arc_segments: int = 16,
+) -> Profile:
+    """Innenring eines zweireihigen Pendelrollenlagers (DIN 635-2 / ISO 15).
+
+    Erzeugt zwei konkave Laufbahnen (je ein Sphärensegment) an den z-Halb-
+    Seiten, getrennt durch einen schmalen Mittelbord und flankiert von zwei
+    Endschultern. Die Laufbahnen sind so dimensioniert, dass die Tonnenrolle
+    (Länge ``roller_length``, Mittelradius ``roller_d/2``) in der jeweiligen
+    Mulde sitzt; der Mittelbord ragt nicht über die Schulter hinaus.
+
+    ``contact_angle_rad`` ist der Kontaktwinkel α (Rollenachse ↔ Lagerachse);
+    er steuert axial die Lage der Laufbahnmittelpunkte (z-Offset der Reihen).
+    """
+    bore_r = bore_d * 0.5
+    shoulder_r = shoulder_d * 0.5
+    half_w = width * 0.5
+    if shoulder_r - bore_r <= PROFILE_EPSILON or half_w <= PROFILE_EPSILON:
+        return _dedupe_profile(_hollow_cylinder_profile(bore_d, shoulder_d, width))
+
+    # Zwei Reihen: Mitten bei z = ±row_z, gekippt um α. Reale Pendelrollen-
+    # lager haben row_z ≈ B/4. Wir wählen das gleiche Verhältnis und passen
+    # bei großem α leicht an, damit die Reihen nicht über die Stirnflächen
+    # hinausragen.
+    row_z = max(half_w * 0.28, roller_length * 0.5 * math.cos(contact_angle_rad) * 0.55)
+    row_z = min(row_z, half_w * 0.55)
+
+    # Axiale Spanne der einzelnen Laufbahn (von Mittelbord-Rand bis End-
+    # schulter).
+    race_half_w = min(
+        row_z - PROFILE_EPSILON,
+        half_w - row_z - PROFILE_EPSILON,
+        roller_length * 0.5 * math.cos(contact_angle_rad) * 0.95,
+    )
+    race_half_w = max(0.05, race_half_w)
+
+    # Tiefe der Laufbahn (Konkavität): so dass der Boden tiefer liegt als die
+    # Schulter. Begrenzt durch die radiale Wandstärke.
+    wall = shoulder_r - bore_r
+    race_depth = max(0.05, min(wall * 0.40, roller_d * 0.12))
+    race_min_r = max(bore_r + 0.1, shoulder_r - race_depth)
+
+    # Sphärenradius des Laufbahnbogens. Aus race_depth und race_half_w
+    # rückgerechnet: R = (race_depth² + race_half_w²) / (2·race_depth).
+    R_race = (race_depth * race_depth + race_half_w * race_half_w) / (2.0 * race_depth)
+    # Mittelpunkt des Bogens liegt radial bei (race_min_r + R_race) und
+    # axial beim jeweiligen Reihenmittelpunkt ±row_z.
+    arc_center_r = race_min_r + R_race
+
+    def _race_arc(row_z_signed: float) -> Profile:
+        """Konkave Laufbahn als Sphärensegment um (arc_center_r, row_z_signed)."""
+        n = max(4, arc_segments)
+        pts: Profile = []
+        z_start = row_z_signed - race_half_w
+        z_end = row_z_signed + race_half_w
+        for i in range(n + 1):
+            t = i / n
+            z = z_start + (z_end - z_start) * t
+            dz = z - row_z_signed
+            r = arc_center_r - math.sqrt(max(0.0, R_race * R_race - dz * dz))
+            pts.append((r, z))
+        return pts
+
+    # Profil-Traversierung im Uhrzeigersinn (r,z): Bohrung unten → -z-Stirn →
+    # Endschulter -z → erste Laufbahn (-row_z) → Mittelbord (auf shoulder_r) →
+    # zweite Laufbahn (+row_z) → Endschulter +z → +z-Stirn → zurück zur Bohrung.
+    profile: Profile = [(bore_r, -half_w), (shoulder_r, -half_w)]
+    profile.append((shoulder_r, -row_z - race_half_w))
+    profile.extend(_race_arc(-row_z))
+    profile.append((shoulder_r, -row_z + race_half_w))
+    profile.append((shoulder_r, row_z - race_half_w))
+    profile.extend(_race_arc(row_z))
+    profile.append((shoulder_r, row_z + race_half_w))
+    profile.append((shoulder_r, half_w))
+    profile.append((bore_r, half_w))
+    return _dedupe_profile(profile)
+
+
+def spherical_inner_row_z(width: float, roller_length: float, contact_angle_rad: float) -> float:
+    """Axialer Mittelpunkt einer Pendelrollen-Reihe (positives z).
+
+    Identisch zur Berechnung in ``spherical_inner_ring_profile``; getrennt
+    exportiert, damit die Rollen-Platzierung beide Werte synchron hält.
+    """
+    half_w = width * 0.5
+    row_z = max(half_w * 0.28, roller_length * 0.5 * math.cos(contact_angle_rad) * 0.55)
+    return min(row_z, half_w * 0.55)
+
+
 __all__ = [
     "BALL_GROOVE_CONFORMITY_INNER",
     "BALL_GROOVE_CONFORMITY_OUTER",
@@ -674,6 +771,8 @@ __all__ = [
     "ball_outer_ring_profile",
     "cylindrical_inner_ring_profile",
     "cylindrical_outer_ring_profile",
+    "spherical_inner_ring_profile",
+    "spherical_inner_row_z",
     "spherical_outer_ring_profile",
     "tapered_inner_ring_profile",
     "tapered_outer_ring_profile",

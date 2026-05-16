@@ -704,5 +704,119 @@ class TestRacewayProfiles(unittest.TestCase):
         self.assertGreater(r_mid, r_edges + 0.1)
 
 
+class TestISO492Tolerances(unittest.TestCase):
+    def test_normal_class_bucket(self):
+        from uni_rolling_bearing.tolerances import window_for
+
+        # d=20 → Bucket >18,≤30 → Δdmp=-10µm; D=47 → Bucket >30,≤50 → ΔDmp=-11µm.
+        w = window_for("NORMAL", 20.0, 47.0, 14.0)
+        self.assertAlmostEqual(w.bore_lower_um, -10.0, places=3)
+        self.assertAlmostEqual(w.od_lower_um, -11.0, places=3)
+        self.assertAlmostEqual(w.width_lower_um, -120.0, places=3)
+
+    def test_higher_class_shrinks_window(self):
+        from uni_rolling_bearing.tolerances import window_for
+
+        n = window_for("NORMAL", 20.0, 47.0, 14.0)
+        p4 = window_for("P4", 20.0, 47.0, 14.0)
+        # P4 ≈ 30 % der Normal-Spanne.
+        self.assertAlmostEqual(p4.bore_lower_um / n.bore_lower_um, 0.30, places=4)
+        self.assertAlmostEqual(p4.od_lower_um / n.od_lower_um, 0.30, places=4)
+
+    def test_position_max_returns_nominal(self):
+        from uni_rolling_bearing.tolerances import apply_tolerances
+
+        eff = apply_tolerances(
+            bore_diameter_mm=20.0, outer_diameter_mm=47.0, width_mm=14.0,
+            precision_class="NORMAL", position="MAX",
+        )
+        self.assertEqual(eff.bore_diameter, 20.0)
+        self.assertEqual(eff.outer_diameter, 47.0)
+        self.assertEqual(eff.width, 14.0)
+
+    def test_position_min_applies_full_deviation(self):
+        from uni_rolling_bearing.tolerances import apply_tolerances
+
+        eff = apply_tolerances(
+            bore_diameter_mm=20.0, outer_diameter_mm=47.0, width_mm=14.0,
+            precision_class="NORMAL", position="MIN",
+        )
+        # -10 µm bzw. -11 µm bzw. -120 µm.
+        self.assertAlmostEqual(eff.bore_diameter, 20.0 - 0.010, places=6)
+        self.assertAlmostEqual(eff.outer_diameter, 47.0 - 0.011, places=6)
+        self.assertAlmostEqual(eff.width, 14.0 - 0.120, places=6)
+
+    def test_position_mean_halves_deviation(self):
+        from uni_rolling_bearing.tolerances import apply_tolerances
+
+        eff = apply_tolerances(
+            bore_diameter_mm=20.0, outer_diameter_mm=47.0, width_mm=14.0,
+            precision_class="NORMAL", position="MEAN",
+        )
+        self.assertAlmostEqual(eff.bore_diameter, 20.0 - 0.005, places=6)
+        self.assertAlmostEqual(eff.outer_diameter, 47.0 - 0.0055, places=6)
+
+    def test_p4_min_smaller_than_normal_min_effect(self):
+        from uni_rolling_bearing.tolerances import apply_tolerances
+
+        n = apply_tolerances(
+            bore_diameter_mm=20.0, outer_diameter_mm=47.0, width_mm=14.0,
+            precision_class="NORMAL", position="MIN",
+        )
+        p4 = apply_tolerances(
+            bore_diameter_mm=20.0, outer_diameter_mm=47.0, width_mm=14.0,
+            precision_class="P4", position="MIN",
+        )
+        # Engere Klasse → kleinere Abweichung → effektive Bohrung näher am Nennmaß.
+        self.assertGreater(p4.bore_diameter, n.bore_diameter)
+
+
+class TestSphericalInnerRingProfile(unittest.TestCase):
+    def test_profile_has_two_concave_raceways(self):
+        from uni_rolling_bearing import raceway
+
+        profile = raceway.spherical_inner_ring_profile(
+            bore_d=30.0, shoulder_d=42.0, width=20.0,
+            pitch_d=51.33, roller_d=4.67, roller_length=10.0,
+            contact_angle_rad=math.radians(10.0),
+        )
+        self.assertTrue(_is_simple_closed_profile(profile))
+        rs = [r for r, _ in profile]
+        zs = [z for _, z in profile]
+        # Schulter und Bohrung müssen die radialen Extreme sein.
+        self.assertAlmostEqual(min(rs), 15.0, places=6)
+        self.assertAlmostEqual(max(rs), 21.0, places=6)
+        self.assertAlmostEqual(min(zs), -10.0, places=6)
+        self.assertAlmostEqual(max(zs), 10.0, places=6)
+
+        # Es muss in JEDER Hälfte (z<0 und z>0) mindestens einen Profilpunkt
+        # geben, der unter der Schulter (r<21) und über der Bohrung (r>15) liegt
+        # – das sind die Laufbahnböden.
+        sub_shoulder_lower = [(r, z) for r, z in profile if z < -0.5 and r < 21.0 - 1e-3]
+        sub_shoulder_upper = [(r, z) for r, z in profile if z > 0.5 and r < 21.0 - 1e-3]
+        self.assertTrue(sub_shoulder_lower)
+        self.assertTrue(sub_shoulder_upper)
+
+    def test_profile_has_central_rib_at_shoulder(self):
+        from uni_rolling_bearing import raceway
+
+        profile = raceway.spherical_inner_ring_profile(
+            bore_d=30.0, shoulder_d=42.0, width=20.0,
+            pitch_d=51.33, roller_d=4.67, roller_length=10.0,
+            contact_angle_rad=math.radians(10.0),
+        )
+        # Zwischen den beiden Laufbahnen liegt der Mittelbord auf shoulder_r.
+        # Ein Punkt nahe z=0 muss auf der Schulter (r ≈ 21) sitzen.
+        near_center = [(r, z) for r, z in profile if abs(z) < 0.1]
+        self.assertTrue(any(abs(r - 21.0) < 1e-3 for r, z in near_center))
+
+    def test_row_z_consistent_with_profile(self):
+        from uni_rolling_bearing import raceway
+
+        z = raceway.spherical_inner_row_z(20.0, 10.0, math.radians(10.0))
+        self.assertGreater(z, 0.0)
+        self.assertLess(z, 10.0)  # < half_w
+
+
 if __name__ == "__main__":
     unittest.main()

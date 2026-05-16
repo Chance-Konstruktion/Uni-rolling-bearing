@@ -11,6 +11,7 @@ import bpy
 from bpy.props import BoolProperty, EnumProperty, FloatProperty, IntProperty
 
 from .constants import BEARING_TYPES, PRECISION_CLASSES, SERIES_PRESETS
+from .tolerances import TOLERANCE_POSITIONS
 
 
 def _series_items(self, _context):
@@ -269,6 +270,19 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         soft_max=5.0,
     )
 
+    spherical_contact_angle_deg: FloatProperty(
+        name="Pendel-Kontaktwinkel α [°]",
+        description=(
+            "Nur Pendelrollenlager: Kontaktwinkel der beiden Rollenreihen "
+            "(Rollenachse ↔ Lagerachse, DIN 635-2). Typische Werte 8–15° für "
+            "die 222xx-Reihe, 18–25° für die 223xx-Reihe. Steuert die axiale "
+            "Tragfähigkeit und den Abstand der beiden Laufbahnen am Innenring."
+        ),
+        default=10.0,
+        min=0.0,
+        max=30.0,
+    )
+
     contact_angle_deg: FloatProperty(
         name="Kontaktwinkel α [°]",
         description=(
@@ -297,12 +311,25 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
     precision_class: EnumProperty(
         name="Toleranzklasse",
         description=(
-            "Toleranzklasse nach ISO 492 / DIN 620. Wird derzeit nur als "
-            "Metadatum am Bearing-Empty hinterlegt; künftige Versionen sollen "
-            "die Maßtoleranzen direkt aus dieser Auswahl ableiten."
+            "Toleranzklasse nach ISO 492 / DIN 620. Verschiebt die effektiven "
+            "Hauptmaße d, D und B innerhalb der zugehörigen Toleranzfenster "
+            "(NORMAL: voll, P6: 70 %, P5: 50 %, P4: 30 %). Die Verschiebungen "
+            "fließen direkt in das erzeugte Mesh ein und werden als µm-"
+            "Abweichung am Bearing-Empty hinterlegt."
         ),
         items=PRECISION_CLASSES,
         default="NORMAL",
+    )
+    tolerance_position: EnumProperty(
+        name="Toleranzlage",
+        description=(
+            "Lage innerhalb des Toleranzfensters: Oberes Maß entspricht dem "
+            "Nennmaß (keine Abweichung), Mittenmaß rechnet mit der halben "
+            "unteren Abweichung, Unteres Maß mit der vollen unteren Abweichung "
+            "(Worst-Case-Verkleinerung von d, D, B)."
+        ),
+        items=TOLERANCE_POSITIONS,
+        default="MEAN",
     )
     radial_clearance: FloatProperty(
         name="Radiale Lagerluft [mm]",

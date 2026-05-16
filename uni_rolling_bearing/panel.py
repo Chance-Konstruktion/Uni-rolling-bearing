@@ -42,6 +42,24 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
 
         norms = _section_header(layout, "2) Normen & Presets", "uni_bearing.info_normen")
         norms.prop(props, "precision_class")
+        norms.prop(props, "tolerance_position")
+        from .tolerances import apply_tolerances
+        eff = apply_tolerances(
+            bore_diameter_mm=props.bore_diameter,
+            outer_diameter_mm=props.outer_diameter,
+            width_mm=props.width,
+            precision_class=props.precision_class,
+            position=props.tolerance_position,
+        )
+        if any(abs(x) > 0.0005 for x in (eff.bore_offset_um, eff.od_offset_um, eff.width_offset_um)):
+            norms.label(
+                text=(
+                    f"Δd={eff.bore_offset_um:+.1f} µm  "
+                    f"ΔD={eff.od_offset_um:+.1f} µm  "
+                    f"ΔB={eff.width_offset_um:+.1f} µm"
+                ),
+                icon="DRIVER_DISTANCE",
+            )
         norms.prop(props, "radial_clearance")
         norms.prop(props, "use_preset")
         if props.use_preset:
@@ -96,7 +114,8 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
             )
             rollers.prop(props, "tapered_flange_height_mm")
         elif props.bearing_type == constants.SPHERICAL:
-            rollers.label(text="Hinweis: Tonnenrollen werden erzeugt.")
+            rollers.label(text="Hinweis: Zweireihige Tonnenrollen (DIN 635-2).")
+            rollers.prop(props, "spherical_contact_angle_deg")
         elif props.bearing_type == constants.VGROOVE:
             rollers.label(text="Hinweis: V-Rille im Außenmantel (SG/W-Reihe).")
             rollers.prop(props, "vgroove_depth_mm")
