@@ -14,7 +14,6 @@ from .geometry import (
     resolve_geometry,
     suggest_defaults,
     tapered_apex_z,
-    validate_against_suggestion,
 )
 
 
@@ -337,6 +336,7 @@ def _inner_ring_profile(props, spec: ResolvedBearing):
             ball_d=spec.roller_d,
             pitch_d=spec.pitch_d,
             conformity=props.groove_conformity_inner,
+            chamfer_mm=props.bearing_chamfer_mm,
         )
     if bt == constants.TAPERED:
         # Bordhöhe so begrenzen, dass der Bord die Außenlaufbahn nicht berührt.
@@ -374,6 +374,7 @@ def _outer_ring_profile(props, spec: ResolvedBearing):
             ball_d=spec.roller_d,
             pitch_d=spec.pitch_d,
             conformity=props.groove_conformity_outer,
+            chamfer_mm=props.bearing_chamfer_mm,
         )
     if bt == constants.VGROOVE:
         depth = props.vgroove_depth_mm if props.vgroove_depth_mm > 0.0 else None
@@ -386,6 +387,7 @@ def _outer_ring_profile(props, spec: ResolvedBearing):
             groove_depth=depth,
             groove_half_angle_rad=math.radians(props.vgroove_half_angle_deg),
             conformity=props.groove_conformity_outer,
+            chamfer_mm=props.bearing_chamfer_mm,
         )
     if bt in (constants.CYLINDRICAL, constants.NEEDLE):
         return raceway.cylindrical_outer_ring_profile(
@@ -694,6 +696,7 @@ class UNI_OT_create_bearing(bpy.types.Operator):
         if props.bearing_type in (constants.BALL, constants.VGROOVE):
             assembly["groove_conformity_inner"] = props.groove_conformity_inner
             assembly["groove_conformity_outer"] = props.groove_conformity_outer
+            assembly["bearing_chamfer_mm"] = props.bearing_chamfer_mm
 
         if non_manifold > 0:
             self.report(

@@ -241,6 +241,21 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         precision=3,
     )
 
+    bearing_chamfer_mm: FloatProperty(
+        name="Kantenfase r_s [mm]",
+        description=(
+            "Nur Kugellager (Standard und SG-Reihe): 45°-Fase an Bohrungs- "
+            "und Außenring-Kanten nach DIN 620 / ISO 582. Typische Werte: "
+            "0.15 (SG10), 0.3 (kleine Lager), 0.6 (6204), 1.0 (6306), "
+            "1.5+ (große Lager). 0 = scharfe Kante. Wird bei zu wenig "
+            "Bauraum automatisch auf einen sicheren Wert gekürzt."
+        ),
+        default=0.30,
+        min=0.0,
+        soft_max=3.0,
+        precision=2,
+    )
+
     tapered_flange_height_mm: FloatProperty(
         name="Bord-Höhe Innenring [mm]",
         description=(

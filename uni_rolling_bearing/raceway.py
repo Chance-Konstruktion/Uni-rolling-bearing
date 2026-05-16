@@ -21,6 +21,11 @@ from typing import List, Tuple
 # Numerische Toleranz, unter der zwei Profil-Punkte als gleich gelten.
 PROFILE_EPSILON = 1.0e-6
 
+# Sicherheitsanteil des verfügbaren Bauraums, den eine Fase maximal einnehmen
+# darf (axial wie radial). 0.45 lässt mindestens 10 % Material zwischen
+# gegenüberliegenden Fasen bzw. zwischen Fase und Laufbahn stehen.
+CHAMFER_MAX_FRACTION = 0.45
+
 # Default-Konformitätsfaktoren f = r_groove / d_ball für Rillenkugellager.
 # Real bewegen sich Innen- und Außenring zwischen 0.515 und 0.535 (Eschmann/
 # Hasbargen/Weigand "Die Wälzlagerpraxis"). Hier liegen die Werte etwas höher,
@@ -98,6 +103,60 @@ def _hollow_cylinder_profile(
     ]
 
 
+def _clamp_chamfer(chamfer: float, *limits: float) -> float:
+    """Begrenzt eine Fase auf den verfügbaren Bauraum.
+
+    ``limits`` sind die freien Abstände (axial wie radial) an der Fase. Die
+    zurückgegebene Fase liegt zwischen 0 und ``CHAMFER_MAX_FRACTION`` × dem
+    kleinsten Limit. Negative Eingaben werden auf 0 gekürzt.
+    """
+    c = max(0.0, float(chamfer))
+    if c <= PROFILE_EPSILON:
+        return 0.0
+    headroom = min(limits) if limits else 0.0
+    upper = max(0.0, headroom * CHAMFER_MAX_FRACTION)
+    return min(c, upper)
+
+
+def _inner_ring_endpoints(bore_r: float, half_w: float, chamfer: float) -> tuple[list, list]:
+    """Liefert die Start-/Endpunkte eines Innenring-Profils mit Bohrungsfase.
+
+    Der "Start" sind die Punkte am unteren z-Ende (negative z-Halbachse) vom
+    Übergang Bohrungswand → Stirnfläche bis zur Schulter; das "Ende" sind die
+    Punkte am oberen z-Ende von der Schulter zurück bis zur Bohrungswand. Ohne
+    Fase entspricht das den klassischen Eckpunkten ``(bore_r, ±half_w)``.
+    """
+    if chamfer <= PROFILE_EPSILON:
+        return [(bore_r, -half_w)], [(bore_r, half_w)]
+    start = [(bore_r + chamfer, -half_w)]
+    end = [
+        (bore_r + chamfer, half_w),
+        (bore_r, half_w - chamfer),
+        (bore_r, -half_w + chamfer),
+    ]
+    return start, end
+
+
+def _outer_ring_endpoints(outer_r: float, half_w: float, chamfer: float) -> tuple[list, list]:
+    """Liefert die Eck-Punkte am Außenmantel mit optionaler OD-Fase.
+
+    Profile von Außenringen traversieren den Außenmantel von ``-half_w`` nach
+    ``+half_w``. Ohne Fase sind das zwei Punkte ``(outer_r, ±half_w)``; mit
+    Fase werden die Außenkanten durch je zwei Punkte ersetzt.
+    """
+    if chamfer <= PROFILE_EPSILON:
+        return [(outer_r, -half_w)], [(outer_r, half_w)]
+    start = [
+        (outer_r - chamfer, -half_w),
+        (outer_r, -half_w + chamfer),
+    ]
+    end = [
+        (outer_r, half_w - chamfer),
+        (outer_r - chamfer, half_w),
+    ]
+    return start, end
+
+
 # ---------------------------------------------------------------------------
 # Rillenkugellager
 # ---------------------------------------------------------------------------
@@ -160,12 +219,17 @@ def ball_inner_ring_profile(
     pitch_d: float,
     conformity: float = BALL_GROOVE_CONFORMITY_INNER,
     arc_segments: int = 24,
+    chamfer_mm: float = 0.0,
 ) -> Profile:
     """Querschnitt des Innenrings eines Rillenkugellagers.
 
     ``shoulder_d`` ist der Außen-Ø des Innenrings (Schulterhöhe). Reicht der
     Rillenbogen geometrisch nicht bis zur Schulter, wird ein einfacher
     Hohlzylinder zurückgegeben (Fallback ohne ausgeprägte Rille).
+
+    ``chamfer_mm`` ist die 45°-Fase an den Bohrungskanten (DIN 620 r_s). Wird
+    bei zu wenig Bauraum (sehr dünne Wand oder schmales Lager) automatisch
+    auf einen sicheren Wert gekürzt; ``0`` lässt die Bohrungskante scharf.
     """
     bore_r = bore_d * 0.5
     shoulder_r = shoulder_d * 0.5
@@ -174,18 +238,25 @@ def ball_inner_ring_profile(
     groove_r = conformity * ball_d
     radial_gap = pitch_r - shoulder_r
 
+    chamfer = _clamp_chamfer(chamfer_mm, shoulder_r - bore_r, half_w)
+    start_pts, end_pts = _inner_ring_endpoints(bore_r, half_w, chamfer)
+
     if radial_gap <= PROFILE_EPSILON:
-        return _dedupe_profile(_hollow_cylinder_profile(bore_d, shoulder_d, width))
+        return _dedupe_profile(
+            [*start_pts, (shoulder_r, -half_w), (shoulder_r, half_w), *end_pts]
+        )
 
     z_arc = _ball_groove_z_arc(
         radial_gap=radial_gap, groove_r=groove_r, ball_d=ball_d, width=width
     )
     if z_arc <= PROFILE_EPSILON:
-        return _dedupe_profile(_hollow_cylinder_profile(bore_d, shoulder_d, width))
+        return _dedupe_profile(
+            [*start_pts, (shoulder_r, -half_w), (shoulder_r, half_w), *end_pts]
+        )
 
     arc = _arc_points_inner(pitch_r, groove_r, z_arc, arc_segments)
     profile: Profile = [
-        (bore_r, -half_w),
+        *start_pts,
         (shoulder_r, -half_w),
         (shoulder_r, -z_arc),
     ]
@@ -193,7 +264,7 @@ def ball_inner_ring_profile(
     profile.extend([
         (shoulder_r, z_arc),
         (shoulder_r, half_w),
-        (bore_r, half_w),
+        *end_pts,
     ])
     return _dedupe_profile(profile)
 
@@ -207,8 +278,13 @@ def ball_outer_ring_profile(
     pitch_d: float,
     conformity: float = BALL_GROOVE_CONFORMITY_OUTER,
     arc_segments: int = 24,
+    chamfer_mm: float = 0.0,
 ) -> Profile:
-    """Querschnitt des Außenrings eines Rillenkugellagers."""
+    """Querschnitt des Außenrings eines Rillenkugellagers.
+
+    ``chamfer_mm`` ist die 45°-Fase an den Außenkanten (DIN 620). Wird auf
+    den verfügbaren Bauraum begrenzt; ``0`` lässt die Außenkante scharf.
+    """
     outer_r = outer_d * 0.5
     shoulder_r = shoulder_d * 0.5
     pitch_r = pitch_d * 0.5
@@ -216,14 +292,21 @@ def ball_outer_ring_profile(
     groove_r = conformity * ball_d
     radial_gap = shoulder_r - pitch_r
 
+    chamfer = _clamp_chamfer(chamfer_mm, outer_r - shoulder_r, half_w)
+    od_start, od_end = _outer_ring_endpoints(outer_r, half_w, chamfer)
+
     if radial_gap <= PROFILE_EPSILON:
-        return _dedupe_profile(_hollow_cylinder_profile(shoulder_d, outer_d, width))
+        return _dedupe_profile(
+            [(shoulder_r, -half_w), *od_start, *od_end, (shoulder_r, half_w)]
+        )
 
     z_arc = _ball_groove_z_arc(
         radial_gap=radial_gap, groove_r=groove_r, ball_d=ball_d, width=width
     )
     if z_arc <= PROFILE_EPSILON:
-        return _dedupe_profile(_hollow_cylinder_profile(shoulder_d, outer_d, width))
+        return _dedupe_profile(
+            [(shoulder_r, -half_w), *od_start, *od_end, (shoulder_r, half_w)]
+        )
 
     arc = _arc_points_outer(pitch_r, groove_r, z_arc, arc_segments)
     # Im Profil traversieren wir den Außenring so, dass die Innenfläche
@@ -231,8 +314,8 @@ def ball_outer_ring_profile(
     # wieder verlassen wird; dazu wird der Bogen umgekehrt eingefügt.
     profile: Profile = [
         (shoulder_r, -half_w),
-        (outer_r, -half_w),
-        (outer_r, half_w),
+        *od_start,
+        *od_end,
         (shoulder_r, half_w),
         (shoulder_r, z_arc),
     ]
@@ -265,6 +348,7 @@ def vgroove_outer_ring_profile(
     groove_half_angle_rad: float | None = None,
     conformity: float = BALL_GROOVE_CONFORMITY_OUTER,
     arc_segments: int = 24,
+    chamfer_mm: float = 0.0,
 ) -> Profile:
     """Außenring eines U-/V-Rillen-Kugellagers (Führungsrolle, SG-Reihe).
 
@@ -273,6 +357,10 @@ def vgroove_outer_ring_profile(
     in mm, ``groove_half_angle_rad`` der halbe Öffnungswinkel der V-Flanke. Wird
     keiner der Werte angegeben, wählt die Funktion sinnvolle Defaults aus
     Außenring-Wandstärke und 90°-V-Rille.
+
+    ``chamfer_mm`` ist die 45°-Fase an den OD-Stirnkanten (links/rechts der
+    V-Rille). Wird auf den verbleibenden axialen Flachstirn-Anteil und die
+    Außenwand begrenzt.
     """
     outer_r = outer_d * 0.5
     shoulder_r = shoulder_d * 0.5
@@ -296,6 +384,7 @@ def vgroove_outer_ring_profile(
             pitch_d=pitch_d,
             conformity=conformity,
             arc_segments=arc_segments,
+            chamfer_mm=chamfer_mm,
         )
     groove_depth = max(VGROOVE_MIN_DEPTH_MM, min(groove_depth, max_depth))
 
@@ -315,6 +404,7 @@ def vgroove_outer_ring_profile(
             pitch_d=pitch_d,
             conformity=conformity,
             arc_segments=arc_segments,
+            chamfer_mm=chamfer_mm,
         )
     groove_bottom_r = max(shoulder_r + PROFILE_EPSILON, outer_r - groove_depth)
 
@@ -330,20 +420,36 @@ def vgroove_outer_ring_profile(
         if z_arc > PROFILE_EPSILON:
             inner_arc = _arc_points_outer(pitch_r, groove_r, z_arc, arc_segments)
 
+    # --- OD-Fase: nur soweit Flachstirn links/rechts der V-Rille bleibt ----
+    flat_face = max(0.0, half_w - half_groove_w)
+    chamfer = _clamp_chamfer(chamfer_mm, wall, flat_face)
+
     # --- Profil aufbauen ----------------------------------------------------
     # Reihenfolge analog ball_outer_ring_profile, aber mit V-Kerbe im Außen-
     # mantel (von -half_w nach +half_w, mittig). Bei vorhandener inneren Rille
     # wird der Bogen am Ende eingehängt; ohne Rille bleibt die Innenfläche
     # zylindrisch (shoulder_r).
-    profile: Profile = [
-        (shoulder_r, -half_w),
-        (outer_r, -half_w),
+    profile: Profile = [(shoulder_r, -half_w)]
+    if chamfer > PROFILE_EPSILON:
+        profile.extend([
+            (outer_r - chamfer, -half_w),
+            (outer_r, -half_w + chamfer),
+        ])
+    else:
+        profile.append((outer_r, -half_w))
+    profile.extend([
         (outer_r, -half_groove_w),
         (groove_bottom_r, 0.0),
         (outer_r, half_groove_w),
-        (outer_r, half_w),
-        (shoulder_r, half_w),
-    ]
+    ])
+    if chamfer > PROFILE_EPSILON:
+        profile.extend([
+            (outer_r, half_w - chamfer),
+            (outer_r - chamfer, half_w),
+        ])
+    else:
+        profile.append((outer_r, half_w))
+    profile.append((shoulder_r, half_w))
     if inner_arc:
         profile.append((shoulder_r, z_arc))
         profile.extend(reversed(inner_arc))

@@ -116,7 +116,10 @@ Volumen revolviert (Modul `raceway.py`). Folgende Laufbahnen werden modelliert:
 - **Kugellager** – Rillen-Bogen (groove) mit Konformitätsfaktor f = r_groove/d_ball
   in Innen- und Außenring. Reicht der Bogen geometrisch nicht bis zur Schulter
   (z. B. weil der Wälzkörper-Ø sehr klein gewählt wurde), fällt das Profil
-  automatisch auf einen Hohlzylinder zurück.
+  automatisch auf einen Hohlzylinder zurück. Zusätzlich kann eine 45°-Fase
+  (DIN 620 / ISO 582 r_s) an der Bohrungs- bzw. Außenring-Kante eingestellt
+  werden (`bearing_chamfer_mm`, Default 0.3 mm). Die Fase wird bei zu wenig
+  Bauraum automatisch heruntergeclampt.
 - **Zylinderrollen-/Nadellager** – NU-Bauart: Außenring mit zwei radial nach
   innen vorstehenden Borden, die die Rollen axial halten; Innenring zylindrisch.
   Bei zu engem Bauraum (Rolle füllt nahezu die ganze Lagerbreite) wird der
