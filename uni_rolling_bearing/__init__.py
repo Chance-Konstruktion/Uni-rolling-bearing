@@ -19,7 +19,7 @@ from __future__ import annotations
 bl_info = {
     "name": "UNI Rolling Bearing Generator",
     "author": "Codex",
-    "version": (0, 12, 0),
+    "version": (0, 13, 0),
     "blender": (3, 6, 0),
     "location": "View3D > Sidebar > UNI Bearings",
     "description": "Erstellt parametrische, funktionsfähige Wälzlager mit Norm-Presets und realistischen Laufbahnen",
@@ -38,6 +38,7 @@ def _classes():
         UNI_OT_info_lagertyp,
         UNI_OT_info_normen,
         UNI_OT_info_qualitaet,
+        UNI_OT_info_tragzahlen,
         UNI_OT_info_waelzkoerper,
     )
     from .panel import UNI_PT_bearing_panel
@@ -52,6 +53,7 @@ def _classes():
         UNI_OT_info_kontaktwinkel,
         UNI_OT_info_check,
         UNI_OT_info_qualitaet,
+        UNI_OT_info_tragzahlen,
         UNI_OT_apply_series_preset,
         UNI_OT_auto_calculate,
         UNI_OT_create_bearing,

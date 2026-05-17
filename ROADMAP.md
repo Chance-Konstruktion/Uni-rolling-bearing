@@ -129,6 +129,18 @@
 
 ---
 
+### Tragzahlen ISO 76 / ISO 281 (v0.13.0)
+- Neues Modul ``ratings.py`` mit vereinfachten Berechnungen:
+  ``static_load_rating`` (C0r nach ISO 76), ``dynamic_load_rating``
+  (Cr nach ISO 281) und ``nominal_life_hours`` (L10h).
+- UI-Sektion „Tragzahlen & Lebensdauer“ mit Eingaben für äquivalente Last
+  ``P`` und Drehzahl ``n``; zeigt C0r, Cr und – wenn P und n > 0 – L10h
+  als Live-Vorschau.
+- Werte werden als Metadaten ``static_load_rating_N``,
+  ``dynamic_load_rating_N`` und ``L10h_hours`` am Bearing-Empty hinterlegt.
+- Lebensdauer-Exponent p = 3 für Kugel-/SG-Lager, 10/3 für Rollenlager;
+  Pendelrollenlager werden mit i = 2 Reihen und α = 10° gerechnet.
+
 ### DIN 623 / ISO 15 Maßreihen (v0.12.0)
 - Neues Modul ``din623.py`` mit DIN 623-Bohrungskennzahl-Logik
   (``bore_code_to_diameter``) sowie ISO 15-Maßtabellen für Rillenkugellager
@@ -174,8 +186,10 @@
    - Passungen für Welle/Gehäuse (DIN 5418-orientiert).
 
 3. **Technische Kennwerte**
-   - Statische/dynamische Tragzahl (ISO 76 / ISO 281) als Ausgabewerte.
-   - Optional Lebensdauerabschätzung in UI.
+   - ✅ Statische/dynamische Tragzahl (ISO 76 / ISO 281) + L10h
+     Lebensdauer (v0.13.0).
+   - Erweiterung: Beiwerte ``f0``/``fc`` aus γ = Dw·cosα / dm tabellieren
+     statt Mittelwerte; Axialbelastung über X-/Y-Faktoren berücksichtigen.
 
 ---
 

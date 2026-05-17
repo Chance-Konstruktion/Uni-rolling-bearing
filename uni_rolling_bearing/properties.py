@@ -341,3 +341,21 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         default=0.02,
         min=0.0,
     )
+    equivalent_load_p_n: FloatProperty(
+        name="Äquivalente Last P [N]",
+        description=(
+            "Dynamisch äquivalente radiale Belastung P für die "
+            "L10-Lebensdauer nach ISO 281. 0 = Lebensdauer nicht berechnen."
+        ),
+        default=0.0,
+        min=0.0,
+    )
+    speed_rpm: FloatProperty(
+        name="Drehzahl n [1/min]",
+        description=(
+            "Betriebsdrehzahl für die nominelle Lebensdauer L10h nach "
+            "ISO 281. 0 = nicht berechnen."
+        ),
+        default=0.0,
+        min=0.0,
+    )
