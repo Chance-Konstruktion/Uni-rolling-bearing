@@ -19,7 +19,7 @@ from __future__ import annotations
 bl_info = {
     "name": "UNI Rolling Bearing Generator",
     "author": "Codex",
-    "version": (0, 11, 0),
+    "version": (0, 12, 0),
     "blender": (3, 6, 0),
     "location": "View3D > Sidebar > UNI Bearings",
     "description": "Erstellt parametrische, funktionsfähige Wälzlager mit Norm-Presets und realistischen Laufbahnen",
