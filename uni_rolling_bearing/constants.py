@@ -29,50 +29,19 @@ PRECISION_CLASSES = [
 ]
 
 # (d, D, B) in mm – Norm-Presets je Baureihe.
-# Hauptreihen (DIN 625, 5412, 720, 635) werden aus den Maßtabellen in
-# ``din623.py`` generiert. Nadellager und SG-Reihe bleiben manuell, da sie
-# nicht der DIN 623-Codegenerierung folgen.
-from . import din623  # noqa: E402
+# Werden zur Importzeit aus den JSON-Dateien unter ``data/`` geladen
+# (siehe ``norm_engine.load_all_presets``). Eigene Erweiterungen können
+# als gleichnamige JSON unter ``<Blender-Scripts>/uni_bearing/`` abgelegt
+# werden – sie werden über die Defaults gemerged.
+from . import norm_engine  # noqa: E402
 
-SERIES_PRESETS: Dict[str, Dict[str, Tuple[float, float, float]]] = {
-    BALL: din623.build_ball_presets(),
-    CYLINDRICAL: din623.build_cylindrical_presets(),
-    NEEDLE: {
-        "HK0808": (8.0, 12.0, 8.0),
-        "HK1010": (10.0, 14.0, 10.0),
-        "HK1212": (12.0, 16.0, 12.0),
-        "HK1512": (15.0, 21.0, 12.0),
-        "HK1612": (16.0, 22.0, 12.0),
-        "HK2012": (20.0, 26.0, 12.0),
-        "HK2020": (20.0, 26.0, 20.0),
-        "HK2516": (25.0, 32.0, 16.0),
-        "HK3020": (30.0, 37.0, 20.0),
-    },
-    TAPERED: din623.build_tapered_presets(),
-    SPHERICAL: din623.build_spherical_presets(),
-    # U-/V-Rillen-Führungsrollen-Kugellager (SG- bzw. W-Reihe).
-    # Hauptmaße orientieren sich an handelsüblichen Katalogwerten der
-    # Bishop-Wisecarver "DualVee"-/Misumi "SG"-Familien (d, D, B in mm).
-    # Die Rille selbst sitzt im Außenmantel des Außenrings; Innenmaße
-    # entsprechen einem Standard-Rillenkugellager.
-    VGROOVE: {
-        "SG10": (4.0, 13.0, 6.0),
-        "SG15": (5.0, 17.0, 8.0),
-        "SG20": (6.0, 24.0, 11.0),
-        "SG25": (8.0, 30.73, 11.1),
-        "SG35": (12.0, 45.72, 15.88),
-        "SG66": (15.0, 62.0, 20.0),
-    },
-}
+SERIES_PRESETS: Dict[str, Dict[str, Tuple[float, float, float]]] = norm_engine.load_all_presets()
 
 # Normhinweis, der als Metadatum am erzeugten Assembly gespeichert wird.
 NORM_HINTS: Dict[str, str] = {
-    BALL: "DIN 625 / ISO 15 (Preset-basiert)",
-    CYLINDRICAL: "DIN 5412 / ISO 15 (Preset-basiert)",
-    NEEDLE: "DIN 617 / ISO 15 (Preset-basiert)",
-    TAPERED: "DIN 720 / ISO 355 (Preset-basiert)",
-    SPHERICAL: "DIN 635 / ISO 15 (Preset-basiert)",
-    VGROOVE: "Führungsrolle SG/W-Reihe (Hersteller-Katalogwerte)",
+    bt: norm_engine.norm_hint_for(bt) or "" for bt in (
+        BALL, CYLINDRICAL, NEEDLE, TAPERED, SPHERICAL, VGROOVE,
+    )
 }
 
 # Anteil der Lagerbreite, der von der Wälzkörperlänge ausgefüllt wird.
