@@ -26,16 +26,25 @@ Ein Blender-Addon zur Erstellung parametrischer Wälzlager (Kugel-, Zylinderroll
 
 Aktuell berücksichtigt:
 
-- **ISO 15 / DIN ISO 15**: Hauptabmessungslogik über Preset-Ansatz.
-- **DIN 625**: Fokus bei Kugellager-Startwerten.
-- **ISO 492 / DIN 620**: Toleranzklassenauswahl als Metadatum.
-- **DIN 623**: Preset-/Baureihen-Logik in Richtung Bezeichnungssystem.
+- **ISO 15 / DIN ISO 15**: Maßreihen für Rillenkugel-, Zylinderrollen-,
+  Kegelrollen- und Pendelrollenlager als JSON-Datenquelle (`norm_engine.py`).
+- **DIN 623**: Bohrungskennzahl-Logik (`din623.py`); ~80 Rillenkugellager-
+  Größen aus den Tabellen generiert.
+- **DIN 625**: Rillenkugellager-Reihen 60/62/63/64/618/619.
+- **DIN 720**: Kegelrollen-Reihen 302/303/313/320/322/323 inkl. getrennter
+  Cone/Cup-Breiten.
+- **ISO 492 / DIN 620**: Toleranzklassen NORMAL/P6/P5/P4 werden in µm-
+  Abweichungen für d/D/B umgerechnet und als Metadaten hinterlegt.
+- **DIN 5418**: Empfohlene Welle-/Gehäuse-Passungen (g6…p6, G7…P7) je
+  Belastungsfall mit ISO 286-Abmaßen.
+- **ISO 76 / ISO 281**: Vereinfachte statische/dynamische Tragzahl und
+  L10h-Lebensdauer als Live-Vorschau im Panel.
 
 Geplant (siehe ROADMAP):
 
-- Vollständige Tabellen je Baureihe.
-- Erweiterte Toleranz-/Passungsberechnung.
-- Tragzahl-/Lebensdauerkennwerte (ISO 281 / ISO 76).
+- SG-Zwischengrößen und U-Profil-Variante.
+- UI-Workflow „Reihe → Bohrungskennzahl".
+- Verfeinerte Beiwerte `f0`/`fc` und Axiallast-Faktoren.
 
 ## Installation
 
@@ -170,8 +179,9 @@ den Käfig komplett.
 ## Einschränkungen
 
 - Keine FEM-/Kontaktmechanik.
-- Keine exakte DIN/ISO-Tabellenabdeckung aller Reihen.
-- Käfig ist eine vereinfachte Leiterstruktur ohne typ-spezifische Pockets.
+- Keine vollständige DIN/ISO-Tabellenabdeckung aller Reihen.
+- Tragzahlen und Lebensdauer sind vereinfachte Näherungen, keine
+  zertifizierten Auslegungswerte.
 
 ## Entwicklung
 
