@@ -114,6 +114,9 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
                 "uni_bearing.info_kontaktwinkel", text="", icon="QUESTION", emboss=False
             )
             rollers.prop(props, "tapered_flange_height_mm")
+            tapered_widths = rollers.column(align=True)
+            tapered_widths.prop(props, "tapered_cone_width_mm")
+            tapered_widths.prop(props, "tapered_cup_width_mm")
         elif props.bearing_type == constants.SPHERICAL:
             rollers.label(text="Hinweis: Zweireihige Tonnenrollen (DIN 635-2).")
             rollers.prop(props, "spherical_contact_angle_deg")

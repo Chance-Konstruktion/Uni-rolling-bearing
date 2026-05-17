@@ -129,6 +129,20 @@
 
 ---
 
+### Kegelrollen-Reihen 313/320/322/323 + Cone/Cup-Breiten (v0.17.0)
+- Vier zusätzliche DIN 720-Reihen (313, 320, 322, 323) als Norm-Presets
+  in ``data/tapered.json``; insgesamt 46 Kegelrollen-Größen.
+- JSON-Eintragsformat erweitert: ``[D, T]`` (Gesamtbreite) oder
+  ``[D, T, B, C]`` mit getrennter Cone- (``B``) und Cup-Breite (``C``).
+- ``norm_engine.load_ring_widths_for`` liest die getrennten Breiten aus
+  und ``apply_series_preset`` überträgt sie in die neuen Properties
+  ``tapered_cone_width_mm`` und ``tapered_cup_width_mm``.
+- Innen- bzw. Außenring-Profil verwenden die separaten Breiten (falls
+  > 0), sodass Cone und Cup tatsächlich unterschiedlich breit dargestellt
+  werden statt beide T zu nutzen.
+- Werte werden als Metadaten ``tapered_cone_width_mm`` und
+  ``tapered_cup_width_mm`` am Bearing-Empty hinterlegt.
+
 ### Norm-Engine als JSON-Datenquelle (v0.16.0)
 - Neues Modul ``norm_engine.py`` lädt die Maßreihen aus JSON-Dateien
   unter ``uni_rolling_bearing/data/`` (ball/cylindrical/needle/tapered/
@@ -201,8 +215,8 @@
    - SG-Reihe um Zwischengrößen (SG30, SG40, SG55) sowie U-Profil-Variante
      (Halbkreis-Rille statt 90°-V) ergänzen, sobald belastbare Maßquellen
      vorliegen.
-   - Kegelrollenlager-Reihen 313/320/322/323 ergänzen, Außenring-Breite C
-     getrennt von T modellieren.
+   - ✅ Kegelrollen-Reihen 313/320/322/323 + getrennte Cone/Cup-Breiten
+     (v0.17.0).
 
 2. **Laufbahnen weiter verfeinern**
    - ✅ Pendelrollen: Innenring mit zwei separaten Laufbahnen + Mittelbord

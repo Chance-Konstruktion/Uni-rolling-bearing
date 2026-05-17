@@ -57,13 +57,11 @@ def _expand_din623(payload: dict) -> Dict[str, Tuple[float, float, float]]:
     for series_name, entries in series.items():
         if prefix:
             code_prefix = prefix + series_name
-        elif series_name.startswith("6"):
-            code_prefix = series_name
         else:
             code_prefix = series_name
         for bore_code, dims in entries.items():
-            if len(dims) != 2:
-                LOG.warning("Skipping %s/%s: erwartet [D, B], bekam %r",
+            if len(dims) not in (2, 4):
+                LOG.warning("Skipping %s/%s: erwartet [D, B] oder [D, T, B, C], bekam %r",
                             series_name, bore_code, dims)
                 continue
             try:
@@ -71,8 +69,28 @@ def _expand_din623(payload: dict) -> Dict[str, Tuple[float, float, float]]:
             except ValueError as exc:
                 LOG.warning("Skipping %s/%s: %s", series_name, bore_code, exc)
                 continue
-            D, B = float(dims[0]), float(dims[1])
-            result[f"{code_prefix}{bore_code}"] = (d, D, B)
+            D = float(dims[0])
+            total_width = float(dims[1])
+            result[f"{code_prefix}{bore_code}"] = (d, D, total_width)
+    return result
+
+
+def _extract_ring_widths(payload: dict) -> Dict[str, Tuple[float, float]]:
+    """Liefert ``{code: (inner_width_B, outer_width_C)}`` für 4-stellige Einträge."""
+    series = payload.get("series", {})
+    prefix = payload.get("prefix", "")
+    result: Dict[str, Tuple[float, float]] = {}
+    for series_name, entries in series.items():
+        code_prefix = (prefix + series_name) if prefix else series_name
+        for bore_code, dims in entries.items():
+            if len(dims) != 4:
+                continue
+            try:
+                din623.bore_code_to_diameter(bore_code)
+            except ValueError:
+                continue
+            B, C = float(dims[2]), float(dims[3])
+            result[f"{code_prefix}{bore_code}"] = (B, C)
     return result
 
 
@@ -123,6 +141,26 @@ def load_presets_for(bearing_type: str) -> Dict[str, Tuple[float, float, float]]
 
 def load_all_presets() -> Dict[str, Dict[str, Tuple[float, float, float]]]:
     return {bt: load_presets_for(bt) for bt in _TYPE_FILES}
+
+
+def load_ring_widths_for(bearing_type: str) -> Dict[str, Tuple[float, float]]:
+    """Liefert getrennte Innen-/Außenring-Breiten (B, C) für den Typ, soweit
+    in den Maßreihen-Daten hinterlegt (4-elementige Einträge)."""
+    filename = _TYPE_FILES.get(bearing_type)
+    if filename is None:
+        return {}
+    try:
+        payload = _load_json(_DATA_DIR / filename)
+    except (OSError, json.JSONDecodeError):
+        return {}
+    widths = _extract_ring_widths(payload)
+    user_path = _user_data_path(filename)
+    if user_path is not None:
+        try:
+            widths.update(_extract_ring_widths(_load_json(user_path)))
+        except (OSError, json.JSONDecodeError):
+            pass
+    return widths
 
 
 def norm_hint_for(bearing_type: str) -> str:
