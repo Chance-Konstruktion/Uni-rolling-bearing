@@ -2,18 +2,20 @@
 
 ## Erledigt ✅
 
-### Basis-Addon & UI
+### Grundlagen (pre-Versioning)
+
+#### Basis-Addon & UI
 - Addon-Struktur mit `bl_info`, Registrierung und N-Panel erstellt.
 - Lagertyp-Dropdown als Einstieg umgesetzt.
 - Unterstützte Typen: Kugel-, Zylinderrollen-, Nadel-, Kegelrollen- und Tonnenlager.
 - Erstellen-Button am Panel-Ende integriert.
 
-### Normorientierung
+#### Normorientierung
 - Start-Presets für mehrere Lagerreihen eingebaut.
 - Toleranzklasse (ISO 492-Orientierung) und radiale Lagerluft als Parameter aufgenommen.
 - Normhinweise als Objekt-Metadaten hinterlegt.
 
-### Funktionsfähigkeit (Fix)
+#### Funktionsfähigkeit (Fix)
 - Geometrie-Resolver ergänzt, der Laufbahnspalt und nutzbaren Wälzkörperraum prüft.
 - Auto-Fit ergänzt:
   - begrenzt Wälzkörperdurchmesser auf geometrisch zulässigen Wert,
@@ -22,12 +24,14 @@
   - Komponenten bleiben getrennt,
   - gemeinsame Assembly über Empty-Parent.
 
-### Mesh-Qualität
+#### Mesh-Qualität
 - Manifold-orientierte Erzeugung je Ring/Wälzkörper via BMesh.
 - Non-manifold-Kantenprüfung pro erzeugter Komponente.
 
-### Käfig (v0.4.0)
-- Optionaler parametrischer Käfig im Stil "Leitercage": zwei axiale Endplatten
+---
+
+### v0.4.0 – Käfig
+- Optionaler parametrischer Käfig im Stil „Leitercage": zwei axiale Endplatten
   zwischen Lagerrand und Wälzkörperende, dazwischen tangentiale Webs in den
   Lücken zwischen den Wälzkörpern.
 - Endplatten werden gegen die Laufbahnen geclippt (Sicherheitsabstand), Webs
@@ -35,59 +39,13 @@
 - UI-Toggle ``Käfig erzeugen``; bei zu wenig Platz wird der Käfig
   übersprungen und eine Warnung gemeldet.
 
-### Kegelrollen-Kontaktwinkel (v0.5.0)
+### v0.5.0 – Kegelrollen-Kontaktwinkel
 - Eigenschaft ``contact_angle_deg`` (Default 14°), nur für TAPERED sichtbar.
 - Wälzkörper werden im Mesh-Frame um die lokale Y-Achse gekippt; alle Achsen
   treffen sich auf der Lagerachse in einem gemeinsamen Apex.
 - Apex-Z wird als ``tapered_apex_z_mm`` am Assembly hinterlegt.
 
-### Pocket-Käfig (v0.7.0)
-- Standard-Käfig ist jetzt ein einteiliger Sleeve mit typabhängigen Pockets,
-  erzeugt per Boolean-Difference aus oversized Wälzkörper-Stempeln.
-- Pocket-Form folgt dem Lagertyp: sphärisch (Kugel), zylindrisch (Zylinder/
-  Nadel), kegelig (Kegelrolle), tonnenförmig (Tonnenlager).
-- Fallback auf den bisherigen Leiter-Käfig, wenn der Boolean nicht
-  durchgreift; ``cage_style`` (``"pocket"``/``"ladder"``) wird als Meta-
-  daten am Assembly hinterlegt.
-- Neue Helfer ``mesh_builders.apply_boolean_difference`` als zentrale
-  Schnittstelle für Boolean-basierte Mesh-Operationen.
-
-### U-Rillen-Kugellager / SG-Reihe (v0.8.0)
-- Neuer Lagertyp ``VGROOVE`` (Führungsrollen-Kugellager).
-- Norm-Presets ``SG10``, ``SG15``, ``SG20``, ``SG25``, ``SG35``, ``SG66``
-  mit handelsüblichen Hauptmaßen (Bishop-Wisecarver / Misumi „SG/W“-Reihe).
-- Neue Außenring-Profilfunktion ``raceway.vgroove_outer_ring_profile``:
-  Standard-Kugelrille innen, V-Rille im Außenmantel (Default 90° V, Tiefe
-  ≈35 % der Außenwand). Fällt automatisch auf das Standard-Profil zurück,
-  wenn der Bauraum für die Rille nicht reicht.
-- UI-Parameter ``vgroove_depth_mm`` (0 = automatisch) und
-  ``vgroove_half_angle_deg`` exklusiv für den SG-Typ; Werte werden als
-  Metadaten am Bearing-Empty hinterlegt.
-- Wälzkörper, Käfig-Pockets und Innenring-Profil identisch zum Standard-
-  Rillenkugellager – die Reihe ist mechanisch ein Rillenkugellager mit
-  zusätzlicher Außenrille.
-
-### Konformitätsfaktor als UI-Parameter (v0.9.1)
-- Neue Properties ``groove_conformity_inner`` (Default 0.58) und
-  ``groove_conformity_outer`` (Default 0.60) für Rillenkugellager und
-  SG-Reihe (VGROOVE).
-- Werden an ``raceway.ball_inner_ring_profile``,
-  ``raceway.ball_outer_ring_profile`` und
-  ``raceway.vgroove_outer_ring_profile`` durchgereicht und als Metadaten
-  ``groove_conformity_inner/_outer`` am Bearing-Empty hinterlegt.
-- UI: Im Wälzkörper-Abschnitt nur sichtbar bei BALL/VGROOVE. Bereich
-  0.51–0.70 deckt reale Lager (0.515–0.535) und visualisierungsfreundliche
-  Werte ab.
-
-### Detailliertes Fehlerfeedback (v0.9.0)
-- Geometrie-Resolver liefert nun konkrete Korrekturvorschläge mit Zahlen
-  (max. zulässige Ringstärke, max. Lagerluft, max. Wälzkörper-Ø/-anzahl)
-  statt rein generischer Meldungen.
-- Operator-Reports (Auto-Berechnen, Preset-Übernahme, Erstellen) geben
-  Hinweise auf konkrete nächste Schritte (z. B. „Auto-Fit aktivieren",
-  „Reihen-Code wechseln").
-
-### Echte Laufbahnen (v0.6.0)
+### v0.6.0 – Echte Laufbahnen
 - Neues Modul ``raceway.py`` mit typspezifischen Querschnittsprofilen, das
   per Z-Achsen-Revolution zu manifold Ringen vermesht wird.
 - Kugellager: Konformitätsbogen (groove) in Innen- und Außenring; bei zu
@@ -100,9 +58,53 @@
 - Default-Wälzkörper-Füllgrad für Kugellager auf 0.95 angehoben (real-näher,
   Voraussetzung für sichtbare Rille bei Auto-Berechnung).
 
----
+### v0.7.0 – Pocket-Käfig
+- Standard-Käfig ist jetzt ein einteiliger Sleeve mit typabhängigen Pockets,
+  erzeugt per Boolean-Difference aus oversized Wälzkörper-Stempeln.
+- Pocket-Form folgt dem Lagertyp: sphärisch (Kugel), zylindrisch (Zylinder/
+  Nadel), kegelig (Kegelrolle), tonnenförmig (Tonnenlager).
+- Fallback auf den bisherigen Leiter-Käfig, wenn der Boolean nicht
+  durchgreift; ``cage_style`` (``"pocket"``/``"ladder"``) wird als Meta-
+  daten am Assembly hinterlegt.
+- Neue Helfer ``mesh_builders.apply_boolean_difference`` als zentrale
+  Schnittstelle für Boolean-basierte Mesh-Operationen.
 
-### Käfig-Ausbau & Kegelrollen-Bord (v0.10.0)
+### v0.8.0 – U-Rillen-Kugellager / SG-Reihe
+- Neuer Lagertyp ``VGROOVE`` (Führungsrollen-Kugellager).
+- Norm-Presets ``SG10``, ``SG15``, ``SG20``, ``SG25``, ``SG35``, ``SG66``
+  mit handelsüblichen Hauptmaßen (Bishop-Wisecarver / Misumi „SG/W"-Reihe).
+- Neue Außenring-Profilfunktion ``raceway.vgroove_outer_ring_profile``:
+  Standard-Kugelrille innen, V-Rille im Außenmantel (Default 90° V, Tiefe
+  ≈35 % der Außenwand). Fällt automatisch auf das Standard-Profil zurück,
+  wenn der Bauraum für die Rille nicht reicht.
+- UI-Parameter ``vgroove_depth_mm`` (0 = automatisch) und
+  ``vgroove_half_angle_deg`` exklusiv für den SG-Typ; Werte werden als
+  Metadaten am Bearing-Empty hinterlegt.
+- Wälzkörper, Käfig-Pockets und Innenring-Profil identisch zum Standard-
+  Rillenkugellager – die Reihe ist mechanisch ein Rillenkugellager mit
+  zusätzlicher Außenrille.
+
+### v0.9.0 – Detailliertes Fehlerfeedback
+- Geometrie-Resolver liefert nun konkrete Korrekturvorschläge mit Zahlen
+  (max. zulässige Ringstärke, max. Lagerluft, max. Wälzkörper-Ø/-anzahl)
+  statt rein generischer Meldungen.
+- Operator-Reports (Auto-Berechnen, Preset-Übernahme, Erstellen) geben
+  Hinweise auf konkrete nächste Schritte (z. B. „Auto-Fit aktivieren",
+  „Reihen-Code wechseln").
+
+### v0.9.1 – Konformitätsfaktor als UI-Parameter
+- Neue Properties ``groove_conformity_inner`` (Default 0.58) und
+  ``groove_conformity_outer`` (Default 0.60) für Rillenkugellager und
+  SG-Reihe (VGROOVE).
+- Werden an ``raceway.ball_inner_ring_profile``,
+  ``raceway.ball_outer_ring_profile`` und
+  ``raceway.vgroove_outer_ring_profile`` durchgereicht und als Metadaten
+  ``groove_conformity_inner/_outer`` am Bearing-Empty hinterlegt.
+- UI: Im Wälzkörper-Abschnitt nur sichtbar bei BALL/VGROOVE. Bereich
+  0.51–0.70 deckt reale Lager (0.515–0.535) und visualisierungsfreundliche
+  Werte ab.
+
+### v0.10.0 – Käfig-Ausbau & Kegelrollen-Bord
 - Käfig-Werkstoff (``Stahlblech``/``Messing``/``Polymer``) als UI-Auswahl,
   wird als Metadatum ``cage_material`` am Bearing-Empty hinterlegt.
 - Pocket-Spiel als UI-Parameter ``pocket_clearance_mm`` (Default 0.20 mm,
@@ -111,7 +113,7 @@
   ``tapered_flange_height_mm``, Default 1.0 mm). Höhe wird auf den verbleibenden
   Bauraum bis zur Außenlaufbahn (abzgl. Lagerluft) begrenzt.
 
-### Kantenfasen am Kugellager (v0.10.1)
+### v0.10.1 – Kantenfasen am Kugellager
 - Neue Property ``bearing_chamfer_mm`` (Default 0.3 mm) für Standard- und
   SG-Kugellager: 45°-Fase nach DIN 620 / ISO 582 an Bohrung (Innenring) und
   Außenmantel (Außenring), bei VGROOVE links/rechts der V-Rille.
@@ -127,50 +129,30 @@
 - Build-Skript ``build_addon_zip.py`` wiederhergestellt (war versehentlich
   gelöscht, README verwies aber weiter darauf).
 
----
+### v0.12.0 – DIN 623 / ISO 15 Maßreihen
+- Neues Modul ``din623.py`` mit DIN 623-Bohrungskennzahl-Logik
+  (``bore_code_to_diameter``) sowie ISO 15-Maßtabellen für Rillenkugellager
+  (Reihen 60/62/63/64/618/619), Zylinderrollenlager NU2/NU3, Kegelrollen
+  302/303 und Pendelrollen 222/223.
+- ``SERIES_PRESETS`` für BALL/CYLINDRICAL/TAPERED/SPHERICAL werden komplett
+  aus den Tabellen generiert (~80 Rillenkugellager-Größen statt bisher 3).
+- Nadellager-Presets manuell erweitert (HK0808–HK3020).
+- Tests in ``tests/test_din623.py`` decken Bohrungskennzahl-Mapping und
+  Konsistenz der generierten Presets ab.
 
-### Kegelrollen-Reihen 313/320/322/323 + Cone/Cup-Breiten (v0.17.0)
-- Vier zusätzliche DIN 720-Reihen (313, 320, 322, 323) als Norm-Presets
-  in ``data/tapered.json``; insgesamt 46 Kegelrollen-Größen.
-- JSON-Eintragsformat erweitert: ``[D, T]`` (Gesamtbreite) oder
-  ``[D, T, B, C]`` mit getrennter Cone- (``B``) und Cup-Breite (``C``).
-- ``norm_engine.load_ring_widths_for`` liest die getrennten Breiten aus
-  und ``apply_series_preset`` überträgt sie in die neuen Properties
-  ``tapered_cone_width_mm`` und ``tapered_cup_width_mm``.
-- Innen- bzw. Außenring-Profil verwenden die separaten Breiten (falls
-  > 0), sodass Cone und Cup tatsächlich unterschiedlich breit dargestellt
-  werden statt beide T zu nutzen.
-- Werte werden als Metadaten ``tapered_cone_width_mm`` und
-  ``tapered_cup_width_mm`` am Bearing-Empty hinterlegt.
+### v0.13.0 – Tragzahlen ISO 76 / ISO 281
+- Neues Modul ``ratings.py`` mit vereinfachten Berechnungen:
+  ``static_load_rating`` (C0r nach ISO 76), ``dynamic_load_rating``
+  (Cr nach ISO 281) und ``nominal_life_hours`` (L10h).
+- UI-Sektion „Tragzahlen & Lebensdauer" mit Eingaben für äquivalente Last
+  ``P`` und Drehzahl ``n``; zeigt C0r, Cr und – wenn P und n > 0 – L10h
+  als Live-Vorschau.
+- Werte werden als Metadaten ``static_load_rating_N``,
+  ``dynamic_load_rating_N`` und ``L10h_hours`` am Bearing-Empty hinterlegt.
+- Lebensdauer-Exponent p = 3 für Kugel-/SG-Lager, 10/3 für Rollenlager;
+  Pendelrollenlager werden mit i = 2 Reihen und α = 10° gerechnet.
 
-### Norm-Engine als JSON-Datenquelle (v0.16.0)
-- Neues Modul ``norm_engine.py`` lädt die Maßreihen aus JSON-Dateien
-  unter ``uni_rolling_bearing/data/`` (ball/cylindrical/needle/tapered/
-  spherical/vgroove). Dateien sind in zwei Codings beschreibbar:
-  ``din623`` (Reihe → Bohrungskennzahl → ``[D, B]``) und ``direct``
-  (Code → ``[d, D, B]``).
-- ``constants.SERIES_PRESETS`` und ``constants.NORM_HINTS`` werden
-  beim Import aus den JSON-Dateien gebaut – keine Hardcoded-Tabellen
-  mehr im Code.
-- Benutzer können eigene Presets als gleichnamige JSON unter
-  ``<Blender-Scripts>/uni_bearing/`` ablegen; sie werden über die
-  ausgelieferten Defaults gemerged.
-
-### Käfig-Bauart Ribbon (v0.15.0)
-- Neue Käfig-Bauart ``RIBBON``: zwei genietete Halbringe oberhalb und
-  unterhalb der Wälzkörpermitte, klassischer Pressblech-Stil. Halb-
-  Pockets entstehen per Boolean-Subtraktion aus den vorhandenen Wälz-
-  körper-Cuttern; zusätzliche Niete als kleine Zylinder in den Lücken
-  zwischen den Pockets.
-- Neue Property ``cage_style`` mit den Werten ``AUTO`` (Default),
-  ``POCKET``, ``RIBBON``, ``LADDER``. ``AUTO`` behält das bisherige
-  Verhalten (Sleeve → Fallback Leiter). Bei misslungenem Boolean fällt
-  ``RIBBON`` ebenfalls auf den Leiter-Käfig zurück.
-- UI: Auswahl im Käfig-Abschnitt; Style wird als Metadatum
-  ``cage_style`` am Bearing-Empty hinterlegt (Werte: ``pocket``,
-  ``ribbon``, ``ladder``).
-
-### Welle-/Gehäuse-Passungen DIN 5418 (v0.14.0)
+### v0.14.0 – Welle-/Gehäuse-Passungen DIN 5418
 - Neues Modul ``fits.py`` mit DIN 5418-orientierter Empfehlung für die
   ISO 286-Toleranzklasse von Welle und Gehäusebohrung; Stufung nach
   Belastungsfall (Innenring rotiert leicht/normal/schwer, Außenring
@@ -184,28 +166,46 @@
   ``shaft_fit_lower_um``, ``housing_fit_upper_um``, ``housing_fit_lower_um``
   am Bearing-Empty hinterlegt.
 
-### Tragzahlen ISO 76 / ISO 281 (v0.13.0)
-- Neues Modul ``ratings.py`` mit vereinfachten Berechnungen:
-  ``static_load_rating`` (C0r nach ISO 76), ``dynamic_load_rating``
-  (Cr nach ISO 281) und ``nominal_life_hours`` (L10h).
-- UI-Sektion „Tragzahlen & Lebensdauer“ mit Eingaben für äquivalente Last
-  ``P`` und Drehzahl ``n``; zeigt C0r, Cr und – wenn P und n > 0 – L10h
-  als Live-Vorschau.
-- Werte werden als Metadaten ``static_load_rating_N``,
-  ``dynamic_load_rating_N`` und ``L10h_hours`` am Bearing-Empty hinterlegt.
-- Lebensdauer-Exponent p = 3 für Kugel-/SG-Lager, 10/3 für Rollenlager;
-  Pendelrollenlager werden mit i = 2 Reihen und α = 10° gerechnet.
+### v0.15.0 – Käfig-Bauart Ribbon
+- Neue Käfig-Bauart ``RIBBON``: zwei genietete Halbringe oberhalb und
+  unterhalb der Wälzkörpermitte, klassischer Pressblech-Stil. Halb-
+  Pockets entstehen per Boolean-Subtraktion aus den vorhandenen Wälz-
+  körper-Cuttern; zusätzliche Niete als kleine Zylinder in den Lücken
+  zwischen den Pockets.
+- Neue Property ``cage_style`` mit den Werten ``AUTO`` (Default),
+  ``POCKET``, ``RIBBON``, ``LADDER``. ``AUTO`` behält das bisherige
+  Verhalten (Sleeve → Fallback Leiter). Bei misslungenem Boolean fällt
+  ``RIBBON`` ebenfalls auf den Leiter-Käfig zurück.
+- UI: Auswahl im Käfig-Abschnitt; Style wird als Metadatum
+  ``cage_style`` am Bearing-Empty hinterlegt (Werte: ``pocket``,
+  ``ribbon``, ``ladder``).
 
-### DIN 623 / ISO 15 Maßreihen (v0.12.0)
-- Neues Modul ``din623.py`` mit DIN 623-Bohrungskennzahl-Logik
-  (``bore_code_to_diameter``) sowie ISO 15-Maßtabellen für Rillenkugellager
-  (Reihen 60/62/63/64/618/619), Zylinderrollenlager NU2/NU3, Kegelrollen
-  302/303 und Pendelrollen 222/223.
-- ``SERIES_PRESETS`` für BALL/CYLINDRICAL/TAPERED/SPHERICAL werden komplett
-  aus den Tabellen generiert (~80 Rillenkugellager-Größen statt bisher 3).
-- Nadellager-Presets manuell erweitert (HK0808–HK3020).
-- Tests in ``tests/test_din623.py`` decken Bohrungskennzahl-Mapping und
-  Konsistenz der generierten Presets ab.
+### v0.16.0 – Norm-Engine als JSON-Datenquelle
+- Neues Modul ``norm_engine.py`` lädt die Maßreihen aus JSON-Dateien
+  unter ``uni_rolling_bearing/data/`` (ball/cylindrical/needle/tapered/
+  spherical/vgroove). Dateien sind in zwei Codings beschreibbar:
+  ``din623`` (Reihe → Bohrungskennzahl → ``[D, B]``) und ``direct``
+  (Code → ``[d, D, B]``).
+- ``constants.SERIES_PRESETS`` und ``constants.NORM_HINTS`` werden
+  beim Import aus den JSON-Dateien gebaut – keine Hardcoded-Tabellen
+  mehr im Code.
+- Benutzer können eigene Presets als gleichnamige JSON unter
+  ``<Blender-Scripts>/uni_bearing/`` ablegen; sie werden über die
+  ausgelieferten Defaults gemerged.
+
+### v0.17.0 – Kegelrollen-Reihen 313/320/322/323 + Cone/Cup-Breiten
+- Vier zusätzliche DIN 720-Reihen (313, 320, 322, 323) als Norm-Presets
+  in ``data/tapered.json``; insgesamt 46 Kegelrollen-Größen.
+- JSON-Eintragsformat erweitert: ``[D, T]`` (Gesamtbreite) oder
+  ``[D, T, B, C]`` mit getrennter Cone- (``B``) und Cup-Breite (``C``).
+- ``norm_engine.load_ring_widths_for`` liest die getrennten Breiten aus
+  und ``apply_series_preset`` überträgt sie in die neuen Properties
+  ``tapered_cone_width_mm`` und ``tapered_cup_width_mm``.
+- Innen- bzw. Außenring-Profil verwenden die separaten Breiten (falls
+  > 0), sodass Cone und Cup tatsächlich unterschiedlich breit dargestellt
+  werden statt beide T zu nutzen.
+- Werte werden als Metadaten ``tapered_cone_width_mm`` und
+  ``tapered_cup_width_mm`` am Bearing-Empty hinterlegt.
 
 ---
 
@@ -215,38 +215,21 @@
    - SG-Reihe um Zwischengrößen (SG30, SG40, SG55) sowie U-Profil-Variante
      (Halbkreis-Rille statt 90°-V) ergänzen, sobald belastbare Maßquellen
      vorliegen.
-   - ✅ Kegelrollen-Reihen 313/320/322/323 + getrennte Cone/Cup-Breiten
-     (v0.17.0).
 
-2. **Laufbahnen weiter verfeinern**
-   - ✅ Pendelrollen: Innenring mit zwei separaten Laufbahnen + Mittelbord
-     (``spherical_inner_ring_profile``); zwei Rollenreihen unter Kontaktwinkel α.
-
-3. **Käfig-Ausbaustufe**
-   - ✅ Schnapp-/Ribbon-Bauart (zwei vernietete Halbringe) zusätzlich zum
-     Sleeve-Käfig (siehe v0.15.0).
+2. **Käfig-Ausbaustufe**
+   - Weitere Bauformen (z. B. Massivkäfig mit Schmiertaschen) evaluieren.
 
 ---
 
 ## Mittelfristig 🔵
 
 1. **Norm-Engine**
-   - ✅ Maßreihen als externe JSON-Dateien (v0.16.0); User-Overrides via
-     ``<Blender-Scripts>/uni_bearing/*.json``.
-   - Erweiterung: dedizierter UI-Workflow „Reihe wählen → Bohrungskennzahl
-     wählen" (statt heutigem freien Code-Dropdown).
+   - Dedizierter UI-Workflow „Reihe wählen → Bohrungskennzahl wählen"
+     (statt heutigem freien Code-Dropdown).
 
-2. **Toleranzen / Passungen**
-   - ✅ ISO 492-/DIN 620-Toleranzfenster werden in d, D, B umgerechnet
-     (``tolerances.py``); Klassen NORMAL/P6/P5/P4 + Toleranzlage MAX/MEAN/MIN.
-     Abweichungen werden in µm am Bearing-Empty hinterlegt.
-   - ✅ Passungen für Welle/Gehäuse nach DIN 5418 (v0.14.0).
-
-3. **Technische Kennwerte**
-   - ✅ Statische/dynamische Tragzahl (ISO 76 / ISO 281) + L10h
-     Lebensdauer (v0.13.0).
-   - Erweiterung: Beiwerte ``f0``/``fc`` aus γ = Dw·cosα / dm tabellieren
-     statt Mittelwerte; Axialbelastung über X-/Y-Faktoren berücksichtigen.
+2. **Technische Kennwerte**
+   - Beiwerte ``f0``/``fc`` aus γ = Dw·cosα / dm tabellieren statt
+     Mittelwerte; Axialbelastung über X-/Y-Faktoren berücksichtigen.
 
 ---
 
