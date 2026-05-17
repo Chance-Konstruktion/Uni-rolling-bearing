@@ -168,6 +168,21 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         ),
         default=False,
     )
+    cage_style: EnumProperty(
+        name="Käfig-Bauart",
+        description=(
+            "Bauart des Käfigs. 'Auto' wählt Pocket-Sleeve und fällt bei "
+            "Boolean-Problemen auf den Leiter-Käfig zurück. 'Ribbon' erzeugt "
+            "zwei genietete Halbringe wie ein klassischer Pressblech-Käfig."
+        ),
+        items=[
+            ("AUTO", "Auto", "Pocket-Sleeve, Fallback Leiter"),
+            ("POCKET", "Sleeve (Pocket)", "Einteiliger Sleeve-Käfig mit Boolean-Pockets"),
+            ("RIBBON", "Ribbon (genietet)", "Zwei genietete Halbringe, Pressblech-Stil"),
+            ("LADDER", "Leiter", "Zwei Endplatten + tangentiale Webs"),
+        ],
+        default="AUTO",
+    )
     cage_material: EnumProperty(
         name="Käfig-Werkstoff",
         description=(

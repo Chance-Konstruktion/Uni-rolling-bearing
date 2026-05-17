@@ -295,6 +295,78 @@ def _build_pocket_cutter(props, spec: ResolvedBearing, position, angle, name, co
     return cutter
 
 
+def _build_ribbon_cage(props, spec: ResolvedBearing, cage: CageDims, collection):
+    """Ribbon-/Schnappkäfig aus zwei genieteten Halbringen.
+
+    Klassische Pressblech-Bauart bei Rillenkugellagern: zwei dünne
+    Halbringe sitzen oberhalb und unterhalb der Wälzkörpermitte und
+    werden durch kleine Niete in den Lücken zwischen den Pockets
+    verbunden. Aus jedem Halbring wird der jeweils zugewandte Teil der
+    Wälzkörper-Stempel ausgeschnitten, sodass halbschalige Pockets
+    entstehen.
+    """
+    sleeve_width = 2.0 * cage.plate_z_offset + cage.plate_thickness
+    if sleeve_width <= 0.5:
+        return None
+
+    half_width = sleeve_width * 0.5
+    half_offset = half_width * 0.5  # z-Mitte jedes Halbrings
+    halves = []
+    for sign, label in ((+1, "Top"), (-1, "Bottom")):
+        half = mesh_builders.make_hollow_ring(
+            f"CageRibbon_{label}",
+            cage.plate_inner_d,
+            cage.plate_outer_d,
+            half_width,
+            props.segments,
+            collection=collection,
+        )
+        half.location.z = sign * half_offset
+        halves.append(half)
+
+    pitch_r = spec.pitch_d * 0.5
+
+    def _build_cutters_for(label: str):
+        cutters = []
+        for i in range(spec.element_count):
+            a = 2.0 * math.pi * i / spec.element_count
+            position = (pitch_r * math.cos(a), pitch_r * math.sin(a), 0.0)
+            cutter = _build_pocket_cutter(
+                props, spec, position, a, f"_RibbonCutter_{label}_{i + 1:02d}", collection
+            )
+            if cutter is not None:
+                cutters.append(cutter)
+        return cutters
+
+    pocket_hits = 0
+    for half, side_label in zip(halves, ("T", "B")):
+        cutters = _build_cutters_for(side_label)
+        pocket_hits += mesh_builders.apply_boolean_difference(half, cutters)
+    if pocket_hits == 0:
+        for half in halves:
+            if half.name in bpy.data.objects:
+                bpy.data.objects.remove(half, do_unlink=True)
+        return None
+
+    rivets = []
+    rivet_r = max(0.25, cage.web_radial_size * 0.25)
+    rivet_pitch_r = cage.web_pitch_r
+    angular_pitch = 2.0 * math.pi / spec.element_count
+    for i in range(spec.element_count):
+        theta = (i + 0.5) * angular_pitch
+        rivet = mesh_builders.add_cylinder(
+            f"CageRivet_{i + 1:02d}",
+            radius=rivet_r,
+            depth=sleeve_width,
+            location=(rivet_pitch_r * math.cos(theta), rivet_pitch_r * math.sin(theta), 0.0),
+            segments=max(8, props.segments // 4),
+            collection=collection,
+        )
+        rivets.append(rivet)
+
+    return halves + rivets
+
+
 def _build_pocket_cage(props, spec: ResolvedBearing, cage: CageDims, collection):
     """Einteiliger Sleeve-Käfig mit typabhängigen Pockets (Boolean-Subtraktion).
 
@@ -346,9 +418,18 @@ def _build_cage(props, spec: ResolvedBearing, cage: CageDims, collection):
     oder degenerierter Cutter), wird der historische Leiter-Käfig als Fallback
     zurückgegeben. ``style`` ist ``"pocket"`` oder ``"ladder"``.
     """
-    pocket_part = _build_pocket_cage(props, spec, cage, collection)
-    if pocket_part is not None:
-        return [pocket_part], "pocket"
+    style_pref = getattr(props, "cage_style", "AUTO")
+    if style_pref == "RIBBON":
+        parts = _build_ribbon_cage(props, spec, cage, collection)
+        if parts:
+            return parts, "ribbon"
+        # Fallback bei misslungenem Boolean: Sleeve → Leiter.
+    if style_pref in ("AUTO", "POCKET"):
+        pocket_part = _build_pocket_cage(props, spec, cage, collection)
+        if pocket_part is not None:
+            return [pocket_part], "pocket"
+    if style_pref == "LADDER":
+        return _ladder_cage_parts(props, spec, cage, collection), "ladder"
     return _ladder_cage_parts(props, spec, cage, collection), "ladder"
 
 

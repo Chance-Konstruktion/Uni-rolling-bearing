@@ -129,6 +129,20 @@
 
 ---
 
+### Käfig-Bauart Ribbon (v0.15.0)
+- Neue Käfig-Bauart ``RIBBON``: zwei genietete Halbringe oberhalb und
+  unterhalb der Wälzkörpermitte, klassischer Pressblech-Stil. Halb-
+  Pockets entstehen per Boolean-Subtraktion aus den vorhandenen Wälz-
+  körper-Cuttern; zusätzliche Niete als kleine Zylinder in den Lücken
+  zwischen den Pockets.
+- Neue Property ``cage_style`` mit den Werten ``AUTO`` (Default),
+  ``POCKET``, ``RIBBON``, ``LADDER``. ``AUTO`` behält das bisherige
+  Verhalten (Sleeve → Fallback Leiter). Bei misslungenem Boolean fällt
+  ``RIBBON`` ebenfalls auf den Leiter-Käfig zurück.
+- UI: Auswahl im Käfig-Abschnitt; Style wird als Metadatum
+  ``cage_style`` am Bearing-Empty hinterlegt (Werte: ``pocket``,
+  ``ribbon``, ``ladder``).
+
 ### Welle-/Gehäuse-Passungen DIN 5418 (v0.14.0)
 - Neues Modul ``fits.py`` mit DIN 5418-orientierter Empfehlung für die
   ISO 286-Toleranzklasse von Welle und Gehäusebohrung; Stufung nach
@@ -182,8 +196,8 @@
      (``spherical_inner_ring_profile``); zwei Rollenreihen unter Kontaktwinkel α.
 
 3. **Käfig-Ausbaustufe**
-   - Optionale Schnapp-/Ribbon-Bauarten (zwei vernietete Halbringe) zusätzlich
-     zum aktuellen Sleeve-Käfig.
+   - ✅ Schnapp-/Ribbon-Bauart (zwei vernietete Halbringe) zusätzlich zum
+     Sleeve-Käfig (siehe v0.15.0).
 
 ---
 
