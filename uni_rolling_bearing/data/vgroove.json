@@ -1,0 +1,13 @@
+{
+  "type": "VGROOVE",
+  "norm": "Führungsrolle SG/W-Reihe (Hersteller-Katalogwerte)",
+  "coding": "direct",
+  "presets": {
+    "SG10": [4.0, 13.0, 6.0],
+    "SG15": [5.0, 17.0, 8.0],
+    "SG20": [6.0, 24.0, 11.0],
+    "SG25": [8.0, 30.73, 11.1],
+    "SG35": [12.0, 45.72, 15.88],
+    "SG66": [15.0, 62.0, 20.0]
+  }
+}

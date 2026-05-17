@@ -129,6 +129,19 @@
 
 ---
 
+### Norm-Engine als JSON-Datenquelle (v0.16.0)
+- Neues Modul ``norm_engine.py`` lädt die Maßreihen aus JSON-Dateien
+  unter ``uni_rolling_bearing/data/`` (ball/cylindrical/needle/tapered/
+  spherical/vgroove). Dateien sind in zwei Codings beschreibbar:
+  ``din623`` (Reihe → Bohrungskennzahl → ``[D, B]``) und ``direct``
+  (Code → ``[d, D, B]``).
+- ``constants.SERIES_PRESETS`` und ``constants.NORM_HINTS`` werden
+  beim Import aus den JSON-Dateien gebaut – keine Hardcoded-Tabellen
+  mehr im Code.
+- Benutzer können eigene Presets als gleichnamige JSON unter
+  ``<Blender-Scripts>/uni_bearing/`` ablegen; sie werden über die
+  ausgelieferten Defaults gemerged.
+
 ### Käfig-Bauart Ribbon (v0.15.0)
 - Neue Käfig-Bauart ``RIBBON``: zwei genietete Halbringe oberhalb und
   unterhalb der Wälzkörpermitte, klassischer Pressblech-Stil. Halb-
@@ -204,8 +217,10 @@
 ## Mittelfristig 🔵
 
 1. **Norm-Engine**
-   - Datensatzverwaltung für DIN/ISO-Reihen als externe Datenquelle (JSON/CSV).
-   - Auswahl nach Reihe + Bohrungskennzahl.
+   - ✅ Maßreihen als externe JSON-Dateien (v0.16.0); User-Overrides via
+     ``<Blender-Scripts>/uni_bearing/*.json``.
+   - Erweiterung: dedizierter UI-Workflow „Reihe wählen → Bohrungskennzahl
+     wählen" (statt heutigem freien Code-Dropdown).
 
 2. **Toleranzen / Passungen**
    - ✅ ISO 492-/DIN 620-Toleranzfenster werden in d, D, B umgerechnet
