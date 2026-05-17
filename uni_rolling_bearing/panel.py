@@ -85,6 +85,7 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
         rollers.prop(props, "use_cage")
         if props.use_cage:
             cage_box = rollers.column(align=True)
+            cage_box.prop(props, "cage_style")
             cage_box.prop(props, "cage_material")
             cage_box.prop(props, "pocket_clearance_mm")
 
