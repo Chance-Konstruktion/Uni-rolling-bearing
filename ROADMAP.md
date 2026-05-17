@@ -129,6 +129,20 @@
 
 ---
 
+### Welle-/Gehäuse-Passungen DIN 5418 (v0.14.0)
+- Neues Modul ``fits.py`` mit DIN 5418-orientierter Empfehlung für die
+  ISO 286-Toleranzklasse von Welle und Gehäusebohrung; Stufung nach
+  Belastungsfall (Innenring rotiert leicht/normal/schwer, Außenring
+  rotiert, stillstehend) und Bohrungs-/Außendurchmesser.
+- Abmaße für die empfohlenen Klassen (g6/h6/j6/k5/k6/m5/m6/n6/p6 sowie
+  G7/H6/H7/J7/K7/M7/N7/P7) in 10 ISO 286-Bereichen 1..250 mm tabelliert.
+- UI-Sektion „Passungen (DIN 5418)" mit Belastungsfall-Dropdown und
+  Live-Anzeige der Klasse + Abmaße in µm.
+- Werte werden als Metadaten ``load_case``, ``shaft_fit_class``,
+  ``housing_fit_class`` und – soweit tabelliert – ``shaft_fit_upper_um``,
+  ``shaft_fit_lower_um``, ``housing_fit_upper_um``, ``housing_fit_lower_um``
+  am Bearing-Empty hinterlegt.
+
 ### Tragzahlen ISO 76 / ISO 281 (v0.13.0)
 - Neues Modul ``ratings.py`` mit vereinfachten Berechnungen:
   ``static_load_rating`` (C0r nach ISO 76), ``dynamic_load_rating``
@@ -183,7 +197,7 @@
    - ✅ ISO 492-/DIN 620-Toleranzfenster werden in d, D, B umgerechnet
      (``tolerances.py``); Klassen NORMAL/P6/P5/P4 + Toleranzlage MAX/MEAN/MIN.
      Abweichungen werden in µm am Bearing-Empty hinterlegt.
-   - Passungen für Welle/Gehäuse (DIN 5418-orientiert).
+   - ✅ Passungen für Welle/Gehäuse nach DIN 5418 (v0.14.0).
 
 3. **Technische Kennwerte**
    - ✅ Statische/dynamische Tragzahl (ISO 76 / ISO 281) + L10h

@@ -11,6 +11,7 @@ import bpy
 from bpy.props import BoolProperty, EnumProperty, FloatProperty, IntProperty
 
 from .constants import BEARING_TYPES, PRECISION_CLASSES, SERIES_PRESETS
+from .fits import LOAD_CASES
 from .tolerances import TOLERANCE_POSITIONS
 
 
@@ -358,4 +359,13 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         ),
         default=0.0,
         min=0.0,
+    )
+    load_case: EnumProperty(
+        name="Belastungsfall (DIN 5418)",
+        description=(
+            "Lastfall für die Passungs-Empfehlung an Welle und "
+            "Gehäusebohrung nach DIN 5418."
+        ),
+        items=LOAD_CASES,
+        default="INNER_ROT_NORMAL",
     )

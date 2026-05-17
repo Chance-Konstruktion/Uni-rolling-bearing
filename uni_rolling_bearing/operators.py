@@ -636,6 +636,18 @@ class UNI_OT_info_qualitaet(_UNI_InfoPopupBase):
     )
 
 
+class UNI_OT_info_passungen(_UNI_InfoPopupBase):
+    bl_idname = "uni_bearing.info_passungen"
+    bl_label = "Passungen (DIN 5418)"
+    bl_description = (
+        "Empfehlung für Welle- und Gehäusepassung nach DIN 5418:\n"
+        "• Stufung nach Belastungsfall (Innenring rotiert leicht/normal/\n"
+        "  schwer, Außenring rotiert, stillstehend).\n"
+        "• ISO 286-Toleranzklassen mit Abmaßen in µm.\n"
+        "Für d, D außerhalb 1..250 mm wird nur die Klasse genannt."
+    )
+
+
 class UNI_OT_info_tragzahlen(_UNI_InfoPopupBase):
     bl_idname = "uni_bearing.info_tragzahlen"
     bl_label = "Tragzahlen & Lebensdauer"
@@ -775,6 +787,22 @@ class UNI_OT_create_bearing(bpy.types.Operator):
             equivalent_load_P_N=props.equivalent_load_p_n,
             speed_rpm=props.speed_rpm,
         )
+        from . import fits as fits_mod
+        fit = fits_mod.recommend_fits(
+            load_case=props.load_case,
+            bore_diameter_mm=eff.bore_diameter,
+            outer_diameter_mm=eff.outer_diameter,
+        )
+        assembly["load_case"] = props.load_case
+        assembly["shaft_fit_class"] = fit.shaft_class
+        assembly["housing_fit_class"] = fit.housing_class
+        if fit.shaft_upper_um is not None:
+            assembly["shaft_fit_upper_um"] = fit.shaft_upper_um
+            assembly["shaft_fit_lower_um"] = fit.shaft_lower_um
+        if fit.housing_upper_um is not None:
+            assembly["housing_fit_upper_um"] = fit.housing_upper_um
+            assembly["housing_fit_lower_um"] = fit.housing_lower_um
+
         assembly["static_load_rating_N"] = round(ratings_result.static_C0_N, 1)
         assembly["dynamic_load_rating_N"] = round(ratings_result.dynamic_C_N, 1)
         if ratings_result.L10h is not None:

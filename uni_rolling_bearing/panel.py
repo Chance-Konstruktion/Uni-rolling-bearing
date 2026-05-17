@@ -182,5 +182,30 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
             if r.L10h is not None:
                 ratings_box.label(text=f"L10h ≈ {r.L10h:,.0f} h", icon="TIME")
 
+        fits_box = _section_header(
+            layout, "8) Passungen (DIN 5418)", "uni_bearing.info_passungen"
+        )
+        fits_box.prop(props, "load_case")
+        from . import fits as fits_mod
+        fit = fits_mod.recommend_fits(
+            load_case=props.load_case,
+            bore_diameter_mm=props.bore_diameter,
+            outer_diameter_mm=props.outer_diameter,
+        )
+
+        def _dev_label(prefix: str, cls: str, u, l):
+            if u is None or l is None:
+                return f"{prefix} {cls} (außerhalb Tabelle)"
+            return f"{prefix} {cls}  {u:+d}/{l:+d} µm"
+
+        fits_box.label(
+            text=_dev_label("Welle:", fit.shaft_class, fit.shaft_upper_um, fit.shaft_lower_um),
+            icon="CON_LOCKTRACK",
+        )
+        fits_box.label(
+            text=_dev_label("Gehäuse:", fit.housing_class, fit.housing_upper_um, fit.housing_lower_um),
+            icon="CON_OBJECTSOLVER",
+        )
+
         layout.separator()
         layout.operator("uni_bearing.create", icon="MESH_TORUS")
