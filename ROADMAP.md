@@ -129,14 +129,27 @@
 
 ---
 
+### DIN 623 / ISO 15 Maßreihen (v0.12.0)
+- Neues Modul ``din623.py`` mit DIN 623-Bohrungskennzahl-Logik
+  (``bore_code_to_diameter``) sowie ISO 15-Maßtabellen für Rillenkugellager
+  (Reihen 60/62/63/64/618/619), Zylinderrollenlager NU2/NU3, Kegelrollen
+  302/303 und Pendelrollen 222/223.
+- ``SERIES_PRESETS`` für BALL/CYLINDRICAL/TAPERED/SPHERICAL werden komplett
+  aus den Tabellen generiert (~80 Rillenkugellager-Größen statt bisher 3).
+- Nadellager-Presets manuell erweitert (HK0808–HK3020).
+- Tests in ``tests/test_din623.py`` decken Bohrungskennzahl-Mapping und
+  Konsistenz der generierten Presets ab.
+
+---
+
 ## Als Nächstes (kurzfristig) 🟡
 
-1. **Vollständige DIN/ISO-Tabellen**
-   - Vollständige Reihen für DIN 625 / ISO 15 implementieren.
-   - Automatische Code-Generierung nach DIN 623.
+1. **Weitere Norm-Tabellen**
    - SG-Reihe um Zwischengrößen (SG30, SG40, SG55) sowie U-Profil-Variante
      (Halbkreis-Rille statt 90°-V) ergänzen, sobald belastbare Maßquellen
      vorliegen.
+   - Kegelrollenlager-Reihen 313/320/322/323 ergänzen, Außenring-Breite C
+     getrennt von T modellieren.
 
 2. **Laufbahnen weiter verfeinern**
    - ✅ Pendelrollen: Innenring mit zwei separaten Laufbahnen + Mittelbord

@@ -28,29 +28,28 @@ PRECISION_CLASSES = [
     ("P4", "P4", "ISO 492 Klasse P4"),
 ]
 
-# (d, D, B) in mm – praxisnahe Startwerte je Baureihe.
+# (d, D, B) in mm – Norm-Presets je Baureihe.
+# Hauptreihen (DIN 625, 5412, 720, 635) werden aus den Maßtabellen in
+# ``din623.py`` generiert. Nadellager und SG-Reihe bleiben manuell, da sie
+# nicht der DIN 623-Codegenerierung folgen.
+from . import din623  # noqa: E402
+
 SERIES_PRESETS: Dict[str, Dict[str, Tuple[float, float, float]]] = {
-    BALL: {
-        "6000": (10.0, 26.0, 8.0),
-        "6204": (20.0, 47.0, 14.0),
-        "6306": (30.0, 72.0, 19.0),
-    },
-    CYLINDRICAL: {
-        "NU204": (20.0, 47.0, 14.0),
-        "NU306": (30.0, 72.0, 19.0),
-    },
+    BALL: din623.build_ball_presets(),
+    CYLINDRICAL: din623.build_cylindrical_presets(),
     NEEDLE: {
+        "HK0808": (8.0, 12.0, 8.0),
         "HK1010": (10.0, 14.0, 10.0),
+        "HK1212": (12.0, 16.0, 12.0),
+        "HK1512": (15.0, 21.0, 12.0),
+        "HK1612": (16.0, 22.0, 12.0),
+        "HK2012": (20.0, 26.0, 12.0),
         "HK2020": (20.0, 26.0, 20.0),
+        "HK2516": (25.0, 32.0, 16.0),
+        "HK3020": (30.0, 37.0, 20.0),
     },
-    TAPERED: {
-        "30204": (20.0, 47.0, 15.25),
-        "30206": (30.0, 62.0, 17.25),
-    },
-    SPHERICAL: {
-        "22206": (30.0, 62.0, 20.0),
-        "22210": (50.0, 90.0, 23.0),
-    },
+    TAPERED: din623.build_tapered_presets(),
+    SPHERICAL: din623.build_spherical_presets(),
     # U-/V-Rillen-Führungsrollen-Kugellager (SG- bzw. W-Reihe).
     # Hauptmaße orientieren sich an handelsüblichen Katalogwerten der
     # Bishop-Wisecarver "DualVee"-/Misumi "SG"-Familien (d, D, B in mm).
