@@ -448,10 +448,12 @@ def _inner_ring_profile(props, spec: ResolvedBearing):
             chamfer_mm=props.bearing_chamfer_mm,
         )
     if bt == constants.TAPERED:
+        cone_w = float(getattr(props, "tapered_cone_width_mm", 0.0))
+        inner_width = cone_w if cone_w > 0.0 else eff.width
         # Bordhöhe so begrenzen, dass der Bord die Außenlaufbahn nicht berührt.
         flange_h = max(0.0, float(getattr(props, "tapered_flange_height_mm", 0.0)))
         if flange_h > 0.0:
-            half_w = eff.width * 0.5
+            half_w = inner_width * 0.5
             delta = math.tan(math.radians(max(0.0, props.contact_angle_deg))) * half_w
             r_plus = spec.inner_outer_d * 0.5 + delta
             max_flange = max(0.0, spec.outer_inner_d * 0.5 - r_plus - props.radial_clearance)
@@ -459,7 +461,7 @@ def _inner_ring_profile(props, spec: ResolvedBearing):
         return raceway.tapered_inner_ring_profile(
             bore_d=eff.bore_diameter,
             shoulder_d=spec.inner_outer_d,
-            width=eff.width,
+            width=inner_width,
             contact_angle_rad=math.radians(props.contact_angle_deg),
             large_flange_height_mm=flange_h,
         )
@@ -520,10 +522,12 @@ def _outer_ring_profile(props, spec: ResolvedBearing):
             roller_d=spec.roller_d,
         )
     if bt == constants.TAPERED:
+        cup_w = float(getattr(props, "tapered_cup_width_mm", 0.0))
+        outer_width = cup_w if cup_w > 0.0 else eff.width
         return raceway.tapered_outer_ring_profile(
             shoulder_d=spec.outer_inner_d,
             outer_d=eff.outer_diameter,
-            width=eff.width,
+            width=outer_width,
             contact_angle_rad=math.radians(props.contact_angle_deg),
         )
     if bt == constants.SPHERICAL:
@@ -764,6 +768,19 @@ class UNI_OT_apply_series_preset(bpy.types.Operator):
         props.outer_diameter = outer
         props.width = width
 
+        # Kegelrollenlager: getrennte Cone-/Cup-Breiten (B, C) aus der
+        # Norm-Reihe übernehmen, falls hinterlegt.
+        if props.bearing_type == constants.TAPERED:
+            from . import norm_engine
+            ring_widths = norm_engine.load_ring_widths_for(constants.TAPERED)
+            entry = ring_widths.get(props.series_code)
+            if entry is not None:
+                props.tapered_cone_width_mm = entry[0]
+                props.tapered_cup_width_mm = entry[1]
+            else:
+                props.tapered_cone_width_mm = 0.0
+                props.tapered_cup_width_mm = 0.0
+
         # Ringstärke/Roller/Anzahl mitziehen, damit das Preset ohne weitere
         # Eingaben ein funktionierendes Lager liefert.
         apply_suggested_defaults(props)
@@ -846,6 +863,10 @@ class UNI_OT_create_bearing(bpy.types.Operator):
                 spec.pitch_d, spec.roller_length, math.radians(props.contact_angle_deg)
             )
             assembly["tapered_flange_height_mm"] = props.tapered_flange_height_mm
+            if props.tapered_cone_width_mm > 0.0:
+                assembly["tapered_cone_width_mm"] = props.tapered_cone_width_mm
+            if props.tapered_cup_width_mm > 0.0:
+                assembly["tapered_cup_width_mm"] = props.tapered_cup_width_mm
         if props.bearing_type == constants.VGROOVE:
             assembly["vgroove_depth_mm"] = props.vgroove_depth_mm
             assembly["vgroove_half_angle_deg"] = props.vgroove_half_angle_deg

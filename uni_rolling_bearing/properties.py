@@ -273,6 +273,26 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         precision=2,
     )
 
+    tapered_cone_width_mm: FloatProperty(
+        name="Cone-Breite B [mm]",
+        description=(
+            "Axiale Breite des Innenrings (Cone) eines Kegelrollenlagers. "
+            "0 = identisch zur Gesamtbreite. Wird aus dem Preset gesetzt, "
+            "wenn die Norm-Reihe getrennte B/C-Werte liefert."
+        ),
+        default=0.0,
+        min=0.0,
+    )
+    tapered_cup_width_mm: FloatProperty(
+        name="Cup-Breite C [mm]",
+        description=(
+            "Axiale Breite des Außenrings (Cup) eines Kegelrollenlagers. "
+            "0 = identisch zur Gesamtbreite. Wird aus dem Preset gesetzt, "
+            "wenn die Norm-Reihe getrennte B/C-Werte liefert."
+        ),
+        default=0.0,
+        min=0.0,
+    )
     tapered_flange_height_mm: FloatProperty(
         name="Bord-Höhe Innenring [mm]",
         description=(
