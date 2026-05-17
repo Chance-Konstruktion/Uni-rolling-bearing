@@ -156,5 +156,31 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
         quality = _section_header(layout, "6) Mesh-Qualität", "uni_bearing.info_qualitaet")
         quality.prop(props, "segments")
 
+        ratings_box = _section_header(
+            layout, "7) Tragzahlen & Lebensdauer", "uni_bearing.info_tragzahlen"
+        )
+        ratings_box.prop(props, "equivalent_load_p_n")
+        ratings_box.prop(props, "speed_rpm")
+        if spec is not None and error is None:
+            from . import ratings as ratings_mod
+            angle = (
+                props.contact_angle_deg
+                if props.bearing_type == constants.TAPERED
+                else 0.0
+            )
+            r = ratings_mod.compute_ratings(
+                bearing_type=props.bearing_type,
+                roller_d_mm=spec.roller_d,
+                roller_length_mm=spec.roller_length,
+                element_count=spec.element_count,
+                contact_angle_deg=angle,
+                equivalent_load_P_N=props.equivalent_load_p_n,
+                speed_rpm=props.speed_rpm,
+            )
+            ratings_box.label(text=f"C0r ≈ {r.static_C0_N:,.0f} N", icon="PHYSICS")
+            ratings_box.label(text=f"Cr  ≈ {r.dynamic_C_N:,.0f} N", icon="PHYSICS")
+            if r.L10h is not None:
+                ratings_box.label(text=f"L10h ≈ {r.L10h:,.0f} h", icon="TIME")
+
         layout.separator()
         layout.operator("uni_bearing.create", icon="MESH_TORUS")

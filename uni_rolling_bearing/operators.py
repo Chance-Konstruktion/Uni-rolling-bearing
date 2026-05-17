@@ -636,6 +636,19 @@ class UNI_OT_info_qualitaet(_UNI_InfoPopupBase):
     )
 
 
+class UNI_OT_info_tragzahlen(_UNI_InfoPopupBase):
+    bl_idname = "uni_bearing.info_tragzahlen"
+    bl_label = "Tragzahlen & Lebensdauer"
+    bl_description = (
+        "Vereinfachte Tragzahlberechnung nach ISO 76 / ISO 281:\n"
+        "• C0r – statische radiale Tragzahl in N.\n"
+        "• Cr  – dynamische radiale Tragzahl in N.\n"
+        "• L10h – nominelle Lebensdauer in Stunden, wenn P und n > 0.\n"
+        "Beiwerte f0/fc sind aus den ISO-Tabellen gemittelt; das Ergebnis "
+        "weicht typischerweise um ±15 % von Hersteller-Katalogwerten ab."
+    )
+
+
 class UNI_OT_apply_series_preset(bpy.types.Operator):
     bl_idname = "uni_bearing.apply_series_preset"
     bl_label = "Norm-Preset anwenden"
@@ -747,6 +760,25 @@ class UNI_OT_create_bearing(bpy.types.Operator):
             assembly["groove_conformity_inner"] = props.groove_conformity_inner
             assembly["groove_conformity_outer"] = props.groove_conformity_outer
             assembly["bearing_chamfer_mm"] = props.bearing_chamfer_mm
+
+        from . import ratings as ratings_mod
+        ratings_result = ratings_mod.compute_ratings(
+            bearing_type=props.bearing_type,
+            roller_d_mm=spec.roller_d,
+            roller_length_mm=spec.roller_length,
+            element_count=spec.element_count,
+            contact_angle_deg=(
+                props.contact_angle_deg
+                if props.bearing_type == constants.TAPERED
+                else 0.0
+            ),
+            equivalent_load_P_N=props.equivalent_load_p_n,
+            speed_rpm=props.speed_rpm,
+        )
+        assembly["static_load_rating_N"] = round(ratings_result.static_C0_N, 1)
+        assembly["dynamic_load_rating_N"] = round(ratings_result.dynamic_C_N, 1)
+        if ratings_result.L10h is not None:
+            assembly["L10h_hours"] = round(ratings_result.L10h, 1)
 
         if non_manifold > 0:
             self.report(
