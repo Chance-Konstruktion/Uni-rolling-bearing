@@ -737,12 +737,14 @@ class UNI_OT_info_tragzahlen(_UNI_InfoPopupBase):
     bl_idname = "uni_bearing.info_tragzahlen"
     bl_label = "Tragzahlen & Lebensdauer"
     bl_description = (
-        "Vereinfachte Tragzahlberechnung nach ISO 76 / ISO 281:\n"
-        "• C0r – statische radiale Tragzahl in N.\n"
-        "• Cr  – dynamische radiale Tragzahl in N.\n"
+        "Tragzahlberechnung nach ISO 76 / ISO 281:\n"
+        "• C0r – statische radiale Tragzahl in N (f0 nach ISO 76).\n"
+        "• Cr  – dynamische radiale Tragzahl in N (fc nach ISO 281).\n"
         "• L10h – nominelle Lebensdauer in Stunden, wenn P und n > 0.\n"
-        "Beiwerte f0/fc sind aus den ISO-Tabellen gemittelt; das Ergebnis "
-        "weicht typischerweise um ±15 % von Hersteller-Katalogwerten ab."
+        "Die Beiwerte f0 und fc werden über das Hüllkurvenverhältnis "
+        "γ = Dw·cos(α)/dm aus den ISO-Annex-Tabellen interpoliert; γ wird "
+        "ebenfalls am Bearing-Empty hinterlegt. Das Ergebnis weicht "
+        "typischerweise um ±15 % von Hersteller-Katalogwerten ab."
     )
 
 
@@ -938,6 +940,7 @@ class UNI_OT_create_bearing(bpy.types.Operator):
             roller_d_mm=spec.roller_d,
             roller_length_mm=spec.roller_length,
             element_count=spec.element_count,
+            pitch_d_mm=spec.pitch_d,
             contact_angle_deg=(
                 props.contact_angle_deg
                 if props.bearing_type == constants.TAPERED
@@ -964,6 +967,9 @@ class UNI_OT_create_bearing(bpy.types.Operator):
 
         assembly["static_load_rating_N"] = round(ratings_result.static_C0_N, 1)
         assembly["dynamic_load_rating_N"] = round(ratings_result.dynamic_C_N, 1)
+        assembly["rating_gamma"] = round(ratings_result.gamma, 4)
+        assembly["rating_f0"] = round(ratings_result.f0, 2)
+        assembly["rating_fc"] = round(ratings_result.fc, 2)
         if ratings_result.L10h is not None:
             assembly["L10h_hours"] = round(ratings_result.L10h, 1)
 

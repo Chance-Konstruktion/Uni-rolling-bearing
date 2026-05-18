@@ -37,14 +37,16 @@ Aktuell berücksichtigt:
   Abweichungen für d/D/B umgerechnet und als Metadaten hinterlegt.
 - **DIN 5418**: Empfohlene Welle-/Gehäuse-Passungen (g6…p6, G7…P7) je
   Belastungsfall mit ISO 286-Abmaßen.
-- **ISO 76 / ISO 281**: Vereinfachte statische/dynamische Tragzahl und
-  L10h-Lebensdauer als Live-Vorschau im Panel.
+- **ISO 76 / ISO 281**: Statische/dynamische Tragzahl und L10h-Lebensdauer
+  als Live-Vorschau im Panel. Die Beiwerte `f0`/`fc` werden über das
+  Hüllkurvenverhältnis γ = Dw·cos(α)/dm aus den ISO-Annex-Tabellen
+  interpoliert (keine Mittelwert-Konstanten mehr); γ, `f0`, `fc` werden
+  zusätzlich als Metadaten am Bearing-Empty abgelegt.
 
 Geplant (siehe ROADMAP):
 
 - SG-Zwischengrößen und U-Profil-Variante.
-- UI-Workflow „Reihe → Bohrungskennzahl".
-- Verfeinerte Beiwerte `f0`/`fc` und Axiallast-Faktoren.
+- Axiallast-Faktoren X/Y für äquivalente Last `P`.
 
 ## Installation
 
