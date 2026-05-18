@@ -11,6 +11,7 @@ from .geometry import (
     CageDims,
     ResolvedBearing,
     cage_dimensions,
+    oil_pocket_diameter,
     resolve_geometry,
     suggest_defaults,
     tapered_apex_z,
@@ -410,21 +411,125 @@ def _build_pocket_cage(props, spec: ResolvedBearing, cage: CageDims, collection)
     return sleeve
 
 
+def _effective_oil_pocket_diameter(props, cage: CageDims) -> float:
+    """Liefert den effektiven Schmiertaschen-Ø für den Massivkäfig (mm).
+
+    0.0 bedeutet "keine Schmiertasche möglich" – der Massivkäfig fällt dann
+    auf den reinen Pocket-Sleeve zurück.
+    """
+    sleeve_width = 2.0 * cage.plate_z_offset + cage.plate_thickness
+    return oil_pocket_diameter(
+        requested_mm=float(getattr(props, "oil_pocket_diameter_mm", 0.0)),
+        sleeve_axial_extent_mm=sleeve_width,
+        web_tangential_size_mm=cage.web_tangential_size,
+        edge_clearance_mm=_pocket_clearance(props),
+    )
+
+
+def _build_oil_pocket_cutter(
+    props, spec: ResolvedBearing, cage: CageDims, theta: float, diameter: float, name, collection
+):
+    """Radiale Schmiertaschen-Bohrung am tangentialen Mittelpunkt zwischen zwei Pockets.
+
+    Erzeugt einen Z-orientierten Zylinder und kippt ihn so, dass seine Achse
+    radial nach außen zeigt. Der Zylinder ist lang genug, um die gesamte
+    radiale Käfig-Stärke samt Sicherheitsüberstand zu durchstoßen.
+    """
+    pitch_r = cage.web_pitch_r
+    radial_span = cage.plate_outer_d - cage.plate_inner_d
+    length = radial_span + 4.0 * POCKET_AXIAL_OVERCUT_MM
+    cutter = mesh_builders.add_cylinder(
+        name,
+        radius=diameter * 0.5,
+        depth=length,
+        location=(pitch_r * math.cos(theta), pitch_r * math.sin(theta), 0.0),
+        segments=max(12, props.segments // 4),
+        collection=collection,
+    )
+    # Z-Zylinder → Achse radial: zuerst um Y um 90° kippen (Achse → +X),
+    # anschließend um Z um theta drehen (Achse → (cos θ, sin θ, 0)).
+    cutter.rotation_euler = (0.0, math.pi * 0.5, theta)
+    return cutter
+
+
+def _build_massive_cage(props, spec: ResolvedBearing, cage: CageDims, collection):
+    """Massivkäfig: Pocket-Sleeve mit zusätzlichen radialen Schmiertaschen.
+
+    Geometrisch identisch zum Pocket-Sleeve, ergänzt um eine Schmiertasche
+    pro tangentialem Steg zwischen zwei Wälzkörper-Pockets. Reicht der
+    Bauraum für die Schmiertaschen nicht, wird ein reiner Pocket-Sleeve
+    zurückgegeben.
+    """
+    sleeve_width = 2.0 * cage.plate_z_offset + cage.plate_thickness
+    if sleeve_width <= 0.5:
+        return None
+
+    sleeve = mesh_builders.make_hollow_ring(
+        "CageMassive",
+        cage.plate_inner_d,
+        cage.plate_outer_d,
+        sleeve_width,
+        props.segments,
+        collection=collection,
+    )
+
+    pitch_r = spec.pitch_d * 0.5
+    cutters = []
+    for i in range(spec.element_count):
+        a = 2.0 * math.pi * i / spec.element_count
+        position = (pitch_r * math.cos(a), pitch_r * math.sin(a), 0.0)
+        cutter = _build_pocket_cutter(
+            props, spec, position, a, f"_PocketCutter_{i + 1:02d}", collection
+        )
+        if cutter is not None:
+            cutters.append(cutter)
+
+    oil_d = _effective_oil_pocket_diameter(props, cage)
+    angular_pitch = 2.0 * math.pi / spec.element_count
+    if oil_d > 0.0:
+        for i in range(spec.element_count):
+            theta = (i + 0.5) * angular_pitch
+            cutters.append(
+                _build_oil_pocket_cutter(
+                    props,
+                    spec,
+                    cage,
+                    theta,
+                    oil_d,
+                    f"_OilPocketCutter_{i + 1:02d}",
+                    collection,
+                )
+            )
+
+    succeeded = mesh_builders.apply_boolean_difference(sleeve, cutters)
+    if succeeded == 0:
+        if sleeve.name in bpy.data.objects:
+            bpy.data.objects.remove(sleeve, do_unlink=True)
+        return None
+    return sleeve
+
+
 def _build_cage(props, spec: ResolvedBearing, cage: CageDims, collection):
     """Erzeugt die Käfig-Komponenten und gibt (parts, style) zurück.
 
     Bevorzugt wird ein Sleeve-Käfig mit typabhängigen Pockets (eine zusammen-
     hängende Komponente). Schlägt der Boolean fehl (z. B. wegen Mesh-Auflösung
     oder degenerierter Cutter), wird der historische Leiter-Käfig als Fallback
-    zurückgegeben. ``style`` ist ``"pocket"`` oder ``"ladder"``.
+    zurückgegeben. ``style`` ist ``"pocket"``, ``"massive"``, ``"ribbon"`` oder
+    ``"ladder"``.
     """
     style_pref = getattr(props, "cage_style", "AUTO")
+    if style_pref == "MASSIVE":
+        massive_part = _build_massive_cage(props, spec, cage, collection)
+        if massive_part is not None:
+            return [massive_part], "massive"
+        # Fallback bei misslungenem Boolean: Pocket → Leiter.
     if style_pref == "RIBBON":
         parts = _build_ribbon_cage(props, spec, cage, collection)
         if parts:
             return parts, "ribbon"
         # Fallback bei misslungenem Boolean: Sleeve → Leiter.
-    if style_pref in ("AUTO", "POCKET"):
+    if style_pref in ("AUTO", "POCKET", "MASSIVE"):
         pocket_part = _build_pocket_cage(props, spec, cage, collection)
         if pocket_part is not None:
             return [pocket_part], "pocket"
@@ -919,6 +1024,22 @@ class UNI_OT_create_bearing(bpy.types.Operator):
             assembly["cage_style"] = cage_style
             assembly["cage_material"] = props.cage_material
             assembly["pocket_clearance_mm"] = props.pocket_clearance_mm
+            if cage_style == "massive":
+                cage_dims_for_meta = cage_dimensions(
+                    pitch_d=spec.pitch_d,
+                    roller_d=spec.roller_d,
+                    roller_length=spec.roller_length,
+                    width=eff.width,
+                    element_count=spec.element_count,
+                    inner_race_d=spec.inner_outer_d,
+                    outer_race_d=spec.outer_inner_d,
+                )
+                if cage_dims_for_meta is not None:
+                    oil_d = _effective_oil_pocket_diameter(props, cage_dims_for_meta)
+                    assembly["oil_pocket_diameter_mm"] = round(oil_d, 3)
+                    assembly["oil_pocket_count"] = (
+                        spec.element_count if oil_d > 0.0 else 0
+                    )
         if props.bearing_type == constants.TAPERED:
             assembly["contact_angle_deg"] = props.contact_angle_deg
             assembly["tapered_apex_z_mm"] = tapered_apex_z(

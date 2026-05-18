@@ -193,6 +193,23 @@
   ``<Blender-Scripts>/uni_bearing/`` ablegen; sie werden über die
   ausgelieferten Defaults gemerged.
 
+### v0.21.0 – Massivkäfig mit Schmiertaschen
+- Neue Käfig-Bauart ``MASSIVE`` (Auswahl ``Massiv (Schmiertaschen)``):
+  Pocket-Sleeve wie bei ``POCKET``, zusätzlich werden im tangentialen Steg
+  zwischen je zwei Wälzkörper-Pockets radiale Bohrungen als Schmiertaschen
+  ausgeschnitten – Stil eines gefrästen Messing-Massivkäfigs.
+- Neue Property ``oil_pocket_diameter_mm`` (Default 0 = automatisch ≈ 50 %
+  des kleineren Bauraums aus axialer Sleeve-Breite und tangentialem Steg).
+  Werte werden auf den verfügbaren Bauraum geclampt; unter
+  ``MIN_OIL_POCKET_DIAMETER_MM`` (0.3 mm) wird die Tasche weggelassen.
+- Reicht der Bauraum für die Schmiertaschen nicht, fällt der Massivkäfig
+  auf einen reinen Pocket-Sleeve zurück; bei misslungenem Pocket-Boolean
+  greift die bestehende Leiter-Fallback-Kette.
+- Reine Geometriefunktion ``geometry.oil_pocket_diameter`` für das Clamping
+  (testbar ohne Blender), abgedeckt durch ``tests/test_geometry.py``.
+- Werte werden als Metadaten ``oil_pocket_diameter_mm`` und
+  ``oil_pocket_count`` am Bearing-Empty hinterlegt.
+
 ### v0.20.0 – X-/Y-Faktoren für äquivalente Last
 - Statt einer einzigen ``equivalent_load_p_n``-Property werden jetzt
   ``radial_load_fr_n`` (Fr) und ``axial_load_fa_n`` (Fa) eingegeben. Die
@@ -296,7 +313,8 @@
      vorliegen.
 
 2. **Käfig-Ausbaustufe**
-   - Weitere Bauformen (z. B. Massivkäfig mit Schmiertaschen) evaluieren.
+   - Weitere Bauformen (z. B. Käfig mit Stiften/Bolzen-Verbindung,
+     Schnappkäfig aus Polymer) evaluieren.
 
 ---
 
