@@ -193,6 +193,31 @@
   ``<Blender-Scripts>/uni_bearing/`` ablegen; sie werden über die
   ausgelieferten Defaults gemerged.
 
+### v0.20.0 – X-/Y-Faktoren für äquivalente Last
+- Statt einer einzigen ``equivalent_load_p_n``-Property werden jetzt
+  ``radial_load_fr_n`` (Fr) und ``axial_load_fa_n`` (Fa) eingegeben. Die
+  äquivalente Last ``P = X·Fr + Y·Fa`` wird nach ISO 281 Tabelle 4
+  lagertypabhängig berechnet:
+  - **Rillenkugellager (BALL/VGROOVE):** e und Y aus Fa/C0r-Tabelle
+    interpoliert; X = 1 für Fa/Fr ≤ e, sonst X = 0.56.
+  - **Kegelrollenlager (TAPERED):** e = 1.5·tan(α), Y = 0.4/tan(α);
+    X = 1 für Fa/Fr ≤ e, sonst X = 0.4.
+  - **Pendelrollenlager (SPHERICAL):** e = 1.5·tan(α); für Fa/Fr ≤ e gilt
+    X = 1, Y1 ≈ 0.45/tan(α); darüber X = 0.67, Y2 ≈ 0.67/tan(α).
+  - **Zylinderrollen-/Nadellager (CYLINDRICAL/NEEDLE):** rein radial,
+    Fa wird ignoriert. Das Panel zeigt einen Warnhinweis, wenn der
+    Anwender trotzdem Fa > 0 einträgt.
+- Neue Helfer ``ratings.equivalent_load`` und ``ratings.LoadFactors``
+  liefern X, Y, e und P als getrennte Werte.
+- ``Ratings``-Dataclass enthält zusätzlich ``X``, ``Y``, ``e`` und
+  ``P_N``. Panel zeigt die Werte live an; am erzeugten Bearing-Empty
+  werden ``radial_load_Fr_N``, ``axial_load_Fa_N``, ``load_X``,
+  ``load_Y``, ``load_e`` und ``equivalent_load_P_N`` als Metadaten
+  hinterlegt (nur wenn mindestens eine Last > 0).
+- Neue Tests in ``tests/test_ratings.py`` decken alle Lagertypen,
+  Tabellen-Stützstellen, Clamping und das Zusammenspiel mit
+  ``compute_ratings`` ab.
+
 ### v0.19.0 – f0/fc als γ-abhängige ISO-Tabellen
 - ``ratings.py`` ersetzt die bisherigen Mittelwert-Konstanten ``f0``/``fc``
   durch interpolierte Werte aus den ISO 76- bzw. ISO 281-Annex-Tabellen,
@@ -277,10 +302,8 @@
 
 ## Mittelfristig 🔵
 
-1. **Technische Kennwerte**
-   - Axialbelastung über X-/Y-Faktoren (ISO 281 Tabelle 4) berücksichtigen,
-     damit das äquivalente ``P`` aus Fr und Fa kombiniert werden kann (statt
-     nur radial).
+(aktuell keine offenen Mittelfristig-Punkte – nächste Schritte siehe
+Kurzfristig und Langfristig)
 
 ---
 

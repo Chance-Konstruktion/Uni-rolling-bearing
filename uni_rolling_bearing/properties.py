@@ -460,11 +460,24 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         default=0.02,
         min=0.0,
     )
-    equivalent_load_p_n: FloatProperty(
-        name="Äquivalente Last P [N]",
+    radial_load_fr_n: FloatProperty(
+        name="Radiallast Fr [N]",
         description=(
-            "Dynamisch äquivalente radiale Belastung P für die "
-            "L10-Lebensdauer nach ISO 281. 0 = Lebensdauer nicht berechnen."
+            "Radiale Betriebslast Fr für die L10-Lebensdauer nach ISO 281. "
+            "Wird zusammen mit der Axiallast Fa über die X-/Y-Faktoren "
+            "(ISO 281 Tabelle 4) in das äquivalente P = X·Fr + Y·Fa "
+            "umgerechnet. 0 in beiden Feldern = Lebensdauer nicht berechnen."
+        ),
+        default=0.0,
+        min=0.0,
+    )
+    axial_load_fa_n: FloatProperty(
+        name="Axiallast Fa [N]",
+        description=(
+            "Axiale Betriebslast Fa. Wird bei Kugel-, Kegel- und "
+            "Pendelrollenlagern über die typabhängigen X-/Y-Faktoren "
+            "berücksichtigt; bei Zylinderrollen-/Nadellagern (rein radial) "
+            "ignoriert."
         ),
         default=0.0,
         min=0.0,

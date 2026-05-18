@@ -126,7 +126,114 @@ class Ratings:
     gamma: float
     f0: float
     fc: float
+    X: float = 1.0
+    Y: float = 0.0
+    e: float = 0.0
+    P_N: float = 0.0
     L10h: Optional[float] = None
+
+
+# ISO 281 Tabelle 4 (Auszug, einreihiges Rillenkugellager): Werte für die
+# Beiwerte e und Y als Funktion von Fa/C0r. Stützstellen aus Schaeffler/
+# FAG- und SKF-Standardkatalogen; reale Lager weichen je Hersteller leicht
+# ab. Zwischen den Punkten wird linear interpoliert, außerhalb des Bereichs
+# an den Randwerten geclampt.
+_BALL_E_Y_TABLE: List[Tuple[float, float, float]] = [
+    # (Fa/C0,  e,    Y  )
+    (0.025,   0.22, 2.00),
+    (0.040,   0.24, 1.80),
+    (0.070,   0.27, 1.60),
+    (0.130,   0.31, 1.40),
+    (0.250,   0.37, 1.20),
+    (0.500,   0.44, 1.00),
+]
+
+
+def _ball_e_y(fa_over_c0: float) -> Tuple[float, float]:
+    """Interpoliert (e, Y) aus der Fa/C0-Tabelle für einreihige Kugellager."""
+    if not _BALL_E_Y_TABLE:
+        return 0.22, 2.0
+    if fa_over_c0 <= _BALL_E_Y_TABLE[0][0]:
+        return _BALL_E_Y_TABLE[0][1], _BALL_E_Y_TABLE[0][2]
+    if fa_over_c0 >= _BALL_E_Y_TABLE[-1][0]:
+        return _BALL_E_Y_TABLE[-1][1], _BALL_E_Y_TABLE[-1][2]
+    for (x0, e0, y0), (x1, e1, y1) in zip(_BALL_E_Y_TABLE, _BALL_E_Y_TABLE[1:]):
+        if x0 <= fa_over_c0 <= x1:
+            t = (fa_over_c0 - x0) / (x1 - x0)
+            return e0 + t * (e1 - e0), y0 + t * (y1 - y0)
+    return _BALL_E_Y_TABLE[-1][1], _BALL_E_Y_TABLE[-1][2]
+
+
+@dataclass(frozen=True)
+class LoadFactors:
+    """Ergebnis der X-/Y-Faktor-Bestimmung nach ISO 281 (Tabelle 4)."""
+    X: float
+    Y: float
+    e: float
+    P_N: float
+
+
+def equivalent_load(
+    bearing_type: str,
+    radial_load_Fr_N: float,
+    axial_load_Fa_N: float,
+    static_C0_N: float,
+    contact_angle_deg: float = 0.0,
+) -> LoadFactors:
+    """Liefert X, Y, e und das äquivalente ``P = X·Fr + Y·Fa`` nach ISO 281.
+
+    Lagertyp-abhängige Regeln:
+
+    * Rillenkugellager (BALL/VGROOVE): e und Y aus Tabelle 4 (Fa/C0r-
+      interpoliert); X = 1 für Fa/Fr ≤ e, sonst X = 0.56.
+    * Kegelrollenlager (TAPERED): e = 1.5·tan(α), Y = 0.4/tan(α);
+      X = 1 für Fa/Fr ≤ e, sonst X = 0.4.
+    * Pendelrollenlager (SPHERICAL): e = 1.5·tan(α); für Fa/Fr ≤ e gilt
+      X = 1, Y1 ≈ 0.45/tan(α); darüber X = 0.67, Y2 ≈ 0.67/tan(α).
+    * Zylinderrollen-/Nadellager (CYLINDRICAL/NEEDLE): rein radial.
+      ``Fa`` wird ignoriert; P = Fr.
+    """
+    Fr = max(0.0, radial_load_Fr_N)
+    Fa = max(0.0, axial_load_Fa_N)
+    alpha = _contact_angle_rad(bearing_type, contact_angle_deg)
+
+    if _is_ball(bearing_type):
+        if static_C0_N <= 0.0:
+            e, Y = _BALL_E_Y_TABLE[0][1], _BALL_E_Y_TABLE[0][2]
+        else:
+            e, Y = _ball_e_y(Fa / static_C0_N)
+        if Fr <= 0.0:
+            # Rein axiale Belastung: dominiert von Y·Fa.
+            return LoadFactors(0.56, Y, e, 0.56 * Fr + Y * Fa)
+        if (Fa / Fr) <= e:
+            return LoadFactors(1.0, 0.0, e, Fr)
+        return LoadFactors(0.56, Y, e, 0.56 * Fr + Y * Fa)
+
+    if bearing_type == constants.TAPERED:
+        # Bei α = 0 fällt die Rolle in den Zylinderfall zurück (kein axial).
+        if alpha <= 0.0:
+            return LoadFactors(1.0, 0.0, 0.0, Fr)
+        tan_a = math.tan(alpha)
+        e = 1.5 * tan_a
+        Y = 0.4 / tan_a
+        if Fr <= 0.0 or (Fa / Fr) <= e:
+            return LoadFactors(1.0, 0.0, e, Fr)
+        return LoadFactors(0.4, Y, e, 0.4 * Fr + Y * Fa)
+
+    if bearing_type == constants.SPHERICAL:
+        # Pendellager-Default α=10° wird in _contact_angle_rad gesetzt.
+        if alpha <= 0.0:
+            return LoadFactors(1.0, 0.0, 0.0, Fr)
+        tan_a = math.tan(alpha)
+        e = 1.5 * tan_a
+        Y_low = 0.45 / tan_a
+        Y_high = 0.67 / tan_a
+        if Fr <= 0.0 or (Fa / Fr) <= e:
+            return LoadFactors(1.0, Y_low, e, Fr + Y_low * Fa)
+        return LoadFactors(0.67, Y_high, e, 0.67 * Fr + Y_high * Fa)
+
+    # CYLINDRICAL, NEEDLE: rein radial.
+    return LoadFactors(1.0, 0.0, 0.0, Fr)
 
 
 def static_load_rating(
@@ -204,7 +311,8 @@ def compute_ratings(
     element_count: int,
     pitch_d_mm: float,
     contact_angle_deg: float = 0.0,
-    equivalent_load_P_N: float = 0.0,
+    radial_load_Fr_N: float = 0.0,
+    axial_load_Fa_N: float = 0.0,
     speed_rpm: float = 0.0,
 ) -> Ratings:
     alpha = _contact_angle_rad(bearing_type, contact_angle_deg)
@@ -220,7 +328,14 @@ def compute_ratings(
         pitch_d_mm, contact_angle_deg,
     )
     p = _life_exponent(bearing_type)
-    l10h = nominal_life_hours(cr, equivalent_load_P_N, speed_rpm, p)
+    load = equivalent_load(
+        bearing_type,
+        radial_load_Fr_N=radial_load_Fr_N,
+        axial_load_Fa_N=axial_load_Fa_N,
+        static_C0_N=c0,
+        contact_angle_deg=contact_angle_deg,
+    )
+    l10h = nominal_life_hours(cr, load.P_N, speed_rpm, p)
     return Ratings(
         static_C0_N=c0,
         dynamic_C_N=cr,
@@ -228,5 +343,9 @@ def compute_ratings(
         gamma=g,
         f0=f0,
         fc=fc,
+        X=load.X,
+        Y=load.Y,
+        e=load.e,
+        P_N=load.P_N,
         L10h=l10h,
     )
