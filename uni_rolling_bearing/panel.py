@@ -176,7 +176,8 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
         ratings_box = _section_header(
             layout, "7) Tragzahlen & Lebensdauer", "uni_bearing.info_tragzahlen"
         )
-        ratings_box.prop(props, "equivalent_load_p_n")
+        ratings_box.prop(props, "radial_load_fr_n")
+        ratings_box.prop(props, "axial_load_fa_n")
         ratings_box.prop(props, "speed_rpm")
         if spec is not None and error is None:
             from . import ratings as ratings_mod
@@ -192,7 +193,8 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
                 element_count=spec.element_count,
                 pitch_d_mm=spec.pitch_d,
                 contact_angle_deg=angle,
-                equivalent_load_P_N=props.equivalent_load_p_n,
+                radial_load_Fr_N=props.radial_load_fr_n,
+                axial_load_Fa_N=props.axial_load_fa_n,
                 speed_rpm=props.speed_rpm,
             )
             ratings_box.label(
@@ -201,6 +203,20 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
             )
             ratings_box.label(text=f"C0r ≈ {r.static_C0_N:,.0f} N", icon="PHYSICS")
             ratings_box.label(text=f"Cr  ≈ {r.dynamic_C_N:,.0f} N", icon="PHYSICS")
+            if props.radial_load_fr_n > 0.0 or props.axial_load_fa_n > 0.0:
+                ratings_box.label(
+                    text=f"X={r.X:.2f}  Y={r.Y:.2f}  e={r.e:.2f}",
+                    icon="DRIVER_TRANSFORM",
+                )
+                ratings_box.label(text=f"P ≈ {r.P_N:,.0f} N", icon="FORCE_FORCE")
+                if (
+                    props.bearing_type in (constants.CYLINDRICAL, constants.NEEDLE)
+                    and props.axial_load_fa_n > 0.0
+                ):
+                    ratings_box.label(
+                        text="Axiallast wird bei diesem Lagertyp ignoriert.",
+                        icon="ERROR",
+                    )
             if r.L10h is not None:
                 ratings_box.label(text=f"L10h ≈ {r.L10h:,.0f} h", icon="TIME")
 

@@ -740,11 +740,14 @@ class UNI_OT_info_tragzahlen(_UNI_InfoPopupBase):
         "Tragzahlberechnung nach ISO 76 / ISO 281:\n"
         "• C0r – statische radiale Tragzahl in N (f0 nach ISO 76).\n"
         "• Cr  – dynamische radiale Tragzahl in N (fc nach ISO 281).\n"
+        "• Fr / Fa – radiale und axiale Betriebslast in N.\n"
+        "• P = X·Fr + Y·Fa – äquivalente Last (ISO 281 Tabelle 4).\n"
+        "  X/Y/e werden lagertypabhängig bestimmt: Kugellager über Fa/C0r,\n"
+        "  Kegelrollen/Pendel über den Kontaktwinkel α.\n"
         "• L10h – nominelle Lebensdauer in Stunden, wenn P und n > 0.\n"
-        "Die Beiwerte f0 und fc werden über das Hüllkurvenverhältnis "
-        "γ = Dw·cos(α)/dm aus den ISO-Annex-Tabellen interpoliert; γ wird "
-        "ebenfalls am Bearing-Empty hinterlegt. Das Ergebnis weicht "
-        "typischerweise um ±15 % von Hersteller-Katalogwerten ab."
+        "f0 und fc werden über γ = Dw·cos(α)/dm aus den ISO-Annex-Tabellen "
+        "interpoliert. Zylinderrollen-/Nadellager nehmen keine Axiallast "
+        "auf – Fa wird in diesem Fall ignoriert."
     )
 
 
@@ -946,7 +949,8 @@ class UNI_OT_create_bearing(bpy.types.Operator):
                 if props.bearing_type == constants.TAPERED
                 else 0.0
             ),
-            equivalent_load_P_N=props.equivalent_load_p_n,
+            radial_load_Fr_N=props.radial_load_fr_n,
+            axial_load_Fa_N=props.axial_load_fa_n,
             speed_rpm=props.speed_rpm,
         )
         from . import fits as fits_mod
@@ -970,6 +974,13 @@ class UNI_OT_create_bearing(bpy.types.Operator):
         assembly["rating_gamma"] = round(ratings_result.gamma, 4)
         assembly["rating_f0"] = round(ratings_result.f0, 2)
         assembly["rating_fc"] = round(ratings_result.fc, 2)
+        if props.radial_load_fr_n > 0.0 or props.axial_load_fa_n > 0.0:
+            assembly["radial_load_Fr_N"] = round(props.radial_load_fr_n, 1)
+            assembly["axial_load_Fa_N"] = round(props.axial_load_fa_n, 1)
+            assembly["load_X"] = round(ratings_result.X, 3)
+            assembly["load_Y"] = round(ratings_result.Y, 3)
+            assembly["load_e"] = round(ratings_result.e, 3)
+            assembly["equivalent_load_P_N"] = round(ratings_result.P_N, 1)
         if ratings_result.L10h is not None:
             assembly["L10h_hours"] = round(ratings_result.L10h, 1)
 

@@ -154,7 +154,7 @@ class TestLife(unittest.TestCase):
             roller_length_mm=7.0,
             element_count=10,
             pitch_d_mm=33.5,
-            equivalent_load_P_N=500.0,
+            radial_load_Fr_N=500.0,
             speed_rpm=1500.0,
         )
         self.assertGreater(r.static_C0_N, 0.0)
@@ -183,6 +183,181 @@ class TestCatalogPlausibility(unittest.TestCase):
         self.assertLess(ratings.f0_for(constants.BALL, g), 14.7)
         # fc-Tabelle bleibt selbst im Maximum (≈60) deutlich unter 70.
         self.assertLess(ratings.fc_for(constants.BALL, g), 70.0)
+
+
+class TestEquivalentLoad(unittest.TestCase):
+    """ISO 281 Tabelle 4 – X-/Y-Faktoren und äquivalente Last P."""
+
+    def test_ball_pure_radial_below_threshold(self):
+        # Fa = 0 < e·Fr ⇒ X = 1, Y = 0, P = Fr.
+        load = ratings.equivalent_load(
+            constants.BALL, radial_load_Fr_N=1000.0, axial_load_Fa_N=0.0,
+            static_C0_N=10000.0,
+        )
+        self.assertEqual(load.X, 1.0)
+        self.assertEqual(load.Y, 0.0)
+        self.assertEqual(load.P_N, 1000.0)
+
+    def test_ball_pure_axial_uses_y(self):
+        # Fr = 0, Fa = 1000 ⇒ alleinige Axiallast wird über Y berücksichtigt.
+        load = ratings.equivalent_load(
+            constants.BALL, radial_load_Fr_N=0.0, axial_load_Fa_N=1000.0,
+            static_C0_N=10000.0,
+        )
+        self.assertGreater(load.Y, 0.0)
+        # P = X·0 + Y·Fa = Y·Fa.
+        self.assertAlmostEqual(load.P_N, load.X * 0.0 + load.Y * 1000.0, places=3)
+
+    def test_ball_axial_above_threshold_switches_to_xy(self):
+        # Fa/Fr > e ⇒ X = 0.56, Y > 0, P = 0.56·Fr + Y·Fa.
+        load = ratings.equivalent_load(
+            constants.BALL, radial_load_Fr_N=100.0, axial_load_Fa_N=1000.0,
+            static_C0_N=10000.0,
+        )
+        self.assertAlmostEqual(load.X, 0.56)
+        self.assertGreater(load.Y, 0.0)
+        self.assertAlmostEqual(load.P_N, 0.56 * 100.0 + load.Y * 1000.0, places=3)
+
+    def test_ball_e_y_interpolates(self):
+        # Fa/C0 = 0.025 ⇒ e = 0.22, Y = 2.0 (erster Tabelleneintrag).
+        load = ratings.equivalent_load(
+            constants.BALL, radial_load_Fr_N=1.0, axial_load_Fa_N=250.0,
+            static_C0_N=10000.0,
+        )
+        self.assertAlmostEqual(load.e, 0.22, places=3)
+        self.assertAlmostEqual(load.Y, 2.0, places=3)
+
+    def test_ball_e_y_clamps_above_table(self):
+        # Fa/C0 = 1.0 weit über letztem Eintrag ⇒ e = 0.44, Y = 1.0.
+        load = ratings.equivalent_load(
+            constants.BALL, radial_load_Fr_N=100.0, axial_load_Fa_N=10000.0,
+            static_C0_N=10000.0,
+        )
+        self.assertAlmostEqual(load.e, 0.44, places=3)
+        self.assertAlmostEqual(load.Y, 1.0, places=3)
+
+    def test_tapered_uses_contact_angle(self):
+        # α = 14° ⇒ e = 1.5·tan(14°) ≈ 0.374, Y = 0.4/tan(14°) ≈ 1.605.
+        alpha_deg = 14.0
+        load = ratings.equivalent_load(
+            constants.TAPERED, radial_load_Fr_N=100.0, axial_load_Fa_N=1000.0,
+            static_C0_N=0.0, contact_angle_deg=alpha_deg,
+        )
+        tan_a = math.tan(math.radians(alpha_deg))
+        self.assertAlmostEqual(load.e, 1.5 * tan_a, places=4)
+        self.assertAlmostEqual(load.Y, 0.4 / tan_a, places=4)
+        # Fa/Fr = 10 > e ⇒ X = 0.4.
+        self.assertAlmostEqual(load.X, 0.4, places=4)
+
+    def test_tapered_below_threshold(self):
+        # Fa/Fr unter e ⇒ X = 1, Y = 0.
+        load = ratings.equivalent_load(
+            constants.TAPERED, radial_load_Fr_N=1000.0, axial_load_Fa_N=100.0,
+            static_C0_N=0.0, contact_angle_deg=14.0,
+        )
+        self.assertEqual(load.X, 1.0)
+        self.assertEqual(load.Y, 0.0)
+        self.assertEqual(load.P_N, 1000.0)
+
+    def test_tapered_zero_angle_falls_back_to_radial(self):
+        # α = 0 ⇒ kein Axiallast-Anteil (degenerate Kegelrolle = Zylinder).
+        load = ratings.equivalent_load(
+            constants.TAPERED, radial_load_Fr_N=100.0, axial_load_Fa_N=1000.0,
+            static_C0_N=0.0, contact_angle_deg=0.0,
+        )
+        self.assertEqual(load.X, 1.0)
+        self.assertEqual(load.Y, 0.0)
+        self.assertEqual(load.P_N, 100.0)
+
+    def test_spherical_uses_y_low_below_threshold(self):
+        # Pendel-Default α = 10° (siehe _contact_angle_rad). Fa/Fr unter e ⇒
+        # Y1 ≈ 0.45/tan(10°) und Last = Fr + Y1·Fa.
+        load = ratings.equivalent_load(
+            constants.SPHERICAL, radial_load_Fr_N=1000.0, axial_load_Fa_N=50.0,
+            static_C0_N=0.0,
+        )
+        tan_a = math.tan(math.radians(10.0))
+        self.assertAlmostEqual(load.e, 1.5 * tan_a, places=4)
+        self.assertAlmostEqual(load.Y, 0.45 / tan_a, places=4)
+        self.assertAlmostEqual(load.P_N, 1000.0 + load.Y * 50.0, places=3)
+
+    def test_cylindrical_ignores_axial(self):
+        # Reines Radiallager: Fa wird ignoriert, P = Fr.
+        load = ratings.equivalent_load(
+            constants.CYLINDRICAL, radial_load_Fr_N=500.0, axial_load_Fa_N=999.0,
+            static_C0_N=0.0,
+        )
+        self.assertEqual(load.X, 1.0)
+        self.assertEqual(load.Y, 0.0)
+        self.assertEqual(load.P_N, 500.0)
+
+    def test_needle_ignores_axial(self):
+        load = ratings.equivalent_load(
+            constants.NEEDLE, radial_load_Fr_N=500.0, axial_load_Fa_N=999.0,
+            static_C0_N=0.0,
+        )
+        self.assertEqual(load.P_N, 500.0)
+
+    def test_vgroove_treated_as_ball(self):
+        # VGROOVE soll dieselben Tabellen wie BALL nutzen.
+        ball = ratings.equivalent_load(
+            constants.BALL, radial_load_Fr_N=100.0, axial_load_Fa_N=200.0,
+            static_C0_N=5000.0,
+        )
+        vg = ratings.equivalent_load(
+            constants.VGROOVE, radial_load_Fr_N=100.0, axial_load_Fa_N=200.0,
+            static_C0_N=5000.0,
+        )
+        self.assertEqual((ball.X, ball.Y, ball.e), (vg.X, vg.Y, vg.e))
+        self.assertAlmostEqual(ball.P_N, vg.P_N, places=6)
+
+    def test_negative_loads_clamped_to_zero(self):
+        load = ratings.equivalent_load(
+            constants.BALL, radial_load_Fr_N=-100.0, axial_load_Fa_N=-50.0,
+            static_C0_N=10000.0,
+        )
+        self.assertEqual(load.P_N, 0.0)
+
+
+class TestComputeRatingsWithLoads(unittest.TestCase):
+    """Fr + Fa fließen über compute_ratings in P und L10h ein."""
+
+    def test_axial_load_shortens_life_for_ball(self):
+        # Gleiche Lager-Geometrie, einmal nur Fr, einmal Fr + großes Fa.
+        kwargs = dict(
+            bearing_type=constants.BALL,
+            roller_d_mm=7.0,
+            roller_length_mm=7.0,
+            element_count=10,
+            pitch_d_mm=33.5,
+            speed_rpm=1500.0,
+        )
+        only_radial = ratings.compute_ratings(
+            **kwargs, radial_load_Fr_N=500.0, axial_load_Fa_N=0.0,
+        )
+        with_axial = ratings.compute_ratings(
+            **kwargs, radial_load_Fr_N=500.0, axial_load_Fa_N=2000.0,
+        )
+        # Mehr Axiallast ⇒ größeres P ⇒ kürzere L10h.
+        self.assertGreater(with_axial.P_N, only_radial.P_N)
+        self.assertLess(with_axial.L10h, only_radial.L10h)
+
+    def test_xy_factors_propagate_to_dataclass(self):
+        r = ratings.compute_ratings(
+            bearing_type=constants.TAPERED,
+            roller_d_mm=6.0,
+            roller_length_mm=10.0,
+            element_count=12,
+            pitch_d_mm=40.0,
+            contact_angle_deg=14.0,
+            radial_load_Fr_N=100.0,
+            axial_load_Fa_N=1000.0,
+            speed_rpm=1500.0,
+        )
+        # X, Y, e und P sind aus equivalent_load übernommen.
+        self.assertAlmostEqual(r.X, 0.4)
+        self.assertGreater(r.Y, 1.0)
+        self.assertGreater(r.P_N, 100.0)
 
 
 if __name__ == "__main__":

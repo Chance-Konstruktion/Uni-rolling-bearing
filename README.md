@@ -40,13 +40,16 @@ Aktuell berücksichtigt:
 - **ISO 76 / ISO 281**: Statische/dynamische Tragzahl und L10h-Lebensdauer
   als Live-Vorschau im Panel. Die Beiwerte `f0`/`fc` werden über das
   Hüllkurvenverhältnis γ = Dw·cos(α)/dm aus den ISO-Annex-Tabellen
-  interpoliert (keine Mittelwert-Konstanten mehr); γ, `f0`, `fc` werden
-  zusätzlich als Metadaten am Bearing-Empty abgelegt.
+  interpoliert; γ, `f0`, `fc` werden zusätzlich als Metadaten am
+  Bearing-Empty abgelegt. Eingaben für radiale Last `Fr` und axiale Last
+  `Fa` werden über X-/Y-Faktoren (ISO 281 Tabelle 4) zur äquivalenten
+  Last `P = X·Fr + Y·Fa` kombiniert. Kugellager-Tabelle ist
+  Fa/C0r-interpoliert; Kegelrollen/Pendelrollen rechnen über den
+  Kontaktwinkel α; Zylinderrollen-/Nadellager ignorieren `Fa`.
 
 Geplant (siehe ROADMAP):
 
 - SG-Zwischengrößen und U-Profil-Variante.
-- Axiallast-Faktoren X/Y für äquivalente Last `P`.
 
 ## Installation
 
