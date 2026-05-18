@@ -193,6 +193,26 @@
   ``<Blender-Scripts>/uni_bearing/`` ablegen; sie werden über die
   ausgelieferten Defaults gemerged.
 
+### v0.18.0 – UI-Workflow „Reihe → Bohrungskennzahl"
+- Für Lagertypen mit DIN 623-Coding (BALL, CYLINDRICAL, TAPERED, SPHERICAL)
+  zeigt das N-Panel zwei aufeinander aufbauende Dropdowns: erst
+  ``Massreihe`` (z. B. ``60``, ``62``, ``NU3``, ``302``), dann
+  ``Bohrungskennzahl`` (``00``..``96``). Pro Kennzahl wird der abgeleitete
+  Bohrungs-Ø direkt im Label angezeigt (z. B. ``04  (d=20 mm)``); die
+  kombinierte Lagerbezeichnung (z. B. ``6204``, ``NU306``, ``30212``) steht
+  als Live-Vorschau unter den Dropdowns.
+- Neuer Operator ``uni_bearing.apply_bore_code_preset`` setzt d/D/B aus
+  Reihe + Kennzahl und übernimmt – bei Kegelrollenlagern – die getrennten
+  Cone-/Cup-Breiten aus der Norm-Reihe. ``series_code`` wird synchron
+  mitgeführt, damit ein späterer Umstieg zwischen den Workflows konsistent
+  bleibt.
+- Für Lagertypen mit ``direct``-Coding (NEEDLE, VGROOVE) bleibt die
+  bisherige freie Code-Auswahl (z. B. ``HK1010``, ``SG20``) unverändert.
+  Die UI schaltet je Lagertyp automatisch zwischen beiden Workflows um.
+- Neue Helfer ``norm_engine.coding_for``, ``norm_engine.load_series_for``
+  und ``norm_engine.load_bore_codes_for`` als Datenschicht für den UI-
+  Workflow; abgedeckt durch ``tests/test_norm_engine.py``.
+
 ### v0.17.1 – Bugfix: Wälzkörper-Position und EnumProperty-Memory
 - **Position-Bug**: Bei Zylinder-, Nadel-, Kegelrollen- und Pendelrollen-
   lagern wurden die Wälzkörper-Vertices zuerst im Mesh-Frame auf die
@@ -240,11 +260,7 @@
 
 ## Mittelfristig 🔵
 
-1. **Norm-Engine**
-   - Dedizierter UI-Workflow „Reihe wählen → Bohrungskennzahl wählen"
-     (statt heutigem freien Code-Dropdown).
-
-2. **Technische Kennwerte**
+1. **Technische Kennwerte**
    - Beiwerte ``f0``/``fc`` aus γ = Dw·cosα / dm tabellieren statt
      Mittelwerte; Axialbelastung über X-/Y-Faktoren berücksichtigen.
 

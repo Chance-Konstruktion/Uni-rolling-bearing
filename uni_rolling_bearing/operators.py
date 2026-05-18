@@ -787,6 +787,63 @@ class UNI_OT_apply_series_preset(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class UNI_OT_apply_bore_code_preset(bpy.types.Operator):
+    bl_idname = "uni_bearing.apply_bore_code_preset"
+    bl_label = "Reihe + Kennzahl anwenden"
+    bl_description = (
+        "Setzt Hauptmaße aus Massreihe + Bohrungskennzahl nach DIN ISO 15 / "
+        "DIN 623. Bohrungs-Ø d ergibt sich aus der Kennzahl, D und B aus der "
+        "Maßreihe."
+    )
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        props = context.scene.uni_bearing
+        if props.mass_series == "NONE" or props.bore_code == "NONE":
+            self.report(
+                {"WARNING"},
+                f"Lagertyp '{props.bearing_type}' nutzt kein DIN 623-Coding. "
+                f"Bitte den direkten Reihen-Code im Dropdown wählen.",
+            )
+            return {"CANCELLED"}
+        full_code = f"{props.mass_series}{props.bore_code}"
+        preset = constants.SERIES_PRESETS.get(props.bearing_type, {}).get(full_code)
+        if not preset:
+            self.report(
+                {"WARNING"},
+                f"Kombination '{full_code}' nicht im Preset-Katalog von "
+                f"'{props.bearing_type}'. Bitte andere Reihe oder Kennzahl wählen.",
+            )
+            return {"CANCELLED"}
+        bore, outer, width = preset
+        props.bore_diameter = bore
+        props.outer_diameter = outer
+        props.width = width
+
+        # Kegelrollenlager: getrennte Cone-/Cup-Breiten (B, C) übernehmen.
+        if props.bearing_type == constants.TAPERED:
+            from . import norm_engine
+            ring_widths = norm_engine.load_ring_widths_for(constants.TAPERED)
+            entry = ring_widths.get(full_code)
+            if entry is not None:
+                props.tapered_cone_width_mm = entry[0]
+                props.tapered_cup_width_mm = entry[1]
+            else:
+                props.tapered_cone_width_mm = 0.0
+                props.tapered_cup_width_mm = 0.0
+
+        # series_code synchron halten, damit Plausibilitäts-Anzeigen und ein
+        # späterer Umstieg auf den freien Code-Workflow konsistent bleiben.
+        try:
+            props.series_code = full_code
+        except (TypeError, ValueError):
+            # Code nicht im Enum (z. B. wenn Cache veraltet) → ignorieren.
+            pass
+
+        apply_suggested_defaults(props)
+        return {"FINISHED"}
+
+
 class UNI_OT_auto_calculate(bpy.types.Operator):
     bl_idname = "uni_bearing.auto_calculate"
     bl_label = "Auto-Berechnen"
