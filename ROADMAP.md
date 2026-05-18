@@ -193,6 +193,23 @@
   ``<Blender-Scripts>/uni_bearing/`` ablegen; sie werden über die
   ausgelieferten Defaults gemerged.
 
+### v0.19.0 – f0/fc als γ-abhängige ISO-Tabellen
+- ``ratings.py`` ersetzt die bisherigen Mittelwert-Konstanten ``f0``/``fc``
+  durch interpolierte Werte aus den ISO 76- bzw. ISO 281-Annex-Tabellen,
+  separat für Kugel- und Rollenlager. Zwischenwerte werden linear
+  interpoliert, außerhalb des tabellierten Bereichs an den Randwerten
+  geclampt.
+- Neue Helfer ``ratings.gamma``, ``ratings.f0_for`` und ``ratings.fc_for``
+  (öffentliche API). ``compute_ratings``/``static_load_rating``/
+  ``dynamic_load_rating`` bekommen ``pitch_d_mm`` als Pflichtparameter,
+  damit γ = Dw·cos(α)/dm aus der Lagergeometrie berechnet werden kann.
+- ``Ratings``-Dataclass liefert zusätzlich ``gamma``, ``f0`` und ``fc``;
+  diese werden im N-Panel als Live-Vorschau angezeigt und am erzeugten
+  Bearing-Empty als Metadaten (``rating_gamma``, ``rating_f0``,
+  ``rating_fc``) hinterlegt.
+- Zusätzliche Tests in ``tests/test_ratings.py`` decken Tabellenwerte,
+  Interpolation, Randwert-Clamping und die γ-Berechnung ab.
+
 ### v0.18.0 – UI-Workflow „Reihe → Bohrungskennzahl"
 - Für Lagertypen mit DIN 623-Coding (BALL, CYLINDRICAL, TAPERED, SPHERICAL)
   zeigt das N-Panel zwei aufeinander aufbauende Dropdowns: erst
@@ -261,8 +278,9 @@
 ## Mittelfristig 🔵
 
 1. **Technische Kennwerte**
-   - Beiwerte ``f0``/``fc`` aus γ = Dw·cosα / dm tabellieren statt
-     Mittelwerte; Axialbelastung über X-/Y-Faktoren berücksichtigen.
+   - Axialbelastung über X-/Y-Faktoren (ISO 281 Tabelle 4) berücksichtigen,
+     damit das äquivalente ``P`` aus Fr und Fa kombiniert werden kann (statt
+     nur radial).
 
 ---
 

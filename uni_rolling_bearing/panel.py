@@ -190,9 +190,14 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
                 roller_d_mm=spec.roller_d,
                 roller_length_mm=spec.roller_length,
                 element_count=spec.element_count,
+                pitch_d_mm=spec.pitch_d,
                 contact_angle_deg=angle,
                 equivalent_load_P_N=props.equivalent_load_p_n,
                 speed_rpm=props.speed_rpm,
+            )
+            ratings_box.label(
+                text=f"γ={r.gamma:.3f}  f0={r.f0:.1f}  fc={r.fc:.1f}",
+                icon="OUTLINER_DATA_EMPTY",
             )
             ratings_box.label(text=f"C0r ≈ {r.static_C0_N:,.0f} N", icon="PHYSICS")
             ratings_box.label(text=f"Cr  ≈ {r.dynamic_C_N:,.0f} N", icon="PHYSICS")
