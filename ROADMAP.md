@@ -193,6 +193,23 @@
   ``<Blender-Scripts>/uni_bearing/`` ablegen; sie werden über die
   ausgelieferten Defaults gemerged.
 
+### v0.17.1 – Bugfix: Wälzkörper-Position und EnumProperty-Memory
+- **Position-Bug**: Bei Zylinder-, Nadel-, Kegelrollen- und Pendelrollen-
+  lagern wurden die Wälzkörper-Vertices zuerst im Mesh-Frame auf die
+  Pitch-Position translatiert und anschließend per ``obj.rotation_euler[2] = a``
+  zusätzlich um die Welt-Z gedreht. Da die Object-Pivot bei (0,0,0) lag,
+  wirkte die Rotation um den Welt-Origin – die Rollen landeten bei Winkel
+  ``2a`` statt ``a`` und überlappten sich paarweise (z. B. nur 5 statt 10
+  unique Positionen bei 10 Rollen). Gleiches Problem traf die Pocket-Cage-
+  Cutter. Fix in ``mesh_builders.add_uv_sphere``, ``add_cylinder``,
+  ``add_tapered_roller`` und ``add_barrel_roller``: Vertices bleiben mesh-
+  zentriert und die Position wird über ``obj.location`` gesetzt, sodass
+  ``rotation_euler`` jetzt um den Wälzkörper-Mittelpunkt rotiert.
+- **EnumProperty-Memory**: ``_series_items`` (Callback für ``series_code``)
+  hat bei jedem Aufruf frische Strings erzeugt. Blender hält keine Referenz
+  darauf – bekannter Pitfall, der zu UI-Korruption oder Crashes führen kann.
+  Items werden nun pro Lagertyp in einem modul-globalen Cache gehalten.
+
 ### v0.17.0 – Kegelrollen-Reihen 313/320/322/323 + Cone/Cup-Breiten
 - Vier zusätzliche DIN 720-Reihen (313, 320, 322, 323) als Norm-Presets
   in ``data/tapered.json``; insgesamt 46 Kegelrollen-Größen.

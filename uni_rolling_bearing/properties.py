@@ -15,12 +15,28 @@ from .fits import LOAD_CASES
 from .tolerances import TOLERANCE_POSITIONS
 
 
+# Cache der EnumItems pro Lagertyp. Blender hält keine Referenz auf die vom
+# Callback zurückgegebenen Strings; werden sie nach Return freigegeben, sind
+# UI-Korruption oder Crashes die Folge (bekannter Blender-Pitfall, siehe
+# https://docs.blender.org/api/current/bpy.props.html#bpy.props.EnumProperty).
+# Wir halten die Tupel daher persistent in diesem Modul.
+_SERIES_ITEMS_CACHE: dict = {}
+_CUSTOM_SERIES_ITEMS = [("CUSTOM", "Custom", "Benutzerdefiniert")]
+
+
 def _series_items(self, _context):
     """Dynamische EnumItems abhängig vom gewählten Lagertyp."""
-    presets = SERIES_PRESETS.get(self.bearing_type, {})
+    bearing_type = self.bearing_type
+    cached = _SERIES_ITEMS_CACHE.get(bearing_type)
+    if cached is not None:
+        return cached
+    presets = SERIES_PRESETS.get(bearing_type, {})
     if not presets:
-        return [("CUSTOM", "Custom", "Benutzerdefiniert")]
-    return [(code, code, f"Preset {code}") for code in presets]
+        items = _CUSTOM_SERIES_ITEMS
+    else:
+        items = [(code, code, f"Preset {code}") for code in presets]
+    _SERIES_ITEMS_CACHE[bearing_type] = items
+    return items
 
 
 def _on_dimension_changed(self, _context):
