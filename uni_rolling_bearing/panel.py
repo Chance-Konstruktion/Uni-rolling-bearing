@@ -63,8 +63,21 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
         norms.prop(props, "radial_clearance")
         norms.prop(props, "use_preset")
         if props.use_preset:
-            norms.prop(props, "series_code")
-            norms.operator("uni_bearing.apply_series_preset", icon="PRESET")
+            from . import norm_engine
+            coding = norm_engine.coding_for(props.bearing_type)
+            if coding == "din623":
+                # Workflow: Reihe → Bohrungskennzahl (UI-Folge der Norm).
+                preset_col = norms.column(align=True)
+                preset_col.prop(props, "mass_series")
+                preset_col.prop(props, "bore_code")
+                if props.mass_series != "NONE" and props.bore_code != "NONE":
+                    combined = f"{props.mass_series}{props.bore_code}"
+                    preset_col.label(text=f"Bezeichnung: {combined}", icon="COPY_ID")
+                norms.operator("uni_bearing.apply_bore_code_preset", icon="PRESET")
+            else:
+                # Direkte Code-Auswahl für 'direct'-Coding (z. B. SG10, HK0808).
+                norms.prop(props, "series_code")
+                norms.operator("uni_bearing.apply_series_preset", icon="PRESET")
 
         dims = _section_header(layout, "3) Geometrie", "uni_bearing.info_geometrie")
         dims.prop(props, "bore_diameter")

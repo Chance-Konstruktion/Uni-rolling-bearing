@@ -89,7 +89,14 @@ Anschließend in Blender im Add-on-Dialog aktivieren.
 ## Bedienung
 
 1. **Lagertyp wählen** (Dropdown).
-2. Optional **Norm-Preset** anwenden.
+2. Optional **Norm-Preset** anwenden:
+   - Für Lagertypen mit DIN 623-Coding (Kugel-, Zylinderrollen-, Kegelrollen-,
+     Pendelrollenlager) zuerst die **Massreihe** wählen (z. B. `60`, `62`,
+     `NU3`), dann die **Bohrungskennzahl** (`00`..`96`). Die kombinierte
+     Bezeichnung (z. B. `6204`, `NU306`, `30212`) und der abgeleitete
+     Bohrungs-Ø werden live angezeigt.
+   - Für Lagertypen mit direkter Code-Auswahl (Nadel-, SG-Reihe) bleibt der
+     freie Reihen-Code-Dropdown (z. B. `HK1010`, `SG20`).
 3. Geometrieparameter setzen (`d`, `D`, `B`, Ringstärke).
 4. Wälzkörper-Parameter setzen (`Ø`, Anzahl, Umfangsspalt).
 5. **Auto-Fit** aktiv lassen, damit unplausible Kombinationen automatisch korrigiert werden.

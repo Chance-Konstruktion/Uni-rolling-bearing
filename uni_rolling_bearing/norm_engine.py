@@ -172,3 +172,79 @@ def norm_hint_for(bearing_type: str) -> str:
     except (OSError, json.JSONDecodeError):
         return ""
     return payload.get("norm", "")
+
+
+def _load_default_payload(bearing_type: str) -> dict:
+    filename = _TYPE_FILES.get(bearing_type)
+    if filename is None:
+        return {}
+    try:
+        return _load_json(_DATA_DIR / filename)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def coding_for(bearing_type: str) -> str:
+    """Liefert das Coding-Schema (``'din623'``, ``'direct'`` oder ``''``).
+
+    Über das Coding entscheidet die UI, ob der Workflow ``Reihe →
+    Bohrungskennzahl`` (din623) oder eine direkte Code-Auswahl (direct,
+    z. B. HK0808, SG10) zum Einsatz kommt.
+    """
+    return _load_default_payload(bearing_type).get("coding", "")
+
+
+def load_series_for(bearing_type: str) -> list:
+    """Liefert die Massreihen-Codes (inkl. Prefix) eines DIN 623-Lagertyps.
+
+    Für Lagertypen mit anderem Coding (``direct``) wird eine leere Liste
+    zurückgegeben. Eine optionale User-Datei wird über die Defaults gemerged.
+    """
+    payload = _load_default_payload(bearing_type)
+    if payload.get("coding") != "din623":
+        return []
+    prefix = payload.get("prefix", "")
+    names = set(payload.get("series", {}).keys())
+    user_path = _user_data_path(_TYPE_FILES[bearing_type])
+    if user_path is not None:
+        try:
+            user_payload = _load_json(user_path)
+            if user_payload.get("coding") == "din623":
+                names.update(user_payload.get("series", {}).keys())
+        except (OSError, json.JSONDecodeError):
+            pass
+    return sorted(f"{prefix}{name}" for name in names)
+
+
+def load_bore_codes_for(bearing_type: str, series_code: str) -> list:
+    """Liefert die Bohrungskennzahlen einer Massreihe, sortiert nach Bohrungs-Ø.
+
+    Ungültige Kennzahlen (außerhalb DIN 623 04..96) werden übersprungen.
+    Eine optionale User-Datei wird über die Defaults gemerged.
+    """
+    payload = _load_default_payload(bearing_type)
+    if payload.get("coding") != "din623":
+        return []
+    prefix = payload.get("prefix", "")
+    if prefix and series_code.startswith(prefix):
+        key = series_code[len(prefix):]
+    else:
+        key = series_code
+    entries: dict = dict(payload.get("series", {}).get(key, {}))
+    user_path = _user_data_path(_TYPE_FILES[bearing_type])
+    if user_path is not None:
+        try:
+            user_payload = _load_json(user_path)
+            if user_payload.get("coding") == "din623":
+                entries.update(user_payload.get("series", {}).get(key, {}))
+        except (OSError, json.JSONDecodeError):
+            pass
+    sortable = []
+    for code in entries:
+        try:
+            d = din623.bore_code_to_diameter(code)
+        except ValueError:
+            continue
+        sortable.append((d, code))
+    sortable.sort()
+    return [code for _, code in sortable]

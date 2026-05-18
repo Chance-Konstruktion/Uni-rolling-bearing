@@ -22,6 +22,10 @@ from .tolerances import TOLERANCE_POSITIONS
 # Wir halten die Tupel daher persistent in diesem Modul.
 _SERIES_ITEMS_CACHE: dict = {}
 _CUSTOM_SERIES_ITEMS = [("CUSTOM", "Custom", "Benutzerdefiniert")]
+_MASS_SERIES_ITEMS_CACHE: dict = {}
+_BORE_CODE_ITEMS_CACHE: dict = {}
+_NO_SERIES_ITEMS = [("NONE", "—", "Keine DIN 623-Massreihen für diesen Lagertyp")]
+_NO_BORE_ITEMS = [("NONE", "—", "Keine Bohrungskennzahl in dieser Massreihe")]
 
 
 def _series_items(self, _context):
@@ -36,6 +40,50 @@ def _series_items(self, _context):
     else:
         items = [(code, code, f"Preset {code}") for code in presets]
     _SERIES_ITEMS_CACHE[bearing_type] = items
+    return items
+
+
+def _mass_series_items(self, _context):
+    """EnumItems der Massreihen für DIN 623-Lagertypen (BALL/CYL/TAPERED/SPHERICAL)."""
+    from . import norm_engine
+
+    bearing_type = self.bearing_type
+    cached = _MASS_SERIES_ITEMS_CACHE.get(bearing_type)
+    if cached is not None:
+        return cached
+    series = norm_engine.load_series_for(bearing_type)
+    if not series:
+        items = _NO_SERIES_ITEMS
+    else:
+        items = [(s, s, f"Massreihe {s}") for s in series]
+    _MASS_SERIES_ITEMS_CACHE[bearing_type] = items
+    return items
+
+
+def _bore_code_items(self, _context):
+    """EnumItems der Bohrungskennzahlen in der aktuell gewählten Massreihe."""
+    from . import din623, norm_engine
+
+    bearing_type = self.bearing_type
+    series = getattr(self, "mass_series", "")
+    cache_key = (bearing_type, series)
+    cached = _BORE_CODE_ITEMS_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    codes = norm_engine.load_bore_codes_for(bearing_type, series)
+    if not codes:
+        items = _NO_BORE_ITEMS
+    else:
+        items = []
+        for code in codes:
+            try:
+                d = din623.bore_code_to_diameter(code)
+            except ValueError:
+                continue
+            items.append((code, f"{code}  (d={d:g} mm)", f"Bohrungskennzahl {code} → d={d:g} mm"))
+        if not items:
+            items = _NO_BORE_ITEMS
+    _BORE_CODE_ITEMS_CACHE[cache_key] = items
     return items
 
 
@@ -71,6 +119,25 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
             "anwenden' geometrisch passend abgeleitet."
         ),
         items=_series_items,
+    )
+    mass_series: EnumProperty(
+        name="Massreihe",
+        description=(
+            "Massreihen-Code nach DIN ISO 15 / DIN 623 (z. B. '60', '62', '63' "
+            "für Rillenkugellager). Zusammen mit der Bohrungskennzahl ergibt "
+            "sich die vollständige Lagerbezeichnung und damit d, D, B. Nur "
+            "verfügbar für Lagertypen mit DIN 623-Coding."
+        ),
+        items=_mass_series_items,
+    )
+    bore_code: EnumProperty(
+        name="Bohrungskennzahl",
+        description=(
+            "DIN 623-Bohrungskennzahl. Der Bohrungs-Ø d ergibt sich nach festen "
+            "Regeln: 00..03 entsprechen 10/12/15/17 mm; ab 04 ist d = "
+            "Kennzahl·5 mm (z. B. '04' → 20 mm, '12' → 60 mm)."
+        ),
+        items=_bore_code_items,
     )
 
     use_preset: BoolProperty(
