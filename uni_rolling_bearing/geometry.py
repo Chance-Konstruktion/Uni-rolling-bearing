@@ -317,6 +317,13 @@ CAGE_PLATE_RADIAL_OVERHANG_FACTOR = 0.15
 # Anteil des tangentialen Spalts zwischen Wälzkörpern, den ein Web ausnutzt.
 CAGE_WEB_TANGENTIAL_FILL = 0.6
 
+# Mindestdurchmesser einer Schmiertasche im Massivkäfig. Wird die geometrisch
+# zulässige Größe kleiner, werden Schmiertaschen weggelassen.
+MIN_OIL_POCKET_DIAMETER_MM = 0.3
+# Auto-Füllgrad: wie groß wird die Schmiertasche im Verhältnis zum verfüg-
+# baren Material (kleinere von axialer Sleeve-Breite und tangentialem Web)?
+OIL_POCKET_AUTO_FILL = 0.5
+
 
 @dataclass(frozen=True)
 class CageDims:
@@ -404,3 +411,34 @@ def cage_dimensions(
         web_axial_length=web_axial_length,
         web_count=element_count,
     )
+
+
+def oil_pocket_diameter(
+    *,
+    requested_mm: float,
+    sleeve_axial_extent_mm: float,
+    web_tangential_size_mm: float,
+    edge_clearance_mm: float = 0.0,
+) -> float:
+    """Liefert den effektiven Schmiertaschen-Ø für einen Massivkäfig.
+
+    Die radiale Schmiertaschen-Bohrung sitzt mittig zwischen zwei Wälzkörper-
+    Pockets; ihr Querschnitt steht damit in der axial-tangentialen Ebene des
+    Käfigs. Der Durchmesser darf weder die axiale Käfigbreite noch den
+    tangentialen Steg zwischen zwei Pockets überschreiten.
+
+    ``requested_mm == 0`` aktiviert die automatische Größe (50 % des kleineren
+    Bauraums). Werte kleiner als ``MIN_OIL_POCKET_DIAMETER_MM`` werden als
+    "keine Schmiertasche" interpretiert und das Ergebnis ist ``0``.
+    ``edge_clearance_mm`` reserviert Material am Rand der Bohrung.
+    """
+    max_dia = min(sleeve_axial_extent_mm, web_tangential_size_mm) - 2.0 * edge_clearance_mm
+    if max_dia <= 0.0:
+        return 0.0
+    if requested_mm > 0.0:
+        dia = min(requested_mm, max_dia)
+    else:
+        dia = max_dia * OIL_POCKET_AUTO_FILL
+    if dia < MIN_OIL_POCKET_DIAMETER_MM:
+        return 0.0
+    return dia

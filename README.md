@@ -178,6 +178,14 @@ sphärisch (Kugel), zylindrisch (Zylinder/Nadel), kegelig (Kegelrolle) oder
 tonnenförmig (Tonnenlager) entstehen. Der erzeugte Pocket-Käfig wird als
 `cage_style = "pocket"` am Bearing-Empty markiert.
 
+Seit v0.21 gibt es zusätzlich die Bauart **Massiv** (`cage_style = "massive"`):
+ein Pocket-Sleeve mit radialen Schmiertaschen-Bohrungen im tangentialen
+Steg zwischen je zwei Wälzkörper-Pockets, wie sie für gefräste Messing-
+Massivkäfige typisch sind. Der Durchmesser kann manuell vorgegeben oder
+automatisch gewählt werden (`oil_pocket_diameter_mm`, 0 = automatisch);
+reicht der Bauraum nicht, fällt der Käfig auf einen reinen Pocket-Sleeve
+zurück.
+
 Schlägt der Boolean fehl (z. B. wegen degenerierter Cutter bei sehr grober
 Auflösung), fällt das Addon automatisch auf den historischen
 **Leiter-Käfig** zurück (`cage_style = "ladder"`): zwei axiale Endplatten

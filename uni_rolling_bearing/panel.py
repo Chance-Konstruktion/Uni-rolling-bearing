@@ -101,6 +101,8 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
             cage_box.prop(props, "cage_style")
             cage_box.prop(props, "cage_material")
             cage_box.prop(props, "pocket_clearance_mm")
+            if props.cage_style == "MASSIVE":
+                cage_box.prop(props, "oil_pocket_diameter_mm")
 
         # Validierung: wie weit liegen die aktuellen Werte vom Vorschlag entfernt?
         ok, hint = validate_against_suggestion(

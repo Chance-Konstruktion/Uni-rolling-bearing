@@ -256,11 +256,14 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         description=(
             "Bauart des Käfigs. 'Auto' wählt Pocket-Sleeve und fällt bei "
             "Boolean-Problemen auf den Leiter-Käfig zurück. 'Ribbon' erzeugt "
-            "zwei genietete Halbringe wie ein klassischer Pressblech-Käfig."
+            "zwei genietete Halbringe wie ein klassischer Pressblech-Käfig. "
+            "'Massiv' erweitert den Pocket-Sleeve um radiale Schmiertaschen "
+            "zwischen den Wälzkörper-Pockets (klassischer Messing-Massivkäfig)."
         ),
         items=[
             ("AUTO", "Auto", "Pocket-Sleeve, Fallback Leiter"),
             ("POCKET", "Sleeve (Pocket)", "Einteiliger Sleeve-Käfig mit Boolean-Pockets"),
+            ("MASSIVE", "Massiv (Schmiertaschen)", "Pocket-Sleeve mit radialen Schmiertaschen"),
             ("RIBBON", "Ribbon (genietet)", "Zwei genietete Halbringe, Pressblech-Stil"),
             ("LADDER", "Leiter", "Zwei Endplatten + tangentiale Webs"),
         ],
@@ -290,6 +293,21 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         default=0.20,
         min=0.0,
         soft_max=1.0,
+    )
+    oil_pocket_diameter_mm: FloatProperty(
+        name="Schmiertaschen-Ø [mm]",
+        description=(
+            "Nur Käfig-Bauart 'Massiv': Durchmesser der radialen Schmier-"
+            "taschen-Bohrungen, die zwischen den Wälzkörper-Pockets durch "
+            "den Käfig führen. 0 = automatisch (≈50 % des kleineren Bauraums "
+            "aus axialer Käfigbreite und tangentialem Steg). Wird auf den "
+            "verfügbaren Bauraum geclampt; bei zu wenig Platz werden die "
+            "Schmiertaschen weggelassen und der Käfig fällt auf einen "
+            "reinen Pocket-Sleeve zurück."
+        ),
+        default=0.0,
+        min=0.0,
+        soft_max=10.0,
     )
 
     vgroove_depth_mm: FloatProperty(

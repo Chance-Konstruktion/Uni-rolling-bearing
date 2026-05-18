@@ -12,9 +12,12 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from uni_rolling_bearing import constants  # noqa: E402
 from uni_rolling_bearing.geometry import (  # noqa: E402
+    MIN_OIL_POCKET_DIAMETER_MM,
+    OIL_POCKET_AUTO_FILL,
     cage_dimensions,
     compute_dims,
     max_elements_for_pitch,
+    oil_pocket_diameter,
     resolve_geometry,
     roller_length_for_type,
     suggest_defaults,
@@ -361,6 +364,66 @@ class TestCageDimensions(unittest.TestCase):
                 element_count=10, inner_race_d=45.0, outer_race_d=15.0,
             )
         )
+
+
+class TestOilPocketDiameter(unittest.TestCase):
+    def test_auto_picks_fill_of_smaller_dimension(self):
+        # Sleeve 4 mm axial, Steg 2 mm tangential, kein Clearance → Limit = 2 mm.
+        dia = oil_pocket_diameter(
+            requested_mm=0.0,
+            sleeve_axial_extent_mm=4.0,
+            web_tangential_size_mm=2.0,
+        )
+        self.assertAlmostEqual(dia, 2.0 * OIL_POCKET_AUTO_FILL)
+
+    def test_requested_clamped_to_max(self):
+        # 5 mm angefragt, aber Bauraum gibt nur 1.6 mm her.
+        dia = oil_pocket_diameter(
+            requested_mm=5.0,
+            sleeve_axial_extent_mm=4.0,
+            web_tangential_size_mm=2.0,
+            edge_clearance_mm=0.2,
+        )
+        # Bauraum = min(4, 2) - 2*0.2 = 1.6
+        self.assertAlmostEqual(dia, 1.6)
+
+    def test_requested_within_limits_returned(self):
+        dia = oil_pocket_diameter(
+            requested_mm=0.8,
+            sleeve_axial_extent_mm=4.0,
+            web_tangential_size_mm=2.0,
+        )
+        self.assertAlmostEqual(dia, 0.8)
+
+    def test_below_minimum_returns_zero(self):
+        # Tangentialer Steg sehr schmal → Auto-Wert < 0.3 mm → keine Schmiertasche.
+        dia = oil_pocket_diameter(
+            requested_mm=0.0,
+            sleeve_axial_extent_mm=4.0,
+            web_tangential_size_mm=0.4,
+        )
+        # 0.4 * 0.5 = 0.2 < MIN_OIL_POCKET_DIAMETER_MM
+        self.assertLess(0.4 * OIL_POCKET_AUTO_FILL, MIN_OIL_POCKET_DIAMETER_MM)
+        self.assertEqual(dia, 0.0)
+
+    def test_negative_room_after_clearance_returns_zero(self):
+        # Clearance frisst den ganzen Bauraum auf.
+        dia = oil_pocket_diameter(
+            requested_mm=0.0,
+            sleeve_axial_extent_mm=1.0,
+            web_tangential_size_mm=0.5,
+            edge_clearance_mm=0.4,
+        )
+        # min(1, 0.5) - 2*0.4 = -0.3 → no pocket
+        self.assertEqual(dia, 0.0)
+
+    def test_explicit_below_minimum_returns_zero(self):
+        dia = oil_pocket_diameter(
+            requested_mm=0.1,
+            sleeve_axial_extent_mm=4.0,
+            web_tangential_size_mm=2.0,
+        )
+        self.assertEqual(dia, 0.0)
 
 
 class TestTaperedApex(unittest.TestCase):
