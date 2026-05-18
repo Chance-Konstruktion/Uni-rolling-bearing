@@ -143,8 +143,9 @@ def add_uv_sphere(
         v_segments=max(MIN_SPHERE_V_SEGMENTS, v_segments),
         radius=radius,
     )
-    bmesh.ops.translate(bm, vec=Vector(location), verts=bm.verts)
-    return _finish_bmesh(name, bm, collection)
+    obj = _finish_bmesh(name, bm, collection)
+    obj.location = Vector(location)
+    return obj
 
 
 def add_cylinder(
@@ -165,8 +166,9 @@ def add_cylinder(
         radius2=radius,
         depth=depth,
     )
-    bmesh.ops.translate(bm, vec=Vector(location), verts=bm.verts)
-    return _finish_bmesh(name, bm, collection)
+    obj = _finish_bmesh(name, bm, collection)
+    obj.location = Vector(location)
+    return obj
 
 
 def add_tapered_roller(
@@ -181,9 +183,10 @@ def add_tapered_roller(
 ) -> bpy.types.Object:
     """Kegelrolle, optional um die lokale Y-Achse gekippt (Kontaktwinkel).
 
-    Die Kippung wird im Mesh-Frame angewendet, *bevor* nach ``location``
-    verschoben wird. Anschließend kann das Objekt über ``rotation_euler[2]``
-    um die Lagerachse rotiert werden, ohne den Kontaktwinkel zu verfälschen.
+    Der Tilt wird im Mesh-Frame angewendet (Vertices um Mesh-Origin gekippt);
+    die Platzierung auf den Teilkreis erfolgt anschließend über ``obj.location``.
+    So bleibt die Object-Pivot im Wälzkörper-Mittelpunkt und ein zusätzliches
+    ``rotation_euler[2]`` rotiert ihn um die Lagerachse, ohne ihn zu verschieben.
     """
     bm = bmesh.new()
     bmesh.ops.create_cone(
@@ -202,9 +205,10 @@ def add_tapered_roller(
             matrix=Matrix.Rotation(tilt, 4, "Y"),
             verts=bm.verts,
         )
-    bmesh.ops.translate(bm, vec=Vector(location), verts=bm.verts)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    return _finish_bmesh(name, bm, collection)
+    obj = _finish_bmesh(name, bm, collection)
+    obj.location = Vector(location)
+    return obj
 
 
 def add_barrel_roller(
@@ -257,9 +261,10 @@ def add_barrel_roller(
         _quad_safe(bm, (bottom_center, rings[0][ns], rings[0][s]))
         _quad_safe(bm, (top_center, rings[-1][s], rings[-1][ns]))
 
-    bmesh.ops.translate(bm, vec=Vector(location), verts=bm.verts)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    return _finish_bmesh(name, bm, collection)
+    obj = _finish_bmesh(name, bm, collection)
+    obj.location = Vector(location)
+    return obj
 
 
 def add_box(
