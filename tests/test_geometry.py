@@ -132,9 +132,10 @@ class TestResolveGeometry(unittest.TestCase):
         spec, error = resolve_geometry(**_base_kwargs(roller_diameter=50.0, auto_fit=True))
         self.assertIsNone(error)
         self.assertLess(spec.roller_d, 50.0)
-        # Radiale Spaltbreite = ((47 - 2·4) - (20 + 2·4)) / 2 = 5.5 mm,
-        # abzgl. Lagerluft 2·0.02 = 0.04 mm.
-        max_allowed = (5.5 - 0.04) * 0.98
+        # Kugellager: radialer Spalt = ((47-2·4) - (20+2·4))/2 = 5.5 mm,
+        # abzgl. Lagerluft 2·0.02 = 0.04 mm. Mit Rillen-Formel (f=0.52):
+        # max_ball = (5.46) / (2·0.52) · 0.98.
+        max_allowed = (5.5 - 0.04) / (2.0 * 0.52) * 0.98
         self.assertAlmostEqual(spec.roller_d, max_allowed, places=4)
 
     def test_too_many_elements_without_auto_fit(self):
@@ -232,15 +233,25 @@ class TestSuggestDefaults(unittest.TestCase):
         self.assertGreaterEqual(s.element_count, 3)
 
     def test_type_specific_ratios_differ(self):
-        # Nadellager sollen dünnere Ringe und schlankere Wälzkörper bekommen
-        # als ein Kugellager bei gleichen Hauptmaßen.
+        # Seit v0.23 nutzen Kugel- und Nadellager beide den 1/12-Wand-Anteil
+        # (für Kugellager ist ``ring_thickness`` die Mindestwand am Rillenboden,
+        # nicht die Schulterhöhe). Der Vorschlag muss trotzdem typgerechte
+        # Rollendurchmesser liefern.
         ball = suggest_defaults(constants.BALL, 30.0, 72.0)
         needle = suggest_defaults(constants.NEEDLE, 30.0, 72.0)
-        self.assertLess(needle.ring_thickness, ball.ring_thickness)
-        # Nadeln füllen den Spalt anteilig stärker → größerer Roller-Ø trotz
-        # dünnerer Ringe ist plausibel; aber Anzahl muss in beiden Fällen ≥ 3.
         self.assertGreaterEqual(needle.element_count, 3)
         self.assertGreaterEqual(ball.element_count, 3)
+        # Nadeln dürfen größere Wälzkörper haben, weil sie ohne Rille keinen
+        # Submersionsbonus brauchen – beide Werte aber > 0.
+        self.assertGreater(needle.roller_diameter, 0.0)
+        self.assertGreater(ball.roller_diameter, 0.0)
+
+    def test_ball_defaults_match_real_6204_within_10_percent(self):
+        # 6204 (d=20, D=47, B=14): reale Kugel ≈ 7.94 mm. Der Default-Vorschlag
+        # nach v0.23 (Rillenformel + Wand-Faustregel 1/10) muss innerhalb 10 %
+        # liegen, sonst stimmt das Verhältnis Ringstärke ↔ Rillenkonformität nicht.
+        s = suggest_defaults(constants.BALL, 20.0, 47.0)
+        self.assertAlmostEqual(s.roller_diameter, 7.94, delta=0.794)
 
 
 class TestValidateAgainstSuggestion(unittest.TestCase):
@@ -869,9 +880,20 @@ class TestSphericalInnerRingProfile(unittest.TestCase):
             contact_angle_rad=math.radians(10.0),
         )
         # Zwischen den beiden Laufbahnen liegt der Mittelbord auf shoulder_r.
-        # Ein Punkt nahe z=0 muss auf der Schulter (r ≈ 21) sitzen.
-        near_center = [(r, z) for r, z in profile if abs(z) < 0.1]
-        self.assertTrue(any(abs(r - 21.0) < 1e-3 for r, z in near_center))
+        # Es müssen je zwei Profilpunkte auf shoulder_r (≈21) symmetrisch zur
+        # Lagermitte sitzen, die die Bord-Ränder markieren.
+        shoulder_points = sorted(
+            [(r, z) for r, z in profile if abs(r - 21.0) < 1e-3],
+            key=lambda p: p[1],
+        )
+        # Mindestens zwei Punkte auf Schulterradius mit z<0 bzw. z>0, deren
+        # Mitten den Mittelbord über z=0 überspannen.
+        positive = [z for r, z in shoulder_points if z > 0]
+        negative = [z for r, z in shoulder_points if z < 0]
+        self.assertTrue(positive)
+        self.assertTrue(negative)
+        # Symmetrische Anordnung um z=0.
+        self.assertAlmostEqual(min(positive), -max(negative), places=6)
 
     def test_row_z_consistent_with_profile(self):
         from uni_rolling_bearing import raceway
@@ -879,6 +901,31 @@ class TestSphericalInnerRingProfile(unittest.TestCase):
         z = raceway.spherical_inner_row_z(20.0, 10.0, math.radians(10.0))
         self.assertGreater(z, 0.0)
         self.assertLess(z, 10.0)  # < half_w
+
+    def test_row_z_keeps_rollers_inside_bearing(self):
+        from uni_rolling_bearing import raceway
+
+        # 22210: B=23, roller_length ≈ B*0.38 = 8.74, α=10°
+        width = 23.0
+        roller_length = width * 0.38
+        alpha = math.radians(10.0)
+        row_z = raceway.spherical_inner_row_z(width, roller_length, alpha)
+        half_proj = roller_length * 0.5 * math.cos(alpha)
+        # Wälzkörper-Außenkante muss innerhalb der Lagerbreite bleiben.
+        self.assertLess(row_z + half_proj, width * 0.5)
+
+    def test_row_z_keeps_two_rows_separated(self):
+        from uni_rolling_bearing import raceway
+
+        # Bei vernünftiger Lagerbreite dürfen sich die beiden Reihen am
+        # Mittelband nicht überlappen.
+        width = 23.0
+        roller_length = width * 0.38
+        alpha = math.radians(10.0)
+        row_z = raceway.spherical_inner_row_z(width, roller_length, alpha)
+        half_proj = roller_length * 0.5 * math.cos(alpha)
+        # Innenkante der oberen Reihe muss oberhalb der Lagermitte sitzen.
+        self.assertGreater(row_z - half_proj, 0.0)
 
 
 if __name__ == "__main__":

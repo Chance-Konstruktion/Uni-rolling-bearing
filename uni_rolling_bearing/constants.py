@@ -46,24 +46,30 @@ NORM_HINTS: Dict[str, str] = {
 
 # Anteil der Lagerbreite, der von der Wälzkörperlänge ausgefüllt wird.
 # Empirische Werte, die zu plausibler Optik ohne Kollision mit Borden führen.
+# Pendelrollenlager sind zweireihig (DIN 635-2) – jede Rolle füllt nur
+# rund ein Drittel der Lagerbreite, nicht die ganze Breite.
 ROLLER_LENGTH_RATIO: Dict[str, float] = {
     NEEDLE: 0.98,
     CYLINDRICAL: 0.82,
     TAPERED: 0.90,
-    SPHERICAL: 0.85,
+    SPHERICAL: 0.38,
 }
 
 # Empfohlene Ringstärke als Anteil von (D − d). Praxisorientierte Faustwerte:
-# Standardlager bei ≈ 1/6, Nadellager dünnwandig bei ≈ 1/12.
+# Rillenkugellager bei ≈ 1/12 – der Wert wird zusammen mit der Rillen-Formel
+# in ``geometry.resolve_geometry`` ausgelegt: ``ring_thickness`` ist die
+# Mindestwand zwischen Bohrung und Rillenboden (nicht die Schulterhöhe), die
+# Kugel sinkt mit ``f·d_ball`` in die Rille ein. So treffen die Defaults
+# reale Maßreihen (6204 → ø7.94 mm).
 TYPE_RING_THICKNESS_RATIO: Dict[str, float] = {
-    BALL: 1.0 / 6.0,
+    BALL: 1.0 / 12.0,
     CYLINDRICAL: 1.0 / 7.0,
     NEEDLE: 1.0 / 12.0,
     TAPERED: 1.0 / 6.0,
     SPHERICAL: 1.0 / 6.0,
-    # SG-Führungsrollen sind klein gebaut – gleiche Wandstärke-Faustregel wie
-    # bei Standard-Rillenkugellagern, sonst bleibt für die Kugel kein Spalt.
-    VGROOVE: 1.0 / 6.0,
+    # SG-Führungsrollen sind Rillenkugellager mit zusätzlicher V-Rille im
+    # Außenmantel – dieselbe Wand-Faustregel wie beim Standard-Kugellager.
+    VGROOVE: 1.0 / 12.0,
 }
 
 # Empfohlener Anteil des nutzbaren Radial-Spalts, den der Wälzkörper-Ø
