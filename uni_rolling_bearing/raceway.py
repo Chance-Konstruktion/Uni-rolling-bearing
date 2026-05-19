@@ -695,12 +695,10 @@ def spherical_inner_ring_profile(
     if shoulder_r - bore_r <= PROFILE_EPSILON or half_w <= PROFILE_EPSILON:
         return _dedupe_profile(_hollow_cylinder_profile(bore_d, shoulder_d, width))
 
-    # Zwei Reihen: Mitten bei z = ±row_z, gekippt um α. Reale Pendelrollen-
-    # lager haben row_z ≈ B/4. Wir wählen das gleiche Verhältnis und passen
-    # bei großem α leicht an, damit die Reihen nicht über die Stirnflächen
-    # hinausragen.
-    row_z = max(half_w * 0.28, roller_length * 0.5 * math.cos(contact_angle_rad) * 0.55)
-    row_z = min(row_z, half_w * 0.55)
+    # Zwei Reihen: Mitten bei z = ±row_z, gekippt um α. Position wird zentral
+    # in ``spherical_inner_row_z`` bestimmt, damit Wälzkörper-Platzierung
+    # (operators.py) und Laufbahn-Profil (hier) identische Werte verwenden.
+    row_z = spherical_inner_row_z(width, roller_length, contact_angle_rad)
 
     # Axiale Spanne der einzelnen Laufbahn (von Mittelbord-Rand bis End-
     # schulter).
@@ -756,12 +754,31 @@ def spherical_inner_ring_profile(
 def spherical_inner_row_z(width: float, roller_length: float, contact_angle_rad: float) -> float:
     """Axialer Mittelpunkt einer Pendelrollen-Reihe (positives z).
 
-    Identisch zur Berechnung in ``spherical_inner_ring_profile``; getrennt
-    exportiert, damit die Rollen-Platzierung beide Werte synchron hält.
+    Pendelrollenlager sind zweireihig: die beiden Reihen liegen symmetrisch
+    bei z = ±row_z. row_z wird so gewählt, dass
+
+    * die Wälzkörper sich am Mittelband nicht überlappen
+      (``row_z ≥ half_proj + min_sep``),
+    * die Reihen-Außenkanten innerhalb der Lagerbreite bleiben
+      (``row_z + half_proj ≤ half_w - min_sep``),
+
+    wobei ``half_proj = roller_length · cos α / 2`` die axiale Halb-Projektion
+    einer gekippten Rolle ist. Wunschposition ist die Mitte des oberen Halb-
+    raums (``half_w/2``); sie wird bei Bedarf an die o. g. Schranken geclampt.
+    Bei zu schmalem Lager werden die Schranken zur "best effort"-Position.
     """
     half_w = width * 0.5
-    row_z = max(half_w * 0.28, roller_length * 0.5 * math.cos(contact_angle_rad) * 0.55)
-    return min(row_z, half_w * 0.55)
+    half_proj = roller_length * 0.5 * math.cos(contact_angle_rad)
+    min_sep = max(half_w * 0.05, 0.4)
+    target = half_w * 0.5
+    lower = half_proj + min_sep
+    upper = half_w - half_proj - min_sep
+    if upper < lower:
+        # Lager zu schmal für zwei vollständig getrennte Reihen – setze
+        # die Reihe mittig in den oberen Halbraum, damit die Profil-Funktion
+        # nicht degeneriert.
+        return max(target, lower)
+    return min(max(target, lower), upper)
 
 
 __all__ = [

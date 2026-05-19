@@ -193,6 +193,31 @@
   ``<Blender-Scripts>/uni_bearing/`` ablegen; sie werden über die
   ausgelieferten Defaults gemerged.
 
+### v0.22.0 – Sub-Panel-UX und Pendelrollen-Fixes
+- N-Panel auf einklappbare Sub-Panels (``bl_parent_id``) umgestellt: jede
+  Sektion (Lagertyp, Normen, Geometrie, Wälzkörper, Mesh, Tragzahlen,
+  Passungen) ist jetzt eigenständig und individuell kollabierbar.
+- Neue ``Ergebnisse``-Sub-Panel-Box bündelt die berechneten Werte aus
+  Plausibilitäts-Check, Tragzahlen und Passungen (vorher in drei
+  getrennten Sektionen vermischt mit den Eingaben).
+- ``auto_recompute`` (Live-Auto-Berechnen in der Geometrie-Sektion) ist
+  jetzt standardmäßig aktiv – Ringstärke, Wälzkörper-Ø und Anzahl werden
+  bei jeder Änderung von d/D/Lagertyp automatisch passend gesetzt.
+- **Pendelrollenlager (Tonnenlager) Fix:**
+  ``ROLLER_LENGTH_RATIO[SPHERICAL]`` von ``0.85`` auf ``0.38`` korrigiert.
+  Die Tonnenrolle ist ein *einzelner* Wälzkörper einer zweireihigen
+  Anordnung – die alte Ratio hat die Länge wie bei einreihigen Lagern
+  berechnet, sodass jede Rolle länger als eine Reihenhälfte war und
+  sichtbar über die Lagerstirnflächen hinausragte.
+- ``raceway.spherical_inner_row_z`` neu formuliert: row_z wird so gewählt,
+  dass die beiden Reihen am Mittelband nicht überlappen und gleichzeitig
+  innerhalb der Lagerbreite bleiben (vorher 0.55·half_proj erlaubte
+  Überlappung; 0.55·half_w erlaubte Überstand). ``spherical_inner_ring_profile``
+  ruft die Funktion auf, damit Profil- und Wälzkörper-Position synchron sind.
+- Tests in ``tests/test_geometry.py``: zwei neue Asserts prüfen, dass die
+  Rollen für eine typische 22210-Geometrie innerhalb des Lagers bleiben
+  und sich am Mittelband nicht überlappen.
+
 ### v0.21.0 – Massivkäfig mit Schmiertaschen
 - Neue Käfig-Bauart ``MASSIVE`` (Auswahl ``Massiv (Schmiertaschen)``):
   Pocket-Sleeve wie bei ``POCKET``, zusätzlich werden im tangentialen Steg

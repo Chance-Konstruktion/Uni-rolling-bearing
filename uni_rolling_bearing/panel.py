@@ -1,8 +1,13 @@
 """N-Panel für das UNI-Bearing-Addon.
 
-Jede Sektion bekommt einen kleinen Info-Button (Fragezeichen). Beim Hovern
-zeigt Blender den ``bl_description``-Text als Tooltip; ein Klick öffnet ein
-Popup mit der gleichen Erklärung in mehreren Zeilen.
+Aufbau: ein Wurzel-Panel ``UNI_PT_bearing_panel`` mit dem Erstellen-Button.
+Darunter sitzen mehrere Sub-Panels (über ``bl_parent_id`` verknüpft), die
+sich pro Sektion einzeln auf- und zuklappen lassen. Die berechneten
+Ergebnisse aus den Eingabesektionen werden in einer eigenen
+``Ergebnisse``-Sub-Panel-Box gesammelt.
+
+Jeder Sub-Panel-Header zeigt zusätzlich einen kleinen ``?``-Info-Button,
+der beim Klick das passende Erklärungs-Popup öffnet.
 """
 
 from __future__ import annotations
@@ -14,13 +19,18 @@ from .geometry import validate_against_suggestion
 from .operators import safe_resolve_geometry
 
 
-def _section_header(layout, title: str, info_op: str) -> bpy.types.UILayout:
-    """Erzeugt eine Box mit Titel und ``?``-Hover-Hilfe und liefert die Box zurück."""
-    box = layout.box()
-    header = box.row(align=True)
-    header.label(text=title)
-    header.operator(info_op, text="", icon="QUESTION", emboss=False)
-    return box
+def _info_button(layout, info_op: str) -> None:
+    """Fügt einen kleinen Hilfe-Button in den Layout-Header ein."""
+    layout.operator(info_op, text="", icon="QUESTION", emboss=False)
+
+
+class _UNI_SubPanelBase:
+    """Gemeinsame Konfiguration für alle UNI-Sub-Panels."""
+
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "UNI Bearings"
+    bl_parent_id = "UNI_PT_BEARING_PANEL"
 
 
 class UNI_PT_bearing_panel(bpy.types.Panel):
@@ -32,17 +42,37 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        props = context.scene.uni_bearing
+        layout.operator("uni_bearing.create", icon="MESH_TORUS")
 
-        bearing_box = _section_header(layout, "1) Lagertyp wählen", "uni_bearing.info_lagertyp")
-        bearing_box.prop(props, "bearing_type", text="")
+
+class UNI_PT_section_type(_UNI_SubPanelBase, bpy.types.Panel):
+    bl_idname = "UNI_PT_section_type"
+    bl_label = "1) Lagertyp wählen"
+
+    def draw_header(self, context):
+        _info_button(self.layout, "uni_bearing.info_lagertyp")
+
+    def draw(self, context):
+        layout = self.layout
+        props = context.scene.uni_bearing
+        layout.prop(props, "bearing_type", text="")
         norm_hint = constants.NORM_HINTS.get(props.bearing_type, "")
         if norm_hint:
-            bearing_box.label(text=norm_hint, icon="INFO")
+            layout.label(text=norm_hint, icon="INFO")
 
-        norms = _section_header(layout, "2) Normen & Presets", "uni_bearing.info_normen")
-        norms.prop(props, "precision_class")
-        norms.prop(props, "tolerance_position")
+
+class UNI_PT_section_norms(_UNI_SubPanelBase, bpy.types.Panel):
+    bl_idname = "UNI_PT_section_norms"
+    bl_label = "2) Normen & Presets"
+
+    def draw_header(self, context):
+        _info_button(self.layout, "uni_bearing.info_normen")
+
+    def draw(self, context):
+        layout = self.layout
+        props = context.scene.uni_bearing
+        layout.prop(props, "precision_class")
+        layout.prop(props, "tolerance_position")
         from .tolerances import apply_tolerances
         eff = apply_tolerances(
             bore_diameter_mm=props.bore_diameter,
@@ -52,7 +82,7 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
             position=props.tolerance_position,
         )
         if any(abs(x) > 0.0005 for x in (eff.bore_offset_um, eff.od_offset_um, eff.width_offset_um)):
-            norms.label(
+            layout.label(
                 text=(
                     f"Δd={eff.bore_offset_um:+.1f} µm  "
                     f"ΔD={eff.od_offset_um:+.1f} µm  "
@@ -60,51 +90,67 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
                 ),
                 icon="DRIVER_DISTANCE",
             )
-        norms.prop(props, "radial_clearance")
-        norms.prop(props, "use_preset")
+        layout.prop(props, "radial_clearance")
+        layout.prop(props, "use_preset")
         if props.use_preset:
             from . import norm_engine
             coding = norm_engine.coding_for(props.bearing_type)
             if coding == "din623":
-                # Workflow: Reihe → Bohrungskennzahl (UI-Folge der Norm).
-                preset_col = norms.column(align=True)
+                preset_col = layout.column(align=True)
                 preset_col.prop(props, "mass_series")
                 preset_col.prop(props, "bore_code")
                 if props.mass_series != "NONE" and props.bore_code != "NONE":
                     combined = f"{props.mass_series}{props.bore_code}"
                     preset_col.label(text=f"Bezeichnung: {combined}", icon="COPY_ID")
-                norms.operator("uni_bearing.apply_bore_code_preset", icon="PRESET")
+                layout.operator("uni_bearing.apply_bore_code_preset", icon="PRESET")
             else:
-                # Direkte Code-Auswahl für 'direct'-Coding (z. B. SG10, HK0808).
-                norms.prop(props, "series_code")
-                norms.operator("uni_bearing.apply_series_preset", icon="PRESET")
+                layout.prop(props, "series_code")
+                layout.operator("uni_bearing.apply_series_preset", icon="PRESET")
 
-        dims = _section_header(layout, "3) Geometrie", "uni_bearing.info_geometrie")
-        dims.prop(props, "bore_diameter")
-        dims.prop(props, "outer_diameter")
-        dims.prop(props, "width")
-        dims.prop(props, "ring_thickness")
 
-        # Auto-Berechnen: füllt Ringstärke + Wälzkörper-Ø + Anzahl typgerecht.
-        auto_row = dims.row(align=True)
+class UNI_PT_section_geometry(_UNI_SubPanelBase, bpy.types.Panel):
+    bl_idname = "UNI_PT_section_geometry"
+    bl_label = "3) Geometrie"
+
+    def draw_header(self, context):
+        _info_button(self.layout, "uni_bearing.info_geometrie")
+
+    def draw(self, context):
+        layout = self.layout
+        props = context.scene.uni_bearing
+        layout.prop(props, "bore_diameter")
+        layout.prop(props, "outer_diameter")
+        layout.prop(props, "width")
+        layout.prop(props, "ring_thickness")
+
+        auto_row = layout.row(align=True)
         auto_row.operator("uni_bearing.auto_calculate", icon="MOD_SOLIDIFY")
         auto_row.prop(props, "auto_recompute", text="live", toggle=True)
 
-        rollers = _section_header(layout, "4) Wälzkörper", "uni_bearing.info_waelzkoerper")
-        rollers.prop(props, "roller_diameter")
-        rollers.prop(props, "element_count")
-        rollers.prop(props, "gap_factor")
-        rollers.prop(props, "auto_fit")
-        rollers.prop(props, "use_cage")
+
+class UNI_PT_section_rollers(_UNI_SubPanelBase, bpy.types.Panel):
+    bl_idname = "UNI_PT_section_rollers"
+    bl_label = "4) Wälzkörper"
+
+    def draw_header(self, context):
+        _info_button(self.layout, "uni_bearing.info_waelzkoerper")
+
+    def draw(self, context):
+        layout = self.layout
+        props = context.scene.uni_bearing
+        layout.prop(props, "roller_diameter")
+        layout.prop(props, "element_count")
+        layout.prop(props, "gap_factor")
+        layout.prop(props, "auto_fit")
+        layout.prop(props, "use_cage")
         if props.use_cage:
-            cage_box = rollers.column(align=True)
+            cage_box = layout.column(align=True)
             cage_box.prop(props, "cage_style")
             cage_box.prop(props, "cage_material")
             cage_box.prop(props, "pocket_clearance_mm")
             if props.cage_style == "MASSIVE":
                 cage_box.prop(props, "oil_pocket_diameter_mm")
 
-        # Validierung: wie weit liegen die aktuellen Werte vom Vorschlag entfernt?
         ok, hint = validate_against_suggestion(
             bearing_type=props.bearing_type,
             bore_diameter=props.bore_diameter,
@@ -115,42 +161,96 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
             radial_clearance=props.radial_clearance,
             gap_factor=props.gap_factor,
         )
-        rollers.label(
+        layout.label(
             text=hint if ok else f"Abweichung: {hint}",
             icon="CHECKMARK" if ok else "INFO",
         )
 
         if props.bearing_type in (constants.CYLINDRICAL, constants.NEEDLE):
-            rollers.label(text="Hinweis: Zylindrische Rollen werden erzeugt.")
+            layout.label(text="Hinweis: Zylindrische Rollen werden erzeugt.")
         elif props.bearing_type == constants.TAPERED:
-            tapered_row = rollers.row(align=True)
+            tapered_row = layout.row(align=True)
             tapered_row.prop(props, "contact_angle_deg")
             tapered_row.operator(
                 "uni_bearing.info_kontaktwinkel", text="", icon="QUESTION", emboss=False
             )
-            rollers.prop(props, "tapered_flange_height_mm")
-            tapered_widths = rollers.column(align=True)
+            layout.prop(props, "tapered_flange_height_mm")
+            tapered_widths = layout.column(align=True)
             tapered_widths.prop(props, "tapered_cone_width_mm")
             tapered_widths.prop(props, "tapered_cup_width_mm")
         elif props.bearing_type == constants.SPHERICAL:
-            rollers.label(text="Hinweis: Zweireihige Tonnenrollen (DIN 635-2).")
-            rollers.prop(props, "spherical_contact_angle_deg")
+            layout.label(text="Hinweis: Zweireihige Tonnenrollen (DIN 635-2).")
+            layout.prop(props, "spherical_contact_angle_deg")
         elif props.bearing_type == constants.VGROOVE:
-            rollers.label(text="Hinweis: V-Rille im Außenmantel (SG/W-Reihe).")
-            rollers.prop(props, "vgroove_depth_mm")
-            rollers.prop(props, "vgroove_half_angle_deg")
+            layout.label(text="Hinweis: V-Rille im Außenmantel (SG/W-Reihe).")
+            layout.prop(props, "vgroove_depth_mm")
+            layout.prop(props, "vgroove_half_angle_deg")
 
         if props.bearing_type in (constants.BALL, constants.VGROOVE):
-            conformity = rollers.column(align=True)
+            conformity = layout.column(align=True)
             conformity.prop(props, "groove_conformity_inner")
             conformity.prop(props, "groove_conformity_outer")
             conformity.prop(props, "bearing_chamfer_mm")
 
-        preview = _section_header(layout, "5) Plausibilitäts-Check", "uni_bearing.info_check")
+
+class UNI_PT_section_quality(_UNI_SubPanelBase, bpy.types.Panel):
+    bl_idname = "UNI_PT_section_quality"
+    bl_label = "5) Mesh-Qualität"
+
+    def draw_header(self, context):
+        _info_button(self.layout, "uni_bearing.info_qualitaet")
+
+    def draw(self, context):
+        layout = self.layout
+        props = context.scene.uni_bearing
+        layout.prop(props, "segments")
+
+
+class UNI_PT_section_ratings(_UNI_SubPanelBase, bpy.types.Panel):
+    bl_idname = "UNI_PT_section_ratings"
+    bl_label = "6) Tragzahlen & Lebensdauer"
+
+    def draw_header(self, context):
+        _info_button(self.layout, "uni_bearing.info_tragzahlen")
+
+    def draw(self, context):
+        layout = self.layout
+        props = context.scene.uni_bearing
+        layout.prop(props, "radial_load_fr_n")
+        layout.prop(props, "axial_load_fa_n")
+        layout.prop(props, "speed_rpm")
+
+
+class UNI_PT_section_fits(_UNI_SubPanelBase, bpy.types.Panel):
+    bl_idname = "UNI_PT_section_fits"
+    bl_label = "7) Passungen (DIN 5418)"
+
+    def draw_header(self, context):
+        _info_button(self.layout, "uni_bearing.info_passungen")
+
+    def draw(self, context):
+        layout = self.layout
+        props = context.scene.uni_bearing
+        layout.prop(props, "load_case")
+
+
+class UNI_PT_section_results(_UNI_SubPanelBase, bpy.types.Panel):
+    bl_idname = "UNI_PT_section_results"
+    bl_label = "Ergebnisse"
+
+    def draw_header(self, context):
+        _info_button(self.layout, "uni_bearing.info_check")
+
+    def draw(self, context):
+        layout = self.layout
+        props = context.scene.uni_bearing
         spec, error = safe_resolve_geometry(props)
+
+        plaus = layout.box()
+        plaus.label(text="Plausibilität", icon="CHECKMARK")
         if error or spec is None:
-            preview.alert = True
-            preview.label(text=error or "Geometrie unzulässig.", icon="ERROR")
+            plaus.alert = True
+            plaus.label(text=error or "Geometrie unzulässig.", icon="ERROR")
         else:
             roller_label = f"Effektiver Roller-Ø: {spec.roller_d:.3f} mm"
             count_label = f"Effektive Anzahl: {spec.element_count}"
@@ -160,27 +260,18 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
                 roller_label += f"  (angefragt: {props.roller_diameter:.3f})"
             if count_clamped:
                 count_label += f"  (angefragt: {props.element_count})"
-            preview.label(
+            plaus.label(
                 text=roller_label,
                 icon="MODIFIER" if roller_clamped else "NONE",
             )
-            preview.label(
+            plaus.label(
                 text=count_label,
                 icon="MODIFIER" if count_clamped else "NONE",
             )
-            preview.label(text=f"Teilkreis-Ø: {spec.pitch_d:.3f} mm")
+            plaus.label(text=f"Teilkreis-Ø: {spec.pitch_d:.3f} mm")
             if roller_clamped or count_clamped:
-                preview.label(text="Auto-Fit hat Werte angepasst.", icon="INFO")
+                plaus.label(text="Auto-Fit hat Werte angepasst.", icon="INFO")
 
-        quality = _section_header(layout, "6) Mesh-Qualität", "uni_bearing.info_qualitaet")
-        quality.prop(props, "segments")
-
-        ratings_box = _section_header(
-            layout, "7) Tragzahlen & Lebensdauer", "uni_bearing.info_tragzahlen"
-        )
-        ratings_box.prop(props, "radial_load_fr_n")
-        ratings_box.prop(props, "axial_load_fa_n")
-        ratings_box.prop(props, "speed_rpm")
         if spec is not None and error is None:
             from . import ratings as ratings_mod
             angle = (
@@ -199,12 +290,14 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
                 axial_load_Fa_N=props.axial_load_fa_n,
                 speed_rpm=props.speed_rpm,
             )
+            ratings_box = layout.box()
+            ratings_box.label(text="Tragzahlen", icon="PHYSICS")
             ratings_box.label(
                 text=f"γ={r.gamma:.3f}  f0={r.f0:.1f}  fc={r.fc:.1f}",
                 icon="OUTLINER_DATA_EMPTY",
             )
-            ratings_box.label(text=f"C0r ≈ {r.static_C0_N:,.0f} N", icon="PHYSICS")
-            ratings_box.label(text=f"Cr  ≈ {r.dynamic_C_N:,.0f} N", icon="PHYSICS")
+            ratings_box.label(text=f"C0r ≈ {r.static_C0_N:,.0f} N")
+            ratings_box.label(text=f"Cr  ≈ {r.dynamic_C_N:,.0f} N")
             if props.radial_load_fr_n > 0.0 or props.axial_load_fa_n > 0.0:
                 ratings_box.label(
                     text=f"X={r.X:.2f}  Y={r.Y:.2f}  e={r.e:.2f}",
@@ -222,10 +315,6 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
             if r.L10h is not None:
                 ratings_box.label(text=f"L10h ≈ {r.L10h:,.0f} h", icon="TIME")
 
-        fits_box = _section_header(
-            layout, "8) Passungen (DIN 5418)", "uni_bearing.info_passungen"
-        )
-        fits_box.prop(props, "load_case")
         from . import fits as fits_mod
         fit = fits_mod.recommend_fits(
             load_case=props.load_case,
@@ -238,6 +327,8 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
                 return f"{prefix} {cls} (außerhalb Tabelle)"
             return f"{prefix} {cls}  {u:+d}/{l:+d} µm"
 
+        fits_box = layout.box()
+        fits_box.label(text="Passungen", icon="SETTINGS")
         fits_box.label(
             text=_dev_label("Welle:", fit.shaft_class, fit.shaft_upper_um, fit.shaft_lower_um),
             icon="CON_LOCKTRACK",
@@ -246,6 +337,3 @@ class UNI_PT_bearing_panel(bpy.types.Panel):
             text=_dev_label("Gehäuse:", fit.housing_class, fit.housing_upper_um, fit.housing_lower_um),
             icon="CON_OBJECTSOLVER",
         )
-
-        layout.separator()
-        layout.operator("uni_bearing.create", icon="MESH_TORUS")

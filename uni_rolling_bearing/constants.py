@@ -46,11 +46,13 @@ NORM_HINTS: Dict[str, str] = {
 
 # Anteil der Lagerbreite, der von der Wälzkörperlänge ausgefüllt wird.
 # Empirische Werte, die zu plausibler Optik ohne Kollision mit Borden führen.
+# Pendelrollenlager sind zweireihig (DIN 635-2) – jede Rolle füllt nur
+# rund ein Drittel der Lagerbreite, nicht die ganze Breite.
 ROLLER_LENGTH_RATIO: Dict[str, float] = {
     NEEDLE: 0.98,
     CYLINDRICAL: 0.82,
     TAPERED: 0.90,
-    SPHERICAL: 0.85,
+    SPHERICAL: 0.38,
 }
 
 # Empfohlene Ringstärke als Anteil von (D − d). Praxisorientierte Faustwerte:

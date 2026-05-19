@@ -239,7 +239,7 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
             "Faustformeln (Industriewerte) berechnet. Deaktivieren, um nur "
             "manuell über den 'Auto-Berechnen'-Button zu rechnen."
         ),
-        default=False,
+        default=True,
     )
 
     use_cage: BoolProperty(

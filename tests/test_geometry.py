@@ -869,9 +869,20 @@ class TestSphericalInnerRingProfile(unittest.TestCase):
             contact_angle_rad=math.radians(10.0),
         )
         # Zwischen den beiden Laufbahnen liegt der Mittelbord auf shoulder_r.
-        # Ein Punkt nahe z=0 muss auf der Schulter (r ≈ 21) sitzen.
-        near_center = [(r, z) for r, z in profile if abs(z) < 0.1]
-        self.assertTrue(any(abs(r - 21.0) < 1e-3 for r, z in near_center))
+        # Es müssen je zwei Profilpunkte auf shoulder_r (≈21) symmetrisch zur
+        # Lagermitte sitzen, die die Bord-Ränder markieren.
+        shoulder_points = sorted(
+            [(r, z) for r, z in profile if abs(r - 21.0) < 1e-3],
+            key=lambda p: p[1],
+        )
+        # Mindestens zwei Punkte auf Schulterradius mit z<0 bzw. z>0, deren
+        # Mitten den Mittelbord über z=0 überspannen.
+        positive = [z for r, z in shoulder_points if z > 0]
+        negative = [z for r, z in shoulder_points if z < 0]
+        self.assertTrue(positive)
+        self.assertTrue(negative)
+        # Symmetrische Anordnung um z=0.
+        self.assertAlmostEqual(min(positive), -max(negative), places=6)
 
     def test_row_z_consistent_with_profile(self):
         from uni_rolling_bearing import raceway
@@ -879,6 +890,31 @@ class TestSphericalInnerRingProfile(unittest.TestCase):
         z = raceway.spherical_inner_row_z(20.0, 10.0, math.radians(10.0))
         self.assertGreater(z, 0.0)
         self.assertLess(z, 10.0)  # < half_w
+
+    def test_row_z_keeps_rollers_inside_bearing(self):
+        from uni_rolling_bearing import raceway
+
+        # 22210: B=23, roller_length ≈ B*0.38 = 8.74, α=10°
+        width = 23.0
+        roller_length = width * 0.38
+        alpha = math.radians(10.0)
+        row_z = raceway.spherical_inner_row_z(width, roller_length, alpha)
+        half_proj = roller_length * 0.5 * math.cos(alpha)
+        # Wälzkörper-Außenkante muss innerhalb der Lagerbreite bleiben.
+        self.assertLess(row_z + half_proj, width * 0.5)
+
+    def test_row_z_keeps_two_rows_separated(self):
+        from uni_rolling_bearing import raceway
+
+        # Bei vernünftiger Lagerbreite dürfen sich die beiden Reihen am
+        # Mittelband nicht überlappen.
+        width = 23.0
+        roller_length = width * 0.38
+        alpha = math.radians(10.0)
+        row_z = raceway.spherical_inner_row_z(width, roller_length, alpha)
+        half_proj = roller_length * 0.5 * math.cos(alpha)
+        # Innenkante der oberen Reihe muss oberhalb der Lagermitte sitzen.
+        self.assertGreater(row_z - half_proj, 0.0)
 
 
 if __name__ == "__main__":
