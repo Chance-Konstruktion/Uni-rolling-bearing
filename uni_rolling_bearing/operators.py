@@ -27,6 +27,20 @@ MM_TO_M = 0.001
 _AUTO_RECOMPUTE_GUARD = False
 
 
+def _groove_conformity_for(props):
+    """Größte gewählte Konformität – für die Bauraum-Begrenzung der Kugel.
+
+    Die Kugel muss in BEIDE Rillen (Innen-/Außenring) passen; die strengere
+    (= größere f) Rille begrenzt den maximalen Kugel-Ø.
+    """
+    if props.bearing_type not in (constants.BALL, constants.VGROOVE):
+        return None
+    return max(
+        float(getattr(props, "groove_conformity_inner", 0.52)),
+        float(getattr(props, "groove_conformity_outer", 0.52)),
+    )
+
+
 def apply_suggested_defaults(props) -> None:
     """Schreibt die typabhängigen Vorschläge in ``props`` zurück.
 
@@ -44,6 +58,7 @@ def apply_suggested_defaults(props) -> None:
             props.outer_diameter,
             radial_clearance=props.radial_clearance,
             gap_factor=props.gap_factor,
+            groove_conformity=_groove_conformity_for(props),
         )
         props.ring_thickness = suggestion.ring_thickness
         props.roller_diameter = suggestion.roller_diameter
@@ -76,6 +91,7 @@ def _props_to_resolve_kwargs(props) -> dict:
         radial_clearance=props.radial_clearance,
         gap_factor=props.gap_factor,
         auto_fit=props.auto_fit,
+        groove_conformity=_groove_conformity_for(props),
     )
 
 

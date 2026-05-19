@@ -25,6 +25,11 @@ MAX_SUGGESTED_RING_THICKNESS_MM = 8.0
 # Wälzkörper-Ø einnimmt. Lässt etwas Spielraum gegenüber dem harten Maximum.
 SUGGESTED_ROLLER_FILL = 0.90
 
+# Typischer Konformitätsfaktor f = r_groove / d_ball für Rillenkugellager,
+# wenn der Aufrufer keinen eigenen Wert übergibt. Reale Werte liegen bei
+# 0.515–0.535; 0.52 ist ein guter Mittelwert für die Geometrie-Berechnung.
+DEFAULT_BALL_GROOVE_CONFORMITY = 0.52
+
 
 @dataclass(frozen=True)
 class BearingDims:
@@ -92,6 +97,21 @@ def roller_length_for_type(bearing_type: str, width: float, roller_d: float) -> 
     return width * ratio
 
 
+def _ball_max_roller_d(usable_space: float, conformity: float) -> float:
+    """Maximaler Kugel-Ø, wenn ``ring_thickness`` als Mindestwand über der
+    Rille interpretiert wird.
+
+    Herleitung: die Rille reicht radial bis zu ``pitch_r - r_groove =
+    pitch_r - f·d_ball``. Damit unter ihr noch die Wand ``ring_thickness``
+    übrig bleibt, muss ``f·d_ball ≤ (D−d)/4 − ring_thickness =
+    usable_space / 2``. Aufgelöst nach ``d_ball``: ``d_ball ≤ usable_space /
+    (2·f)``. Symmetrisch für die Außenring-Rille. ``ROLLER_SAFETY_FRACTION``
+    bleibt als 2 %-Sicherheitspuffer erhalten.
+    """
+    f = max(0.5 + 1.0e-6, conformity)
+    return (usable_space / (2.0 * f)) * ROLLER_SAFETY_FRACTION
+
+
 def resolve_geometry(
     *,
     bearing_type: str,
@@ -104,11 +124,17 @@ def resolve_geometry(
     radial_clearance: float,
     gap_factor: float,
     auto_fit: bool,
+    groove_conformity: Optional[float] = None,
 ) -> Tuple[Optional[ResolvedBearing], Optional[str]]:
     """Löst alle Parameter zu einer funktionsfähigen Geometrie auf.
 
     Gibt ``(spec, None)`` bei Erfolg oder ``(None, error_message)`` zurück.
     Mit ``auto_fit=True`` werden unplausible Werte stillschweigend korrigiert.
+
+    ``groove_conformity`` wird bei Rillenkugellagern (BALL/VGROOVE) verwendet,
+    um die maximale Kugelgröße zu berechnen: weil die Kugel teilweise in die
+    Rille eintaucht, darf sie größer sein als der reine Schulter-zu-Schulter-
+    Abstand. Bei anderen Lagertypen ohne Bedeutung.
     """
     if bore_diameter >= outer_diameter:
         return None, (
@@ -135,7 +161,12 @@ def resolve_geometry(
             f"oder Ringstärke verkleinern."
         )
 
-    max_roller_d = usable_space * ROLLER_SAFETY_FRACTION
+    if bearing_type in (constants.BALL, constants.VGROOVE):
+        f = groove_conformity if groove_conformity is not None else DEFAULT_BALL_GROOVE_CONFORMITY
+        max_roller_d = _ball_max_roller_d(usable_space, f)
+    else:
+        max_roller_d = usable_space * ROLLER_SAFETY_FRACTION
+
     if roller_diameter > max_roller_d:
         if not auto_fit:
             return None, (
@@ -196,6 +227,7 @@ def suggest_defaults(
     *,
     radial_clearance: float = 0.02,
     gap_factor: float = 0.10,
+    groove_conformity: Optional[float] = None,
 ) -> SuggestedDefaults:
     """Liefert ring_thickness/roller_d/Anzahl, mit denen ein Lager sofort funktioniert.
 
@@ -203,6 +235,11 @@ def suggest_defaults(
     verwendet (siehe ``constants.TYPE_RING_THICKNESS_RATIO`` und
     ``TYPE_ROLLER_FILL``). Damit erhält man typische Industriewerte für
     Wandstärke und Wälzkörper-Ø ohne manuelle Berechnung.
+
+    Für Rillenkugellager (BALL/VGROOVE) wird zusätzlich die Konformität
+    berücksichtigt, weil die Kugel teilweise in die Rille eintaucht; der
+    vorgeschlagene Roller-Ø nutzt denselben Maximalwert wie
+    ``resolve_geometry``.
     """
     if bore_diameter >= outer_diameter:
         # Degenerate Eingabe – minimaler Default damit nichts crasht.
@@ -220,7 +257,12 @@ def suggest_defaults(
     dims = compute_dims(bore_diameter, outer_diameter, ring_thickness)
     usable = max(MIN_USABLE_SPACE_MM, dims.radial_space - 2.0 * radial_clearance)
     fill = constants.TYPE_ROLLER_FILL.get(bearing_type, SUGGESTED_ROLLER_FILL)
-    roller_d = max(0.5, usable * fill)
+    if bearing_type in (constants.BALL, constants.VGROOVE):
+        f = groove_conformity if groove_conformity is not None else DEFAULT_BALL_GROOVE_CONFORMITY
+        max_ball_d = _ball_max_roller_d(usable, f)
+        roller_d = max(0.5, max_ball_d * fill)
+    else:
+        roller_d = max(0.5, usable * fill)
     pitch_d = (dims.inner_outer_d + dims.outer_inner_d) * 0.5
     count = max_elements_for_pitch(pitch_d, roller_d, gap_factor)
 

@@ -193,6 +193,24 @@
   ``<Blender-Scripts>/uni_bearing/`` ablegen; sie werden über die
   ausgelieferten Defaults gemerged.
 
+### v0.23.0 – Rillen-Geometrie und realistische Kugelgrößen
+- ``geometry.resolve_geometry`` / ``suggest_defaults`` rechnen für
+  Rillenkugellager (BALL/VGROOVE) jetzt mit der Rillen-Formel
+  ``max_kugel = radial_space / (2·f)``. Die Konformität ``f`` kommt aus
+  den UI-Properties ``groove_conformity_inner/_outer`` (binding ist die
+  größere); ohne Wert wird ``DEFAULT_BALL_GROOVE_CONFORMITY = 0.52``
+  angenommen.
+- ``TYPE_RING_THICKNESS_RATIO[BALL,VGROOVE]`` von 1/6 auf 1/12 reduziert.
+  ``ring_thickness`` wird damit als Mindestwand zwischen Bohrung und
+  Rillenboden interpretiert (vorher als Schulterhöhe). Die Kugel kann
+  jetzt teilweise in beide Rillen eintauchen, statt rein zwischen den
+  Schultern eingesperrt zu bleiben.
+- Default-Vorschläge treffen damit reale ISO 15-Reihen (6204 → ø7.94 mm
+  vs. vorher ø4.27 mm; 6304/6306 mit ±5 % Abweichung). Tests in
+  ``tests/test_geometry.py`` verankern den 6204-Wert.
+- Operatoren reichen die Konformität durch (``_groove_conformity_for``);
+  bei nicht-BALL-Lagern bleibt die Berechnung unverändert.
+
 ### v0.22.0 – Sub-Panel-UX und Pendelrollen-Fixes
 - N-Panel auf einklappbare Sub-Panels (``bl_parent_id``) umgestellt: jede
   Sektion (Lagertyp, Normen, Geometrie, Wälzkörper, Mesh, Tragzahlen,

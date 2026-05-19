@@ -132,9 +132,10 @@ class TestResolveGeometry(unittest.TestCase):
         spec, error = resolve_geometry(**_base_kwargs(roller_diameter=50.0, auto_fit=True))
         self.assertIsNone(error)
         self.assertLess(spec.roller_d, 50.0)
-        # Radiale Spaltbreite = ((47 - 2·4) - (20 + 2·4)) / 2 = 5.5 mm,
-        # abzgl. Lagerluft 2·0.02 = 0.04 mm.
-        max_allowed = (5.5 - 0.04) * 0.98
+        # Kugellager: radialer Spalt = ((47-2·4) - (20+2·4))/2 = 5.5 mm,
+        # abzgl. Lagerluft 2·0.02 = 0.04 mm. Mit Rillen-Formel (f=0.52):
+        # max_ball = (5.46) / (2·0.52) · 0.98.
+        max_allowed = (5.5 - 0.04) / (2.0 * 0.52) * 0.98
         self.assertAlmostEqual(spec.roller_d, max_allowed, places=4)
 
     def test_too_many_elements_without_auto_fit(self):
@@ -232,15 +233,25 @@ class TestSuggestDefaults(unittest.TestCase):
         self.assertGreaterEqual(s.element_count, 3)
 
     def test_type_specific_ratios_differ(self):
-        # Nadellager sollen dünnere Ringe und schlankere Wälzkörper bekommen
-        # als ein Kugellager bei gleichen Hauptmaßen.
+        # Seit v0.23 nutzen Kugel- und Nadellager beide den 1/12-Wand-Anteil
+        # (für Kugellager ist ``ring_thickness`` die Mindestwand am Rillenboden,
+        # nicht die Schulterhöhe). Der Vorschlag muss trotzdem typgerechte
+        # Rollendurchmesser liefern.
         ball = suggest_defaults(constants.BALL, 30.0, 72.0)
         needle = suggest_defaults(constants.NEEDLE, 30.0, 72.0)
-        self.assertLess(needle.ring_thickness, ball.ring_thickness)
-        # Nadeln füllen den Spalt anteilig stärker → größerer Roller-Ø trotz
-        # dünnerer Ringe ist plausibel; aber Anzahl muss in beiden Fällen ≥ 3.
         self.assertGreaterEqual(needle.element_count, 3)
         self.assertGreaterEqual(ball.element_count, 3)
+        # Nadeln dürfen größere Wälzkörper haben, weil sie ohne Rille keinen
+        # Submersionsbonus brauchen – beide Werte aber > 0.
+        self.assertGreater(needle.roller_diameter, 0.0)
+        self.assertGreater(ball.roller_diameter, 0.0)
+
+    def test_ball_defaults_match_real_6204_within_10_percent(self):
+        # 6204 (d=20, D=47, B=14): reale Kugel ≈ 7.94 mm. Der Default-Vorschlag
+        # nach v0.23 (Rillenformel + Wand-Faustregel 1/10) muss innerhalb 10 %
+        # liegen, sonst stimmt das Verhältnis Ringstärke ↔ Rillenkonformität nicht.
+        s = suggest_defaults(constants.BALL, 20.0, 47.0)
+        self.assertAlmostEqual(s.roller_diameter, 7.94, delta=0.794)
 
 
 class TestValidateAgainstSuggestion(unittest.TestCase):
