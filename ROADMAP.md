@@ -193,65 +193,73 @@
   ``<Blender-Scripts>/uni_bearing/`` ablegen; sie werden über die
   ausgelieferten Defaults gemerged.
 
-### v0.23.0 – Rillen-Geometrie und realistische Kugelgrößen
-- ``geometry.resolve_geometry`` / ``suggest_defaults`` rechnen für
-  Rillenkugellager (BALL/VGROOVE) jetzt mit der Rillen-Formel
-  ``max_kugel = radial_space / (2·f)``. Die Konformität ``f`` kommt aus
-  den UI-Properties ``groove_conformity_inner/_outer`` (binding ist die
-  größere); ohne Wert wird ``DEFAULT_BALL_GROOVE_CONFORMITY = 0.52``
-  angenommen.
-- ``TYPE_RING_THICKNESS_RATIO[BALL,VGROOVE]`` von 1/6 auf 1/12 reduziert.
-  ``ring_thickness`` wird damit als Mindestwand zwischen Bohrung und
-  Rillenboden interpretiert (vorher als Schulterhöhe). Die Kugel kann
-  jetzt teilweise in beide Rillen eintauchen, statt rein zwischen den
-  Schultern eingesperrt zu bleiben.
-- Default-Vorschläge treffen damit reale ISO 15-Reihen (6204 → ø7.94 mm
-  vs. vorher ø4.27 mm; 6304/6306 mit ±5 % Abweichung). Tests in
-  ``tests/test_geometry.py`` verankern den 6204-Wert.
-- Operatoren reichen die Konformität durch (``_groove_conformity_for``);
-  bei nicht-BALL-Lagern bleibt die Berechnung unverändert.
+### v0.17.0 – Kegelrollen-Reihen 313/320/322/323 + Cone/Cup-Breiten
+- Vier zusätzliche DIN 720-Reihen (313, 320, 322, 323) als Norm-Presets
+  in ``data/tapered.json``; insgesamt 46 Kegelrollen-Größen.
+- JSON-Eintragsformat erweitert: ``[D, T]`` (Gesamtbreite) oder
+  ``[D, T, B, C]`` mit getrennter Cone- (``B``) und Cup-Breite (``C``).
+- ``norm_engine.load_ring_widths_for`` liest die getrennten Breiten aus
+  und ``apply_series_preset`` überträgt sie in die neuen Properties
+  ``tapered_cone_width_mm`` und ``tapered_cup_width_mm``.
+- Innen- bzw. Außenring-Profil verwenden die separaten Breiten (falls
+  > 0), sodass Cone und Cup tatsächlich unterschiedlich breit dargestellt
+  werden statt beide T zu nutzen.
+- Werte werden als Metadaten ``tapered_cone_width_mm`` und
+  ``tapered_cup_width_mm`` am Bearing-Empty hinterlegt.
 
-### v0.22.0 – Sub-Panel-UX und Pendelrollen-Fixes
-- N-Panel auf einklappbare Sub-Panels (``bl_parent_id``) umgestellt: jede
-  Sektion (Lagertyp, Normen, Geometrie, Wälzkörper, Mesh, Tragzahlen,
-  Passungen) ist jetzt eigenständig und individuell kollabierbar.
-- Neue ``Ergebnisse``-Sub-Panel-Box bündelt die berechneten Werte aus
-  Plausibilitäts-Check, Tragzahlen und Passungen (vorher in drei
-  getrennten Sektionen vermischt mit den Eingaben).
-- ``auto_recompute`` (Live-Auto-Berechnen in der Geometrie-Sektion) ist
-  jetzt standardmäßig aktiv – Ringstärke, Wälzkörper-Ø und Anzahl werden
-  bei jeder Änderung von d/D/Lagertyp automatisch passend gesetzt.
-- **Pendelrollenlager (Tonnenlager) Fix:**
-  ``ROLLER_LENGTH_RATIO[SPHERICAL]`` von ``0.85`` auf ``0.38`` korrigiert.
-  Die Tonnenrolle ist ein *einzelner* Wälzkörper einer zweireihigen
-  Anordnung – die alte Ratio hat die Länge wie bei einreihigen Lagern
-  berechnet, sodass jede Rolle länger als eine Reihenhälfte war und
-  sichtbar über die Lagerstirnflächen hinausragte.
-- ``raceway.spherical_inner_row_z`` neu formuliert: row_z wird so gewählt,
-  dass die beiden Reihen am Mittelband nicht überlappen und gleichzeitig
-  innerhalb der Lagerbreite bleiben (vorher 0.55·half_proj erlaubte
-  Überlappung; 0.55·half_w erlaubte Überstand). ``spherical_inner_ring_profile``
-  ruft die Funktion auf, damit Profil- und Wälzkörper-Position synchron sind.
-- Tests in ``tests/test_geometry.py``: zwei neue Asserts prüfen, dass die
-  Rollen für eine typische 22210-Geometrie innerhalb des Lagers bleiben
-  und sich am Mittelband nicht überlappen.
+### v0.17.1 – Bugfix: Wälzkörper-Position und EnumProperty-Memory
+- **Position-Bug**: Bei Zylinder-, Nadel-, Kegelrollen- und Pendelrollen-
+  lagern wurden die Wälzkörper-Vertices zuerst im Mesh-Frame auf die
+  Pitch-Position translatiert und anschließend per ``obj.rotation_euler[2] = a``
+  zusätzlich um die Welt-Z gedreht. Da die Object-Pivot bei (0,0,0) lag,
+  wirkte die Rotation um den Welt-Origin – die Rollen landeten bei Winkel
+  ``2a`` statt ``a`` und überlappten sich paarweise (z. B. nur 5 statt 10
+  unique Positionen bei 10 Rollen). Gleiches Problem traf die Pocket-Cage-
+  Cutter. Fix in ``mesh_builders.add_uv_sphere``, ``add_cylinder``,
+  ``add_tapered_roller`` und ``add_barrel_roller``: Vertices bleiben mesh-
+  zentriert und die Position wird über ``obj.location`` gesetzt, sodass
+  ``rotation_euler`` jetzt um den Wälzkörper-Mittelpunkt rotiert.
+- **EnumProperty-Memory**: ``_series_items`` (Callback für ``series_code``)
+  hat bei jedem Aufruf frische Strings erzeugt. Blender hält keine Referenz
+  darauf – bekannter Pitfall, der zu UI-Korruption oder Crashes führen kann.
+  Items werden nun pro Lagertyp in einem modul-globalen Cache gehalten.
 
-### v0.21.0 – Massivkäfig mit Schmiertaschen
-- Neue Käfig-Bauart ``MASSIVE`` (Auswahl ``Massiv (Schmiertaschen)``):
-  Pocket-Sleeve wie bei ``POCKET``, zusätzlich werden im tangentialen Steg
-  zwischen je zwei Wälzkörper-Pockets radiale Bohrungen als Schmiertaschen
-  ausgeschnitten – Stil eines gefrästen Messing-Massivkäfigs.
-- Neue Property ``oil_pocket_diameter_mm`` (Default 0 = automatisch ≈ 50 %
-  des kleineren Bauraums aus axialer Sleeve-Breite und tangentialem Steg).
-  Werte werden auf den verfügbaren Bauraum geclampt; unter
-  ``MIN_OIL_POCKET_DIAMETER_MM`` (0.3 mm) wird die Tasche weggelassen.
-- Reicht der Bauraum für die Schmiertaschen nicht, fällt der Massivkäfig
-  auf einen reinen Pocket-Sleeve zurück; bei misslungenem Pocket-Boolean
-  greift die bestehende Leiter-Fallback-Kette.
-- Reine Geometriefunktion ``geometry.oil_pocket_diameter`` für das Clamping
-  (testbar ohne Blender), abgedeckt durch ``tests/test_geometry.py``.
-- Werte werden als Metadaten ``oil_pocket_diameter_mm`` und
-  ``oil_pocket_count`` am Bearing-Empty hinterlegt.
+### v0.18.0 – UI-Workflow „Reihe → Bohrungskennzahl"
+- Für Lagertypen mit DIN 623-Coding (BALL, CYLINDRICAL, TAPERED, SPHERICAL)
+  zeigt das N-Panel zwei aufeinander aufbauende Dropdowns: erst
+  ``Massreihe`` (z. B. ``60``, ``62``, ``NU3``, ``302``), dann
+  ``Bohrungskennzahl`` (``00``..``96``). Pro Kennzahl wird der abgeleitete
+  Bohrungs-Ø direkt im Label angezeigt (z. B. ``04  (d=20 mm)``); die
+  kombinierte Lagerbezeichnung (z. B. ``6204``, ``NU306``, ``30212``) steht
+  als Live-Vorschau unter den Dropdowns.
+- Neuer Operator ``uni_bearing.apply_bore_code_preset`` setzt d/D/B aus
+  Reihe + Kennzahl und übernimmt – bei Kegelrollenlagern – die getrennten
+  Cone-/Cup-Breiten aus der Norm-Reihe. ``series_code`` wird synchron
+  mitgeführt, damit ein späterer Umstieg zwischen den Workflows konsistent
+  bleibt.
+- Für Lagertypen mit ``direct``-Coding (NEEDLE, VGROOVE) bleibt die
+  bisherige freie Code-Auswahl (z. B. ``HK1010``, ``SG20``) unverändert.
+  Die UI schaltet je Lagertyp automatisch zwischen beiden Workflows um.
+- Neue Helfer ``norm_engine.coding_for``, ``norm_engine.load_series_for``
+  und ``norm_engine.load_bore_codes_for`` als Datenschicht für den UI-
+  Workflow; abgedeckt durch ``tests/test_norm_engine.py``.
+
+### v0.19.0 – f0/fc als γ-abhängige ISO-Tabellen
+- ``ratings.py`` ersetzt die bisherigen Mittelwert-Konstanten ``f0``/``fc``
+  durch interpolierte Werte aus den ISO 76- bzw. ISO 281-Annex-Tabellen,
+  separat für Kugel- und Rollenlager. Zwischenwerte werden linear
+  interpoliert, außerhalb des tabellierten Bereichs an den Randwerten
+  geclampt.
+- Neue Helfer ``ratings.gamma``, ``ratings.f0_for`` und ``ratings.fc_for``
+  (öffentliche API). ``compute_ratings``/``static_load_rating``/
+  ``dynamic_load_rating`` bekommen ``pitch_d_mm`` als Pflichtparameter,
+  damit γ = Dw·cos(α)/dm aus der Lagergeometrie berechnet werden kann.
+- ``Ratings``-Dataclass liefert zusätzlich ``gamma``, ``f0`` und ``fc``;
+  diese werden im N-Panel als Live-Vorschau angezeigt und am erzeugten
+  Bearing-Empty als Metadaten (``rating_gamma``, ``rating_f0``,
+  ``rating_fc``) hinterlegt.
+- Zusätzliche Tests in ``tests/test_ratings.py`` decken Tabellenwerte,
+  Interpolation, Randwert-Clamping und die γ-Berechnung ab.
 
 ### v0.20.0 – X-/Y-Faktoren für äquivalente Last
 - Statt einer einzigen ``equivalent_load_p_n``-Property werden jetzt
@@ -278,73 +286,86 @@
   Tabellen-Stützstellen, Clamping und das Zusammenspiel mit
   ``compute_ratings`` ab.
 
-### v0.19.0 – f0/fc als γ-abhängige ISO-Tabellen
-- ``ratings.py`` ersetzt die bisherigen Mittelwert-Konstanten ``f0``/``fc``
-  durch interpolierte Werte aus den ISO 76- bzw. ISO 281-Annex-Tabellen,
-  separat für Kugel- und Rollenlager. Zwischenwerte werden linear
-  interpoliert, außerhalb des tabellierten Bereichs an den Randwerten
-  geclampt.
-- Neue Helfer ``ratings.gamma``, ``ratings.f0_for`` und ``ratings.fc_for``
-  (öffentliche API). ``compute_ratings``/``static_load_rating``/
-  ``dynamic_load_rating`` bekommen ``pitch_d_mm`` als Pflichtparameter,
-  damit γ = Dw·cos(α)/dm aus der Lagergeometrie berechnet werden kann.
-- ``Ratings``-Dataclass liefert zusätzlich ``gamma``, ``f0`` und ``fc``;
-  diese werden im N-Panel als Live-Vorschau angezeigt und am erzeugten
-  Bearing-Empty als Metadaten (``rating_gamma``, ``rating_f0``,
-  ``rating_fc``) hinterlegt.
-- Zusätzliche Tests in ``tests/test_ratings.py`` decken Tabellenwerte,
-  Interpolation, Randwert-Clamping und die γ-Berechnung ab.
+### v0.21.0 – Massivkäfig mit Schmiertaschen
+- Neue Käfig-Bauart ``MASSIVE`` (Auswahl ``Massiv (Schmiertaschen)``):
+  Pocket-Sleeve wie bei ``POCKET``, zusätzlich werden im tangentialen Steg
+  zwischen je zwei Wälzkörper-Pockets radiale Bohrungen als Schmiertaschen
+  ausgeschnitten – Stil eines gefrästen Messing-Massivkäfigs.
+- Neue Property ``oil_pocket_diameter_mm`` (Default 0 = automatisch ≈ 50 %
+  des kleineren Bauraums aus axialer Sleeve-Breite und tangentialem Steg).
+  Werte werden auf den verfügbaren Bauraum geclampt; unter
+  ``MIN_OIL_POCKET_DIAMETER_MM`` (0.3 mm) wird die Tasche weggelassen.
+- Reicht der Bauraum für die Schmiertaschen nicht, fällt der Massivkäfig
+  auf einen reinen Pocket-Sleeve zurück; bei misslungenem Pocket-Boolean
+  greift die bestehende Leiter-Fallback-Kette.
+- Reine Geometriefunktion ``geometry.oil_pocket_diameter`` für das Clamping
+  (testbar ohne Blender), abgedeckt durch ``tests/test_geometry.py``.
+- Werte werden als Metadaten ``oil_pocket_diameter_mm`` und
+  ``oil_pocket_count`` am Bearing-Empty hinterlegt.
 
-### v0.18.0 – UI-Workflow „Reihe → Bohrungskennzahl"
-- Für Lagertypen mit DIN 623-Coding (BALL, CYLINDRICAL, TAPERED, SPHERICAL)
-  zeigt das N-Panel zwei aufeinander aufbauende Dropdowns: erst
-  ``Massreihe`` (z. B. ``60``, ``62``, ``NU3``, ``302``), dann
-  ``Bohrungskennzahl`` (``00``..``96``). Pro Kennzahl wird der abgeleitete
-  Bohrungs-Ø direkt im Label angezeigt (z. B. ``04  (d=20 mm)``); die
-  kombinierte Lagerbezeichnung (z. B. ``6204``, ``NU306``, ``30212``) steht
-  als Live-Vorschau unter den Dropdowns.
-- Neuer Operator ``uni_bearing.apply_bore_code_preset`` setzt d/D/B aus
-  Reihe + Kennzahl und übernimmt – bei Kegelrollenlagern – die getrennten
-  Cone-/Cup-Breiten aus der Norm-Reihe. ``series_code`` wird synchron
-  mitgeführt, damit ein späterer Umstieg zwischen den Workflows konsistent
-  bleibt.
-- Für Lagertypen mit ``direct``-Coding (NEEDLE, VGROOVE) bleibt die
-  bisherige freie Code-Auswahl (z. B. ``HK1010``, ``SG20``) unverändert.
-  Die UI schaltet je Lagertyp automatisch zwischen beiden Workflows um.
-- Neue Helfer ``norm_engine.coding_for``, ``norm_engine.load_series_for``
-  und ``norm_engine.load_bore_codes_for`` als Datenschicht für den UI-
-  Workflow; abgedeckt durch ``tests/test_norm_engine.py``.
+### v0.22.0 – Sub-Panel-UX und Pendelrollen-Fixes
+- N-Panel auf einklappbare Sub-Panels (``bl_parent_id``) umgestellt: jede
+  Sektion (Lagertyp, Normen, Geometrie, Wälzkörper, Mesh, Tragzahlen,
+  Passungen) ist jetzt eigenständig und individuell kollabierbar.
+- Neue ``Ergebnisse``-Sub-Panel-Box bündelt die berechneten Werte aus
+  Plausibilitäts-Check, Tragzahlen und Passungen (vorher in drei
+  getrennten Sektionen vermischt mit den Eingaben).
+- ``auto_recompute`` (Live-Auto-Berechnen in der Geometrie-Sektion) ist
+  jetzt standardmäßig aktiv – Ringstärke, Wälzkörper-Ø und Anzahl werden
+  bei jeder Änderung von d/D/Lagertyp automatisch passend gesetzt.
+- **Pendelrollenlager (Tonnenlager) Fix:**
+  ``ROLLER_LENGTH_RATIO[SPHERICAL]`` von ``0.85`` auf ``0.38`` korrigiert.
+  Die Tonnenrolle ist ein *einzelner* Wälzkörper einer zweireihigen
+  Anordnung – die alte Ratio hat die Länge wie bei einreihigen Lagern
+  berechnet, sodass jede Rolle länger als eine Reihenhälfte war und
+  sichtbar über die Lagerstirnflächen hinausragte.
+- ``raceway.spherical_inner_row_z`` neu formuliert: row_z wird so gewählt,
+  dass die beiden Reihen am Mittelband nicht überlappen und gleichzeitig
+  innerhalb der Lagerbreite bleiben (vorher 0.55·half_proj erlaubte
+  Überlappung; 0.55·half_w erlaubte Überstand). ``spherical_inner_ring_profile``
+  ruft die Funktion auf, damit Profil- und Wälzkörper-Position synchron sind.
+- Tests in ``tests/test_geometry.py``: zwei neue Asserts prüfen, dass die
+  Rollen für eine typische 22210-Geometrie innerhalb des Lagers bleiben
+  und sich am Mittelband nicht überlappen.
 
-### v0.17.1 – Bugfix: Wälzkörper-Position und EnumProperty-Memory
-- **Position-Bug**: Bei Zylinder-, Nadel-, Kegelrollen- und Pendelrollen-
-  lagern wurden die Wälzkörper-Vertices zuerst im Mesh-Frame auf die
-  Pitch-Position translatiert und anschließend per ``obj.rotation_euler[2] = a``
-  zusätzlich um die Welt-Z gedreht. Da die Object-Pivot bei (0,0,0) lag,
-  wirkte die Rotation um den Welt-Origin – die Rollen landeten bei Winkel
-  ``2a`` statt ``a`` und überlappten sich paarweise (z. B. nur 5 statt 10
-  unique Positionen bei 10 Rollen). Gleiches Problem traf die Pocket-Cage-
-  Cutter. Fix in ``mesh_builders.add_uv_sphere``, ``add_cylinder``,
-  ``add_tapered_roller`` und ``add_barrel_roller``: Vertices bleiben mesh-
-  zentriert und die Position wird über ``obj.location`` gesetzt, sodass
-  ``rotation_euler`` jetzt um den Wälzkörper-Mittelpunkt rotiert.
-- **EnumProperty-Memory**: ``_series_items`` (Callback für ``series_code``)
-  hat bei jedem Aufruf frische Strings erzeugt. Blender hält keine Referenz
-  darauf – bekannter Pitfall, der zu UI-Korruption oder Crashes führen kann.
-  Items werden nun pro Lagertyp in einem modul-globalen Cache gehalten.
+### v0.23.0 – Rillen-Geometrie und realistische Kugelgrößen
+- ``geometry.resolve_geometry`` / ``suggest_defaults`` rechnen für
+  Rillenkugellager (BALL/VGROOVE) jetzt mit der Rillen-Formel
+  ``max_kugel = radial_space / (2·f)``. Die Konformität ``f`` kommt aus
+  den UI-Properties ``groove_conformity_inner/_outer`` (binding ist die
+  größere); ohne Wert wird ``DEFAULT_BALL_GROOVE_CONFORMITY = 0.52``
+  angenommen.
+- ``TYPE_RING_THICKNESS_RATIO[BALL,VGROOVE]`` von 1/6 auf 1/12 reduziert.
+  ``ring_thickness`` wird damit als Mindestwand zwischen Bohrung und
+  Rillenboden interpretiert (vorher als Schulterhöhe). Die Kugel kann
+  jetzt teilweise in beide Rillen eintauchen, statt rein zwischen den
+  Schultern eingesperrt zu bleiben.
+- Default-Vorschläge treffen damit reale ISO 15-Reihen (6204 → ø7.94 mm
+  vs. vorher ø4.27 mm; 6304/6306 mit ±5 % Abweichung). Tests in
+  ``tests/test_geometry.py`` verankern den 6204-Wert.
+- Operatoren reichen die Konformität durch (``_groove_conformity_for``);
+  bei nicht-BALL-Lagern bleibt die Berechnung unverändert.
 
-### v0.17.0 – Kegelrollen-Reihen 313/320/322/323 + Cone/Cup-Breiten
-- Vier zusätzliche DIN 720-Reihen (313, 320, 322, 323) als Norm-Presets
-  in ``data/tapered.json``; insgesamt 46 Kegelrollen-Größen.
-- JSON-Eintragsformat erweitert: ``[D, T]`` (Gesamtbreite) oder
-  ``[D, T, B, C]`` mit getrennter Cone- (``B``) und Cup-Breite (``C``).
-- ``norm_engine.load_ring_widths_for`` liest die getrennten Breiten aus
-  und ``apply_series_preset`` überträgt sie in die neuen Properties
-  ``tapered_cone_width_mm`` und ``tapered_cup_width_mm``.
-- Innen- bzw. Außenring-Profil verwenden die separaten Breiten (falls
-  > 0), sodass Cone und Cup tatsächlich unterschiedlich breit dargestellt
-  werden statt beide T zu nutzen.
-- Werte werden als Metadaten ``tapered_cone_width_mm`` und
-  ``tapered_cup_width_mm`` am Bearing-Empty hinterlegt.
+### v0.23.1 – Projekt-Qualität: CI, reproduzierbare Distribution, aktuelle In-App-Hilfe
+- GitHub-Actions-Workflow ``.github/workflows/tests.yml``: führt bei jedem
+  Push und Pull-Request ``compileall`` und die komplette ``unittest``-Suite
+  auf Python 3.10/3.11/3.12 aus und verifiziert zusätzlich über
+  ``build_addon_zip.py --check``, dass ``dist/uni_rolling_bearing.zip``
+  Datei-für-Datei mit dem Quellbaum übereinstimmt. Eine veraltete
+  ausgelieferte ZIP lässt die CI damit rot werden.
+- ``build_addon_zip.py`` um einen ``--check``-Modus erweitert (kein Schreiben,
+  nur Vergleich) – nutzbar lokal und in der CI.
+- In-App-Hilfetexte aktualisiert: ``info_normen`` spiegelt den realen Stand
+  (Tragzahlen ISO 76/281, X-/Y-Faktoren, Passungen DIN 5418, JSON-Norm-Engine)
+  statt „Stand v0.5 / geplant"; ``info_waelzkoerper`` listet alle vier
+  Käfig-Bauarten (Pocket-Default, Massiv, Ribbon, Leiter); Geometrie-Hilfe und
+  Ringstärke-Tooltip nennen die typabhängige Ringwand (≈ 1/12 für Kugellager,
+  ≈ 1/6 für Rollenlager).
+- ``.gitignore`` macht die ausgelieferte ZIP explizit (``dist/*`` +
+  ``!dist/uni_rolling_bearing.zip``) – Build-Artefakte bleiben ignoriert, das
+  versionierte Distributions-ZIP wird nicht mehr versehentlich ausgeschlossen.
+- ROADMAP „Erledigt" durchgehend chronologisch (aufsteigend) sortiert; README
+  mit CI-Status-Badge.
 
 ---
 

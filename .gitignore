@@ -5,4 +5,6 @@ __pycache__/
 .coverage
 .vscode/
 .idea/
-dist/
+# Build-Artefakte ignorieren, aber die versionierte Distributions-ZIP behalten.
+dist/*
+!dist/uni_rolling_bearing.zip

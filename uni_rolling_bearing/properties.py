@@ -184,8 +184,9 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         name="Ringstärke [mm]",
         description=(
             "Radiale Wandstärke je Ring (Innen- und Außenring identisch). "
-            "Praxiswert ≈ 1/6 von (D−d). Größere Werte = stabilere Ringe, "
-            "aber kleinerer Wälzkörperraum."
+            "Praxiswert typabhängig: ≈ 1/12 von (D−d) bei Kugellagern "
+            "(Mindestwand bis Rillenboden), ≈ 1/6 bei Rollenlagern. Größere "
+            "Werte = stabilere Ringe, aber kleinerer Wälzkörperraum."
         ),
         default=4.0,
         min=0.5,
