@@ -367,6 +367,22 @@
 - ROADMAP „Erledigt" durchgehend chronologisch (aufsteigend) sortiert; README
   mit CI-Status-Badge.
 
+### v0.23.2 – Toter Code entfernt
+- ``din623.py`` auf die tatsächlich genutzte ``bore_code_to_diameter``-Logik
+  reduziert (189 → 32 Zeilen): die hartkodierten Maßreihen-Tabellen
+  (``DIN625_SERIES``, ``DIN5412_NU_SERIES``, ``DIN720_SERIES``,
+  ``DIN635_SERIES``) samt Buildern (``build_*_presets``, ``_expand``,
+  ``designation``) waren seit v0.16 durch die JSON-Norm-Engine ersetzt und
+  wurden nirgends mehr referenziert.
+- Ungenutzte Konstanten entfernt: ``constants.TYPE_GAP_FACTOR`` und
+  ``raceway.SPHERICAL_OUTER_RACE_FACTOR``.
+- Ungenutzte Test-Imports (``json``, ``tempfile``) in
+  ``tests/test_norm_engine.py`` entfernt.
+- Verifiziert mit pyflakes (clean) und vulture; die verbliebenen
+  vulture-Treffer sind ausschließlich Blender-Framework-Hooks
+  (``bl_idname``/``draw``/``execute``/``register`` etc.), die per
+  Registrierung statt direktem Aufruf benutzt werden – kein echter toter Code.
+
 ---
 
 ## Als Nächstes (kurzfristig) 🟡
