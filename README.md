@@ -51,7 +51,9 @@ Aktuell berücksichtigt:
 
 Geplant (siehe ROADMAP):
 
-- SG-Zwischengrößen und U-Profil-Variante.
+- SG-Zwischengrößen (SG30/40/55) – ausstehend, bis belastbare Maßquellen
+  vorliegen. Die U-Profil-Variante der SG-Außenrille ist seit v0.24 verfügbar
+  (`vgroove_shape` = U).
 
 ## Installation
 

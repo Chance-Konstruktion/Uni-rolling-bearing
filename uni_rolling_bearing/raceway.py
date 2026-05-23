@@ -348,6 +348,7 @@ def vgroove_outer_ring_profile(
     conformity: float = BALL_GROOVE_CONFORMITY_OUTER,
     arc_segments: int = 24,
     chamfer_mm: float = 0.0,
+    groove_shape: str = "V",
 ) -> Profile:
     """Außenring eines U-/V-Rillen-Kugellagers (Führungsrolle, SG-Reihe).
 
@@ -355,7 +356,9 @@ def vgroove_outer_ring_profile(
     auf dem Außenmantel (OD). ``groove_depth`` ist die radiale Tiefe der V-Rille
     in mm, ``groove_half_angle_rad`` der halbe Öffnungswinkel der V-Flanke. Wird
     keiner der Werte angegeben, wählt die Funktion sinnvolle Defaults aus
-    Außenring-Wandstärke und 90°-V-Rille.
+    Außenring-Wandstärke und 90°-V-Rille. ``groove_shape`` schaltet zwischen
+    ``"V"`` (gerade Flanken, klassische 90°-Rille) und ``"U"`` (halbrunde
+    Rille als Kosinus-Bogen gleicher Tiefe und Breite) um.
 
     ``chamfer_mm`` ist die 45°-Fase an den OD-Stirnkanten (links/rechts der
     V-Rille). Wird auf den verbleibenden axialen Flachstirn-Anteil und die
@@ -436,11 +439,20 @@ def vgroove_outer_ring_profile(
         ])
     else:
         profile.append((outer_r, -half_w))
-    profile.extend([
-        (outer_r, -half_groove_w),
-        (groove_bottom_r, 0.0),
-        (outer_r, half_groove_w),
-    ])
+    if str(groove_shape).upper() == "U":
+        # Halbrunde Rille: Kosinus-Bogen von (outer_r, -half_groove_w) über den
+        # Rillengrund (groove_bottom_r, 0) zurück zu (outer_r, +half_groove_w).
+        n_arc = max(4, arc_segments // 2)
+        for k in range(n_arc + 1):
+            zt = -half_groove_w + (2.0 * half_groove_w) * (k / n_arc)
+            rr = outer_r - groove_depth * math.cos(0.5 * math.pi * (zt / half_groove_w))
+            profile.append((rr, zt))
+    else:
+        profile.extend([
+            (outer_r, -half_groove_w),
+            (groove_bottom_r, 0.0),
+            (outer_r, half_groove_w),
+        ])
     if chamfer > PROFILE_EPSILON:
         profile.extend([
             (outer_r, half_w - chamfer),

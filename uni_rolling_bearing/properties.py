@@ -333,6 +333,20 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         min=5.0,
         max=80.0,
     )
+    vgroove_shape: EnumProperty(
+        name="V-Rillen-Form",
+        description=(
+            "Nur U-Rillen-Kugellager (SG-Reihe): Querschnittsform der Außen-"
+            "rille. 'V' = klassische gerade Flanken (90°-V); 'U' = halbrunde "
+            "Rille (Kosinus-Bogen gleicher Tiefe/Breite), passend für "
+            "Rundriemen/-seile."
+        ),
+        items=[
+            ("V", "V-Rille", "Gerade Flanken (klassische 90°-V-Rille)"),
+            ("U", "U-Rille", "Halbrunde Rille (Kosinus-Bogen)"),
+        ],
+        default="V",
+    )
 
     groove_conformity_inner: FloatProperty(
         name="Konformität f_i (Innenring)",
