@@ -51,8 +51,7 @@ CYL_SHOULDER_AXIAL_FRACTION = 0.5
 # Axialspiel zwischen Rollenstirn und Bord-Innenfläche (Lauf-Spielraum).
 CYL_BORD_AXIAL_CLEARANCE_MM = 0.1
 
-# Rillen-/Schulter-Geometrie für Tonnenlager.
-SPHERICAL_OUTER_RACE_FACTOR = 1.04  # Sphäre-Radius = factor · pitch_r
+# Schulter-Geometrie für Tonnenlager.
 SPHERICAL_RACE_MIN_DEPTH_MM = 0.1
 
 

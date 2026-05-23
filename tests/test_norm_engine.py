@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import pathlib
 import sys
-import tempfile
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))

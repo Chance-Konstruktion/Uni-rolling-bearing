@@ -85,14 +85,3 @@ TYPE_ROLLER_FILL: Dict[str, float] = {
     SPHERICAL: 0.70,
     VGROOVE: 0.92,
 }
-
-# Ziel-Umfangsspalt-Faktor pro Typ (relative Lücke zwischen Wälzkörpern auf
-# dem Teilkreis). Nadellager sitzen dichter, Kugellager großzügiger.
-TYPE_GAP_FACTOR: Dict[str, float] = {
-    BALL: 0.12,
-    CYLINDRICAL: 0.10,
-    NEEDLE: 0.06,
-    TAPERED: 0.10,
-    SPHERICAL: 0.10,
-    VGROOVE: 0.12,
-}
