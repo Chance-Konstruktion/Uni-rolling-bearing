@@ -763,13 +763,16 @@ class UNI_OT_info_normen(_UNI_InfoPopupBase):
     bl_idname = "uni_bearing.info_normen"
     bl_label = "Normen & Presets"
     bl_description = (
-        "Norm-Bezugssystem (Stand v0.5):\n"
-        "• DIN ISO 15 / DIN 616 – Hauptmaßreihen (d, D, B).\n"
+        "Norm-Bezugssystem:\n"
+        "• DIN ISO 15 / DIN 616 – Hauptmaßreihen (d, D, B), geladen aus den\n"
+        "  JSON-Tabellen unter data/ (Norm-Engine).\n"
         "• DIN 623 – Bezeichnungssystem (z. B. 6204, 30206, 22210).\n"
-        "• ISO 492 / DIN 620 – Toleranzklassen (Normal, P6, P5, P4) – \n"
+        "• ISO 492 / DIN 620 – Toleranzklassen (Normal, P6, P5, P4) –\n"
         "  werden über 'Toleranzlage' (oberes/Mitten-/unteres Maß) in d, D, B umgerechnet.\n"
         "• ISO 5753 / DIN 620 – Lagerluftgruppen (C0, C2, C3, ...).\n"
-        "• ISO 281 / ISO 76 – dynamische/statische Tragzahl (geplant).\n"
+        "• ISO 76 / ISO 281 – statische/dynamische Tragzahl C0r/Cr und L10h\n"
+        "  (Live-Vorschau in Sektion 6 'Tragzahlen & Lebensdauer').\n"
+        "• DIN 5418 – empfohlene Welle-/Gehäuse-Passungen (Sektion 7).\n"
         "Presets enthalten nur d/D/B; abgeleitete Werte (Wälzkörper-Ø, "
         "Anzahl, Ringstärke) werden vom Resolver gerechnet."
     )
@@ -783,7 +786,8 @@ class UNI_OT_info_geometrie(_UNI_InfoPopupBase):
         "• d  – Bohrungs-Ø (Wellensitz).\n"
         "• D  – Außen-Ø (Gehäusesitz).\n"
         "• B  – Lagerbreite in Achsrichtung.\n"
-        "• Ringstärke – radiale Wandstärke pro Ring; üblich (D−d)/6.\n"
+        "• Ringstärke – radiale Wandstärke pro Ring; typabhängig: ≈ (D−d)/12 "
+        "bei Kugellagern (Mindestwand bis Rillenboden), ≈ (D−d)/6 bei Rollenlagern.\n"
         "Aus diesen Werten ergeben sich Innenlaufbahn-Ø, Außenlaufbahn-Ø und "
         "der nutzbare Wälzkörperraum."
     )
@@ -800,7 +804,8 @@ class UNI_OT_info_waelzkoerper(_UNI_InfoPopupBase):
         "Teilkreis (0.10 ≈ 10 %).\n"
         "• Auto-Fit: kürzt zu großen Ø und zu hohe Anzahl automatisch, statt "
         "Fehler zu melden.\n"
-        "• Käfig: optionaler einfacher Leiter-Käfig zwischen den Wälzkörpern."
+        "• Käfig: optionaler Käfig in vier Bauarten – Pocket-Sleeve (Default),\n"
+        "  Massiv mit Schmiertaschen, genieteter Ribbon-Käfig oder Leiter-Käfig."
     )
 
 
