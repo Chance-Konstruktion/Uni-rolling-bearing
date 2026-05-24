@@ -633,6 +633,7 @@ def _outer_ring_profile(props, spec: ResolvedBearing):
             groove_half_angle_rad=math.radians(props.vgroove_half_angle_deg),
             conformity=props.groove_conformity_outer,
             chamfer_mm=props.bearing_chamfer_mm,
+            groove_shape=props.vgroove_shape,
         )
     if bt in (constants.CYLINDRICAL, constants.NEEDLE):
         return raceway.cylindrical_outer_ring_profile(
@@ -1074,6 +1075,7 @@ class UNI_OT_create_bearing(bpy.types.Operator):
         if props.bearing_type == constants.VGROOVE:
             assembly["vgroove_depth_mm"] = props.vgroove_depth_mm
             assembly["vgroove_half_angle_deg"] = props.vgroove_half_angle_deg
+            assembly["vgroove_shape"] = props.vgroove_shape
         if props.bearing_type in (constants.BALL, constants.VGROOVE):
             assembly["groove_conformity_inner"] = props.groove_conformity_inner
             assembly["groove_conformity_outer"] = props.groove_conformity_outer

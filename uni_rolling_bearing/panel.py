@@ -183,6 +183,7 @@ class UNI_PT_section_rollers(_UNI_SubPanelBase, bpy.types.Panel):
             layout.prop(props, "spherical_contact_angle_deg")
         elif props.bearing_type == constants.VGROOVE:
             layout.label(text="Hinweis: V-Rille im Außenmantel (SG/W-Reihe).")
+            layout.prop(props, "vgroove_shape")
             layout.prop(props, "vgroove_depth_mm")
             layout.prop(props, "vgroove_half_angle_deg")
 

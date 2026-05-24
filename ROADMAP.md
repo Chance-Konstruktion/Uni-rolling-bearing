@@ -383,14 +383,39 @@
   (``bl_idname``/``draw``/``execute``/``register`` etc.), die per
   Registrierung statt direktem Aufruf benutzt werden – kein echter toter Code.
 
+### v0.24.0 – Katalognahe Rollenzahlen, U-Profil-Rille, Referenz-Testsuite
+- **Rollen-Sizing (Kegel-/Pendelrollenlager):**
+  ``TYPE_RING_THICKNESS_RATIO[TAPERED,SPHERICAL]`` von 1/6 auf 1/9 reduziert
+  und ``TYPE_ROLLER_FILL[TAPERED,SPHERICAL]`` auf 0.86 angehoben. Die Rollen
+  werden dadurch größer und die Anzahl fällt in den realen Katalogbereich
+  (30206 → 17 statt ~40, 30306 → 14, 22310 → 15/Reihe). Hinweis: die optische
+  Korrektheit ist in Blender zu prüfen; die reine Geometrie ist über die
+  Profil-Smoke-Tests und ``test_resolves_without_auto_fit_for_all_presets``
+  abgesichert.
+- **U-Profil-Variante (SG-Reihe):** neue Property ``vgroove_shape`` (``V``/``U``).
+  ``raceway.vgroove_outer_ring_profile`` erzeugt bei ``"U"`` eine halbrunde
+  Außenrille (Kosinus-Bogen gleicher Tiefe und Breite) statt der geraden
+  V-Flanken – passend für Rundriemen/-seile. Wert wird als Metadatum
+  ``vgroove_shape`` am Bearing-Empty hinterlegt; UI-Auswahl im Wälzkörper-
+  Abschnitt (nur VGROOVE).
+- **Referenz-Testsuite ``tests/test_reference_cases.py``:** prüft (1) Preset-
+  Maße gegen veröffentlichte ISO 15-Werte (Datenintegrität), (2) abgeleitete
+  Rollenzahlen gegen Katalog-Bänder, (3) C0r/Cr gegen Katalog-Richtwerte
+  innerhalb dokumentierter Faktoren (das Modell ist vereinfacht; die Schranken
+  fangen Größenordnungsfehler, nicht die normale Näherungsabweichung). Gesamt
+  149 Tests.
+- SG-Zwischengrößen (SG30/40/55) bleiben bewusst offen, bis belastbare
+  Maßquellen vorliegen – erfundene Normmaße wären für ein norm-orientiertes
+  Tool kontraproduktiv.
+
 ---
 
 ## Als Nächstes (kurzfristig) 🟡
 
 1. **Weitere Norm-Tabellen**
-   - SG-Reihe um Zwischengrößen (SG30, SG40, SG55) sowie U-Profil-Variante
-     (Halbkreis-Rille statt 90°-V) ergänzen, sobald belastbare Maßquellen
-     vorliegen.
+   - SG-Reihe um Zwischengrößen (SG30, SG40, SG55) ergänzen, sobald belastbare
+     Maßquellen vorliegen. (Die U-Profil-Variante der Außenrille ist seit
+     v0.24 umgesetzt – siehe ``vgroove_shape``.)
 
 2. **Käfig-Ausbaustufe**
    - Weitere Bauformen (z. B. Käfig mit Stiften/Bolzen-Verbindung,

@@ -65,8 +65,12 @@ TYPE_RING_THICKNESS_RATIO: Dict[str, float] = {
     BALL: 1.0 / 12.0,
     CYLINDRICAL: 1.0 / 7.0,
     NEEDLE: 1.0 / 12.0,
-    TAPERED: 1.0 / 6.0,
-    SPHERICAL: 1.0 / 6.0,
+    # Kegel- und Pendelrollenlager haben vergleichsweise dünne Ringe und
+    # entsprechend große Wälzkörper. Ein Anteil von 1/9 (statt früher 1/6)
+    # weitet den Laufbahnspalt so, dass die Rollenanzahl in den realen
+    # Katalogbereich fällt (z. B. 30206 → 17 Rollen statt ~40).
+    TAPERED: 1.0 / 9.0,
+    SPHERICAL: 1.0 / 9.0,
     # SG-Führungsrollen sind Rillenkugellager mit zusätzlicher V-Rille im
     # Außenmantel – dieselbe Wand-Faustregel wie beim Standard-Kugellager.
     VGROOVE: 1.0 / 12.0,
@@ -81,7 +85,9 @@ TYPE_ROLLER_FILL: Dict[str, float] = {
     BALL: 0.95,
     CYLINDRICAL: 0.78,
     NEEDLE: 0.88,
-    TAPERED: 0.62,
-    SPHERICAL: 0.70,
+    # Kegel-/Pendelrollen füllen den (durch die dünneren Ringe verbreiterten)
+    # Laufbahnspalt fast vollständig – große Rollen, wenige Stück, wie im Katalog.
+    TAPERED: 0.86,
+    SPHERICAL: 0.86,
     VGROOVE: 0.92,
 }
