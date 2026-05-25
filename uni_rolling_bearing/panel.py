@@ -64,6 +64,7 @@ class UNI_PT_section_type(_UNI_SubPanelBase, bpy.types.Panel):
 class UNI_PT_section_norms(_UNI_SubPanelBase, bpy.types.Panel):
     bl_idname = "UNI_PT_section_norms"
     bl_label = "2) Normen & Presets"
+    bl_options = {"DEFAULT_CLOSED"}
 
     def draw_header(self, context):
         _info_button(self.layout, "uni_bearing.info_normen")
@@ -138,21 +139,64 @@ class UNI_PT_section_rollers(_UNI_SubPanelBase, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         props = context.scene.uni_bearing
+        bt = props.bearing_type
+
+        # Basis-Wälzkörperparameter (für alle Lagertypen).
         layout.prop(props, "roller_diameter")
         layout.prop(props, "element_count")
         layout.prop(props, "gap_factor")
         layout.prop(props, "auto_fit")
+
+        # Typspezifische Optionen – es wird nur der Block des gewählten
+        # Lagertyps gezeichnet, damit keine ungenutzten Felder erscheinen.
+        if bt == constants.TAPERED:
+            box = layout.box()
+            box.label(text="Kegelrolle", icon="INFO")
+            angle_row = box.row(align=True)
+            angle_row.prop(props, "contact_angle_deg")
+            angle_row.operator(
+                "uni_bearing.info_kontaktwinkel", text="", icon="QUESTION", emboss=False
+            )
+            box.prop(props, "tapered_flange_height_mm")
+            widths = box.column(align=True)
+            widths.prop(props, "tapered_cone_width_mm")
+            widths.prop(props, "tapered_cup_width_mm")
+        elif bt == constants.SPHERICAL:
+            box = layout.box()
+            box.prop(props, "spherical_rows")
+            if props.spherical_rows == "2":
+                box.label(text="Zweireihig (DIN 635-2).", icon="INFO")
+                box.prop(props, "spherical_contact_angle_deg")
+            else:
+                box.label(text="Einreihiges Tonnenlager (DIN 635-1).", icon="INFO")
+        elif bt == constants.VGROOVE:
+            box = layout.box()
+            box.label(text="V-/U-Außenrille (SG/W-Reihe)", icon="INFO")
+            box.prop(props, "vgroove_shape")
+            box.prop(props, "vgroove_depth_mm")
+            box.prop(props, "vgroove_half_angle_deg")
+
+        # Rillen-Konformität/Fase nur bei Kugellager-Bauarten.
+        if bt in (constants.BALL, constants.VGROOVE):
+            groove = layout.box()
+            groove.label(text="Laufrille (Konformität / Fase)", icon="INFO")
+            groove.prop(props, "groove_conformity_inner")
+            groove.prop(props, "groove_conformity_outer")
+            groove.prop(props, "bearing_chamfer_mm")
+
+        # Käfig (optional).
         layout.prop(props, "use_cage")
         if props.use_cage:
-            cage_box = layout.column(align=True)
+            cage_box = layout.box()
             cage_box.prop(props, "cage_style")
             cage_box.prop(props, "cage_material")
             cage_box.prop(props, "pocket_clearance_mm")
             if props.cage_style == "MASSIVE":
                 cage_box.prop(props, "oil_pocket_diameter_mm")
 
+        # Plausibilitäts-Hinweis am Ende.
         ok, hint = validate_against_suggestion(
-            bearing_type=props.bearing_type,
+            bearing_type=bt,
             bore_diameter=props.bore_diameter,
             outer_diameter=props.outer_diameter,
             ring_thickness=props.ring_thickness,
@@ -166,37 +210,11 @@ class UNI_PT_section_rollers(_UNI_SubPanelBase, bpy.types.Panel):
             icon="CHECKMARK" if ok else "INFO",
         )
 
-        if props.bearing_type in (constants.CYLINDRICAL, constants.NEEDLE):
-            layout.label(text="Hinweis: Zylindrische Rollen werden erzeugt.")
-        elif props.bearing_type == constants.TAPERED:
-            tapered_row = layout.row(align=True)
-            tapered_row.prop(props, "contact_angle_deg")
-            tapered_row.operator(
-                "uni_bearing.info_kontaktwinkel", text="", icon="QUESTION", emboss=False
-            )
-            layout.prop(props, "tapered_flange_height_mm")
-            tapered_widths = layout.column(align=True)
-            tapered_widths.prop(props, "tapered_cone_width_mm")
-            tapered_widths.prop(props, "tapered_cup_width_mm")
-        elif props.bearing_type == constants.SPHERICAL:
-            layout.label(text="Hinweis: Zweireihige Tonnenrollen (DIN 635-2).")
-            layout.prop(props, "spherical_contact_angle_deg")
-        elif props.bearing_type == constants.VGROOVE:
-            layout.label(text="Hinweis: V-Rille im Außenmantel (SG/W-Reihe).")
-            layout.prop(props, "vgroove_shape")
-            layout.prop(props, "vgroove_depth_mm")
-            layout.prop(props, "vgroove_half_angle_deg")
-
-        if props.bearing_type in (constants.BALL, constants.VGROOVE):
-            conformity = layout.column(align=True)
-            conformity.prop(props, "groove_conformity_inner")
-            conformity.prop(props, "groove_conformity_outer")
-            conformity.prop(props, "bearing_chamfer_mm")
-
 
 class UNI_PT_section_quality(_UNI_SubPanelBase, bpy.types.Panel):
     bl_idname = "UNI_PT_section_quality"
     bl_label = "5) Mesh-Qualität"
+    bl_options = {"DEFAULT_CLOSED"}
 
     def draw_header(self, context):
         _info_button(self.layout, "uni_bearing.info_qualitaet")
@@ -210,6 +228,7 @@ class UNI_PT_section_quality(_UNI_SubPanelBase, bpy.types.Panel):
 class UNI_PT_section_ratings(_UNI_SubPanelBase, bpy.types.Panel):
     bl_idname = "UNI_PT_section_ratings"
     bl_label = "6) Tragzahlen & Lebensdauer"
+    bl_options = {"DEFAULT_CLOSED"}
 
     def draw_header(self, context):
         _info_button(self.layout, "uni_bearing.info_tragzahlen")
@@ -225,6 +244,7 @@ class UNI_PT_section_ratings(_UNI_SubPanelBase, bpy.types.Panel):
 class UNI_PT_section_fits(_UNI_SubPanelBase, bpy.types.Panel):
     bl_idname = "UNI_PT_section_fits"
     bl_label = "7) Passungen (DIN 5418)"
+    bl_options = {"DEFAULT_CLOSED"}
 
     def draw_header(self, context):
         _info_button(self.layout, "uni_bearing.info_passungen")
@@ -290,6 +310,11 @@ class UNI_PT_section_results(_UNI_SubPanelBase, bpy.types.Panel):
                 radial_load_Fr_N=props.radial_load_fr_n,
                 axial_load_Fa_N=props.axial_load_fa_n,
                 speed_rpm=props.speed_rpm,
+                rows=(
+                    int(props.spherical_rows)
+                    if props.bearing_type == constants.SPHERICAL
+                    else None
+                ),
             )
             ratings_box = layout.box()
             ratings_box.label(text="Tragzahlen", icon="PHYSICS")

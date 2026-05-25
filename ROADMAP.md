@@ -408,6 +408,40 @@
   Maßquellen vorliegen – erfundene Normmaße wären für ein norm-orientiertes
   Tool kontraproduktiv.
 
+### v0.25.0 – Sichtbare Kugelrille, korrekte Kegelrollen-Geometrie, Tonnenlager-Reihen, Solo-Panel
+- **Kugellager – Rille sichtbar, Kugeln größer:** Die v0.23-Rillenformel
+  ``max_kugel = radial_space/(2·f)`` machte die Kugel so klein, dass sie mittig
+  schwebte und der Rillenbogen die Schulter nicht erreichte (z_arc = 0 → keine
+  Rille im Mesh). Die Kugel füllt jetzt – wie eine Rolle – den nutzbaren Spalt
+  (``usable · ROLLER_SAFETY_FRACTION``) und reicht bis an beide Schultern, sodass
+  der Rillenbogen sichtbar einschneidet. 6204-Default ≈ 8.5 mm (statt 6.95 mm);
+  weiter innerhalb 10 % der realen Kugel. ``_ball_max_roller_d`` und der
+  ``groove_conformity``-Sizing-Parameter entfielen (Sizing für alle Typen
+  einheitlich; die Konformität steuert weiterhin nur die Rillen-Profilform).
+- **Kegelrollenlager – gemeinsamer Apex:** Neue Geometriefunktion
+  ``geometry.tapered_cone_half_angle`` leitet den halben Rollen-Kegelwinkel β
+  aus den Laufbahnradien ab, sodass Cup-(α), Kegel-(α − 2β) Laufbahn und Rolle
+  (gekippt um α − β) einen gemeinsamen Apex haben. Vorher kippten beide
+  Laufbahnen um α (konstanter Spalt) und ein fehlerhafter Clamp schrumpfte die
+  Rollen zu winzigen Spitzkegeln. Rollenlänge auf 0.78·B reduziert und Füllgrad
+  auf 0.94 erhöht – die Rolle bleibt nach dem Kippen innerhalb beider Laufbahnen
+  und der Lagerbreite. Katalog-Rollenzahlen (30206 → 15, 30306 → 13) bleiben im
+  geprüften Band.
+- **Tonnenlager ein-/zweireihig:** Neue Property ``spherical_rows`` (1/2,
+  Default 1). Einreihig (DIN 635-1): eine Tonne mittig, eine zentrale konkave
+  Innenlaufbahn. Zweireihig (DIN 635-2): bisherige zwei Reihen, aber mit
+  längeren (tonnenförmigen statt stummeligen) Rollen. ``raceway.
+  spherical_inner_ring_profile`` bekam einen ``rows``-Schalter; ``ratings``
+  rechnet die Reihenzahl korrekt (``rows``-Parameter statt fest i = 2).
+- **Solo-Panel:** Optionale Sektionen (Normen, Mesh-Qualität, Tragzahlen,
+  Passungen) starten eingeklappt (``DEFAULT_CLOSED``); pro Lagertyp werden nur
+  die tatsächlich relevanten Wälzkörper-Optionen gezeigt (Kontaktwinkel nur bei
+  Kegelrollen bzw. zweireihigem Pendellager, Rillen-Konformität nur bei
+  Kugellagern, V-Rille nur bei SG). Typspezifische Felder sind in eigene Boxen
+  gruppiert.
+- Neue Tests in ``tests/test_geometry.py`` für ``tapered_cone_half_angle``
+  (gemeinsamer Apex) und das einreihige Pendel-Innenprofil. Gesamt 154 Tests.
+
 ---
 
 ## Als Nächstes (kurzfristig) 🟡

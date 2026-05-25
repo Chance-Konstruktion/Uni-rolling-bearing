@@ -11,6 +11,9 @@ from . import constants
 # Mindesthöhe [mm] für den nutzbaren Ringspalt, damit ein Wälzkörper sinnvoll passt.
 MIN_USABLE_SPACE_MM = 0.2
 
+# Numerische Toleranz, um Division durch ~0 in Winkelberechnungen zu vermeiden.
+PROFILE_EPSILON = 1.0e-6
+
 # Sicherheitsabschlag am maximal erlaubten Wälzkörper-Ø – verhindert 0-Spalt
 # zwischen Wälzkörper und Laufbahn.
 ROLLER_SAFETY_FRACTION = 0.98
@@ -24,11 +27,6 @@ MAX_SUGGESTED_RING_THICKNESS_MM = 8.0
 # Wie viel des nutzbaren Spalts (nach Abzug der Lagerluft) der vorgeschlagene
 # Wälzkörper-Ø einnimmt. Lässt etwas Spielraum gegenüber dem harten Maximum.
 SUGGESTED_ROLLER_FILL = 0.90
-
-# Typischer Konformitätsfaktor f = r_groove / d_ball für Rillenkugellager,
-# wenn der Aufrufer keinen eigenen Wert übergibt. Reale Werte liegen bei
-# 0.515–0.535; 0.52 ist ein guter Mittelwert für die Geometrie-Berechnung.
-DEFAULT_BALL_GROOVE_CONFORMITY = 0.52
 
 
 @dataclass(frozen=True)
@@ -97,21 +95,6 @@ def roller_length_for_type(bearing_type: str, width: float, roller_d: float) -> 
     return width * ratio
 
 
-def _ball_max_roller_d(usable_space: float, conformity: float) -> float:
-    """Maximaler Kugel-Ø, wenn ``ring_thickness`` als Mindestwand über der
-    Rille interpretiert wird.
-
-    Herleitung: die Rille reicht radial bis zu ``pitch_r - r_groove =
-    pitch_r - f·d_ball``. Damit unter ihr noch die Wand ``ring_thickness``
-    übrig bleibt, muss ``f·d_ball ≤ (D−d)/4 − ring_thickness =
-    usable_space / 2``. Aufgelöst nach ``d_ball``: ``d_ball ≤ usable_space /
-    (2·f)``. Symmetrisch für die Außenring-Rille. ``ROLLER_SAFETY_FRACTION``
-    bleibt als 2 %-Sicherheitspuffer erhalten.
-    """
-    f = max(0.5 + 1.0e-6, conformity)
-    return (usable_space / (2.0 * f)) * ROLLER_SAFETY_FRACTION
-
-
 def resolve_geometry(
     *,
     bearing_type: str,
@@ -124,17 +107,17 @@ def resolve_geometry(
     radial_clearance: float,
     gap_factor: float,
     auto_fit: bool,
-    groove_conformity: Optional[float] = None,
 ) -> Tuple[Optional[ResolvedBearing], Optional[str]]:
     """Löst alle Parameter zu einer funktionsfähigen Geometrie auf.
 
     Gibt ``(spec, None)`` bei Erfolg oder ``(None, error_message)`` zurück.
     Mit ``auto_fit=True`` werden unplausible Werte stillschweigend korrigiert.
 
-    ``groove_conformity`` wird bei Rillenkugellagern (BALL/VGROOVE) verwendet,
-    um die maximale Kugelgröße zu berechnen: weil die Kugel teilweise in die
-    Rille eintaucht, darf sie größer sein als der reine Schulter-zu-Schulter-
-    Abstand. Bei anderen Lagertypen ohne Bedeutung.
+    Der Wälzkörper (Kugel wie Rolle) füllt den nutzbaren radialen Spalt: er
+    sitzt mittig zwischen Innen- und Außenlaufbahn und reicht – abzüglich
+    Lagerluft und Sicherheitsanteil – bis an beide Schultern. Nur so schneidet
+    der Rillenbogen bei Kugellagern tatsächlich unter die Schulter und wird im
+    Mesh sichtbar.
     """
     if bore_diameter >= outer_diameter:
         return None, (
@@ -161,11 +144,7 @@ def resolve_geometry(
             f"oder Ringstärke verkleinern."
         )
 
-    if bearing_type in (constants.BALL, constants.VGROOVE):
-        f = groove_conformity if groove_conformity is not None else DEFAULT_BALL_GROOVE_CONFORMITY
-        max_roller_d = _ball_max_roller_d(usable_space, f)
-    else:
-        max_roller_d = usable_space * ROLLER_SAFETY_FRACTION
+    max_roller_d = usable_space * ROLLER_SAFETY_FRACTION
 
     if roller_diameter > max_roller_d:
         if not auto_fit:
@@ -227,19 +206,15 @@ def suggest_defaults(
     *,
     radial_clearance: float = 0.02,
     gap_factor: float = 0.10,
-    groove_conformity: Optional[float] = None,
 ) -> SuggestedDefaults:
     """Liefert ring_thickness/roller_d/Anzahl, mit denen ein Lager sofort funktioniert.
 
     Pro Lagertyp wird ein eigener Ringstärke-Anteil und Wälzkörper-Füllgrad
     verwendet (siehe ``constants.TYPE_RING_THICKNESS_RATIO`` und
     ``TYPE_ROLLER_FILL``). Damit erhält man typische Industriewerte für
-    Wandstärke und Wälzkörper-Ø ohne manuelle Berechnung.
-
-    Für Rillenkugellager (BALL/VGROOVE) wird zusätzlich die Konformität
-    berücksichtigt, weil die Kugel teilweise in die Rille eintaucht; der
-    vorgeschlagene Roller-Ø nutzt denselben Maximalwert wie
-    ``resolve_geometry``.
+    Wandstärke und Wälzkörper-Ø ohne manuelle Berechnung. Der Wälzkörper füllt
+    den nutzbaren Spalt; bei Kugellagern reicht er damit bis an beide Schultern
+    und der Rillenbogen schneitet sichtbar ins Material.
     """
     if bore_diameter >= outer_diameter:
         # Degenerate Eingabe – minimaler Default damit nichts crasht.
@@ -257,12 +232,7 @@ def suggest_defaults(
     dims = compute_dims(bore_diameter, outer_diameter, ring_thickness)
     usable = max(MIN_USABLE_SPACE_MM, dims.radial_space - 2.0 * radial_clearance)
     fill = constants.TYPE_ROLLER_FILL.get(bearing_type, SUGGESTED_ROLLER_FILL)
-    if bearing_type in (constants.BALL, constants.VGROOVE):
-        f = groove_conformity if groove_conformity is not None else DEFAULT_BALL_GROOVE_CONFORMITY
-        max_ball_d = _ball_max_roller_d(usable, f)
-        roller_d = max(0.5, max_ball_d * fill)
-    else:
-        roller_d = max(0.5, usable * fill)
+    roller_d = max(0.5, usable * fill)
     pitch_d = (dims.inner_outer_d + dims.outer_inner_d) * 0.5
     count = max_elements_for_pitch(pitch_d, roller_d, gap_factor)
 
@@ -339,6 +309,34 @@ def tapered_apex_z(pitch_d: float, roller_length: float, contact_angle_rad: floa
         return float("-inf")
     t = small_x / sin_a  # Schritte entlang der negativen Achsenrichtung
     return small_z - t * cos_a
+
+
+def tapered_cone_half_angle(
+    inner_race_d: float, outer_race_d: float, contact_angle_rad: float
+) -> float:
+    """Halber Kegelwinkel β der Kegelrolle für einen gemeinsamen Apex.
+
+    Bei einem Kegelrollenlager treffen sich die Mantellinien von Cup-Laufbahn
+    (Außenring), Kegel-Laufbahn (Innenring) und Rolle in einem gemeinsamen
+    Punkt auf der Lagerachse (reine Rollbewegung). Per Konvention ist der
+    Kontaktwinkel α die Neigung der **Cup**-Laufbahn zur Lagerachse; die
+    Kegel-Laufbahn steht flacher unter ``α − 2β`` und die Rollenachse unter
+    ``α − β``.
+
+    Aus der Bedingung, dass beide Laufbahn-Mantellinien (durch ``R_i`` bzw.
+    ``R_o`` in der Mittenebene) denselben Apex-z = −R/tan(Winkel) haben, folgt
+    ``tan(α − 2β) = (R_i / R_o) · tan(α)``. Daraus
+
+        β = ½ · (α − arctan( R_i/R_o · tan α )).
+
+    Für ``α ≤ 0`` (zylindrische Grenze) ist β = 0.
+    """
+    if contact_angle_rad <= 0.0:
+        return 0.0
+    r_i = max(PROFILE_EPSILON, inner_race_d * 0.5)
+    r_o = max(r_i + PROFILE_EPSILON, outer_race_d * 0.5)
+    cone_angle = math.atan((r_i / r_o) * math.tan(contact_angle_rad))
+    return max(0.0, 0.5 * (contact_angle_rad - cone_angle))
 
 
 # ---------------------------------------------------------------------------

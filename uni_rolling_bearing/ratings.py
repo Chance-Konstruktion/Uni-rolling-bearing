@@ -243,10 +243,11 @@ def static_load_rating(
     element_count: int,
     pitch_d_mm: float,
     contact_angle_deg: float = 0.0,
+    rows: Optional[int] = None,
 ) -> float:
     """Statische radiale Tragzahl C0r nach ISO 76 mit γ-abhängigem ``f0``."""
     alpha = _contact_angle_rad(bearing_type, contact_angle_deg)
-    i = _rows(bearing_type)
+    i = rows if rows is not None else _rows(bearing_type)
     if element_count <= 0 or roller_d_mm <= 0.0:
         return 0.0
     g = gamma(roller_d_mm, alpha, pitch_d_mm)
@@ -265,10 +266,11 @@ def dynamic_load_rating(
     element_count: int,
     pitch_d_mm: float,
     contact_angle_deg: float = 0.0,
+    rows: Optional[int] = None,
 ) -> float:
     """Dynamische radiale Tragzahl Cr nach ISO 281 mit γ-abhängigem ``fc``."""
     alpha = _contact_angle_rad(bearing_type, contact_angle_deg)
-    i = _rows(bearing_type)
+    i = rows if rows is not None else _rows(bearing_type)
     if element_count <= 0 or roller_d_mm <= 0.0:
         return 0.0
     g = gamma(roller_d_mm, alpha, pitch_d_mm)
@@ -314,6 +316,7 @@ def compute_ratings(
     radial_load_Fr_N: float = 0.0,
     axial_load_Fa_N: float = 0.0,
     speed_rpm: float = 0.0,
+    rows: Optional[int] = None,
 ) -> Ratings:
     alpha = _contact_angle_rad(bearing_type, contact_angle_deg)
     g = gamma(roller_d_mm, alpha, pitch_d_mm)
@@ -321,11 +324,11 @@ def compute_ratings(
     fc = fc_for(bearing_type, g)
     c0 = static_load_rating(
         bearing_type, roller_d_mm, roller_length_mm, element_count,
-        pitch_d_mm, contact_angle_deg,
+        pitch_d_mm, contact_angle_deg, rows=rows,
     )
     cr = dynamic_load_rating(
         bearing_type, roller_d_mm, roller_length_mm, element_count,
-        pitch_d_mm, contact_angle_deg,
+        pitch_d_mm, contact_angle_deg, rows=rows,
     )
     p = _life_exponent(bearing_type)
     load = equivalent_load(

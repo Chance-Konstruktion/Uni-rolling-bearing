@@ -688,23 +688,65 @@ def spherical_inner_ring_profile(
     roller_length: float,
     contact_angle_rad: float = 0.0,
     arc_segments: int = 16,
+    rows: int = 2,
 ) -> Profile:
-    """Innenring eines zweireihigen Pendelrollenlagers (DIN 635-2 / ISO 15).
+    """Innenring eines Tonnen-/Pendelrollenlagers (DIN 635).
 
-    Erzeugt zwei konkave Laufbahnen (je ein Sphärensegment) an den z-Halb-
-    Seiten, getrennt durch einen schmalen Mittelbord und flankiert von zwei
-    Endschultern. Die Laufbahnen sind so dimensioniert, dass die Tonnenrolle
-    (Länge ``roller_length``, Mittelradius ``roller_d/2``) in der jeweiligen
-    Mulde sitzt; der Mittelbord ragt nicht über die Schulter hinaus.
+    ``rows == 1`` (Tonnenlager, DIN 635-1): EINE konkave Laufbahn mittig um
+    z=0, flankiert von zwei Endschultern. ``rows == 2`` (Pendelrollenlager,
+    DIN 635-2): zwei konkave Laufbahnen an den z-Halb-Seiten, getrennt durch
+    einen schmalen Mittelbord. Die Laufbahn ist jeweils so dimensioniert, dass
+    die Tonnenrolle (Länge ``roller_length``, Mittelradius ``roller_d/2``) in
+    der Mulde sitzt.
 
-    ``contact_angle_rad`` ist der Kontaktwinkel α (Rollenachse ↔ Lagerachse);
-    er steuert axial die Lage der Laufbahnmittelpunkte (z-Offset der Reihen).
+    ``contact_angle_rad`` ist der Kontaktwinkel α der Reihen (nur zweireihig
+    relevant); er steuert axial die Lage der Laufbahnmittelpunkte.
     """
     bore_r = bore_d * 0.5
     shoulder_r = shoulder_d * 0.5
     half_w = width * 0.5
     if shoulder_r - bore_r <= PROFILE_EPSILON or half_w <= PROFILE_EPSILON:
         return _dedupe_profile(_hollow_cylinder_profile(bore_d, shoulder_d, width))
+
+    # Tiefe der Laufbahn (Konkavität): so dass der Boden tiefer liegt als die
+    # Schulter. Begrenzt durch die radiale Wandstärke.
+    wall = shoulder_r - bore_r
+    race_depth = max(0.05, min(wall * 0.40, roller_d * 0.12))
+    race_min_r = max(bore_r + 0.1, shoulder_r - race_depth)
+
+    def _arc_geometry(race_half_w: float) -> Tuple[float, float]:
+        """Sphärenradius und Bogen-Mittenradius für eine gegebene Halbweite."""
+        r_half = max(0.05, race_half_w)
+        # R = (race_depth² + race_half_w²) / (2·race_depth) aus Sehnengeometrie.
+        big_r = (race_depth * race_depth + r_half * r_half) / (2.0 * race_depth)
+        return big_r, race_min_r + big_r
+
+    def _race_arc(center_z: float, race_half_w: float, big_r: float, center_r: float) -> Profile:
+        """Konkave Laufbahn als Sphärensegment um (center_r, center_z)."""
+        n = max(4, arc_segments)
+        pts: Profile = []
+        for i in range(n + 1):
+            z = (center_z - race_half_w) + (2.0 * race_half_w) * (i / n)
+            dz = z - center_z
+            r = center_r - math.sqrt(max(0.0, big_r * big_r - dz * dz))
+            pts.append((r, z))
+        return pts
+
+    if rows <= 1:
+        # Einreihiges Tonnenlager: eine zentrale Mulde, kleine Endschultern.
+        end_land = max(0.3, half_w * 0.06)
+        race_half_w = min(half_w - end_land, roller_length * 0.5 * 1.02)
+        race_half_w = max(0.05, race_half_w)
+        big_r, center_r = _arc_geometry(race_half_w)
+        # Bohrung unten → -z-Stirn → Endschulter → zentrale Laufbahn →
+        # Endschulter → +z-Stirn → zurück zur Bohrung.
+        profile: Profile = [(bore_r, -half_w), (shoulder_r, -half_w)]
+        profile.append((shoulder_r, -race_half_w))
+        profile.extend(_race_arc(0.0, race_half_w, big_r, center_r))
+        profile.append((shoulder_r, race_half_w))
+        profile.append((shoulder_r, half_w))
+        profile.append((bore_r, half_w))
+        return _dedupe_profile(profile)
 
     # Zwei Reihen: Mitten bei z = ±row_z, gekippt um α. Position wird zentral
     # in ``spherical_inner_row_z`` bestimmt, damit Wälzkörper-Platzierung
@@ -719,43 +761,17 @@ def spherical_inner_ring_profile(
         roller_length * 0.5 * math.cos(contact_angle_rad) * 0.95,
     )
     race_half_w = max(0.05, race_half_w)
-
-    # Tiefe der Laufbahn (Konkavität): so dass der Boden tiefer liegt als die
-    # Schulter. Begrenzt durch die radiale Wandstärke.
-    wall = shoulder_r - bore_r
-    race_depth = max(0.05, min(wall * 0.40, roller_d * 0.12))
-    race_min_r = max(bore_r + 0.1, shoulder_r - race_depth)
-
-    # Sphärenradius des Laufbahnbogens. Aus race_depth und race_half_w
-    # rückgerechnet: R = (race_depth² + race_half_w²) / (2·race_depth).
-    R_race = (race_depth * race_depth + race_half_w * race_half_w) / (2.0 * race_depth)
-    # Mittelpunkt des Bogens liegt radial bei (race_min_r + R_race) und
-    # axial beim jeweiligen Reihenmittelpunkt ±row_z.
-    arc_center_r = race_min_r + R_race
-
-    def _race_arc(row_z_signed: float) -> Profile:
-        """Konkave Laufbahn als Sphärensegment um (arc_center_r, row_z_signed)."""
-        n = max(4, arc_segments)
-        pts: Profile = []
-        z_start = row_z_signed - race_half_w
-        z_end = row_z_signed + race_half_w
-        for i in range(n + 1):
-            t = i / n
-            z = z_start + (z_end - z_start) * t
-            dz = z - row_z_signed
-            r = arc_center_r - math.sqrt(max(0.0, R_race * R_race - dz * dz))
-            pts.append((r, z))
-        return pts
+    big_r, center_r = _arc_geometry(race_half_w)
 
     # Profil-Traversierung im Uhrzeigersinn (r,z): Bohrung unten → -z-Stirn →
     # Endschulter -z → erste Laufbahn (-row_z) → Mittelbord (auf shoulder_r) →
     # zweite Laufbahn (+row_z) → Endschulter +z → +z-Stirn → zurück zur Bohrung.
-    profile: Profile = [(bore_r, -half_w), (shoulder_r, -half_w)]
+    profile = [(bore_r, -half_w), (shoulder_r, -half_w)]
     profile.append((shoulder_r, -row_z - race_half_w))
-    profile.extend(_race_arc(-row_z))
+    profile.extend(_race_arc(-row_z, race_half_w, big_r, center_r))
     profile.append((shoulder_r, -row_z + race_half_w))
     profile.append((shoulder_r, row_z - race_half_w))
-    profile.extend(_race_arc(row_z))
+    profile.extend(_race_arc(row_z, race_half_w, big_r, center_r))
     profile.append((shoulder_r, row_z + race_half_w))
     profile.append((shoulder_r, half_w))
     profile.append((bore_r, half_w))

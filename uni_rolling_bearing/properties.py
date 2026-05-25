@@ -422,13 +422,30 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         soft_max=5.0,
     )
 
+    spherical_rows: EnumProperty(
+        name="Rollenreihen",
+        description=(
+            "Anzahl der Wälzkörperreihen beim Tonnen-/Pendelrollenlager. "
+            "'1 (Tonnenlager)' = einreihiges Tonnenlager nach DIN 635-1: eine "
+            "Tonnenrolle pro Position, eine Innenlaufbahn, sphärische "
+            "Außenlaufbahn. '2 (Pendelrollenlager)' = zweireihig nach "
+            "DIN 635-2 mit zwei gegeneinander geneigten Reihen (passend zu "
+            "den 222xx/223xx-Presets)."
+        ),
+        items=[
+            ("1", "1 (Tonnenlager)", "Einreihig (DIN 635-1)"),
+            ("2", "2 (Pendelrollenlager)", "Zweireihig (DIN 635-2)"),
+        ],
+        default="1",
+    )
     spherical_contact_angle_deg: FloatProperty(
         name="Pendel-Kontaktwinkel α [°]",
         description=(
-            "Nur Pendelrollenlager: Kontaktwinkel der beiden Rollenreihen "
-            "(Rollenachse ↔ Lagerachse, DIN 635-2). Typische Werte 8–15° für "
-            "die 222xx-Reihe, 18–25° für die 223xx-Reihe. Steuert die axiale "
-            "Tragfähigkeit und den Abstand der beiden Laufbahnen am Innenring."
+            "Nur zweireihiges Pendelrollenlager: Kontaktwinkel der beiden "
+            "Rollenreihen (Rollenachse ↔ Lagerachse, DIN 635-2). Typische "
+            "Werte 8–15° für die 222xx-Reihe, 18–25° für die 223xx-Reihe. "
+            "Steuert die axiale Tragfähigkeit und den Abstand der beiden "
+            "Laufbahnen am Innenring. Beim einreihigen Tonnenlager ohne Wirkung."
         ),
         default=10.0,
         min=0.0,
