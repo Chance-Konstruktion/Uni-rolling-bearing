@@ -22,6 +22,7 @@ from uni_rolling_bearing.geometry import (  # noqa: E402
     roller_length_for_type,
     suggest_defaults,
     tapered_apex_z,
+    tapered_cone_half_angle,
     validate_against_suggestion,
 )
 
@@ -133,9 +134,10 @@ class TestResolveGeometry(unittest.TestCase):
         self.assertIsNone(error)
         self.assertLess(spec.roller_d, 50.0)
         # Kugellager: radialer Spalt = ((47-2·4) - (20+2·4))/2 = 5.5 mm,
-        # abzgl. Lagerluft 2·0.02 = 0.04 mm. Mit Rillen-Formel (f=0.52):
-        # max_ball = (5.46) / (2·0.52) · 0.98.
-        max_allowed = (5.5 - 0.04) / (2.0 * 0.52) * 0.98
+        # abzgl. Lagerluft 2·0.02 = 0.04 mm. Die Kugel füllt den Spalt wie eine
+        # Rolle (· ROLLER_SAFETY_FRACTION), damit sie bis an beide Schultern
+        # reicht und der Rillenbogen sichtbar einschneidet.
+        max_allowed = (5.5 - 0.04) * 0.98
         self.assertAlmostEqual(spec.roller_d, max_allowed, places=4)
 
     def test_too_many_elements_without_auto_fit(self):
@@ -233,23 +235,21 @@ class TestSuggestDefaults(unittest.TestCase):
         self.assertGreaterEqual(s.element_count, 3)
 
     def test_type_specific_ratios_differ(self):
-        # Seit v0.23 nutzen Kugel- und Nadellager beide den 1/12-Wand-Anteil
-        # (für Kugellager ist ``ring_thickness`` die Mindestwand am Rillenboden,
-        # nicht die Schulterhöhe). Der Vorschlag muss trotzdem typgerechte
-        # Rollendurchmesser liefern.
+        # Kugel- und Nadellager nutzen beide den 1/12-Wand-Anteil und füllen
+        # den nutzbaren Spalt. Der Vorschlag muss für beide typgerechte
+        # Rollendurchmesser und ≥3 Wälzkörper liefern.
         ball = suggest_defaults(constants.BALL, 30.0, 72.0)
         needle = suggest_defaults(constants.NEEDLE, 30.0, 72.0)
         self.assertGreaterEqual(needle.element_count, 3)
         self.assertGreaterEqual(ball.element_count, 3)
-        # Nadeln dürfen größere Wälzkörper haben, weil sie ohne Rille keinen
-        # Submersionsbonus brauchen – beide Werte aber > 0.
         self.assertGreater(needle.roller_diameter, 0.0)
         self.assertGreater(ball.roller_diameter, 0.0)
 
     def test_ball_defaults_match_real_6204_within_10_percent(self):
-        # 6204 (d=20, D=47, B=14): reale Kugel ≈ 7.94 mm. Der Default-Vorschlag
-        # nach v0.23 (Rillenformel + Wand-Faustregel 1/10) muss innerhalb 10 %
-        # liegen, sonst stimmt das Verhältnis Ringstärke ↔ Rillenkonformität nicht.
+        # 6204 (d=20, D=47, B=14): reale Kugel ≈ 7.94 mm. Die Kugel füllt den
+        # nutzbaren Spalt (Wand-Faustregel 1/12 + Füllgrad 0.95) und muss damit
+        # innerhalb 10 % der realen Kugel liegen – sonst sitzt sie nicht an den
+        # Schultern und der Rillenbogen schneidet nicht ins Material.
         s = suggest_defaults(constants.BALL, 20.0, 47.0)
         self.assertAlmostEqual(s.roller_diameter, 7.94, delta=0.794)
 
@@ -470,6 +470,29 @@ class TestTaperedApex(unittest.TestCase):
         z_small = tapered_apex_z(35.0, 12.0, math.radians(10.0))
         z_large = tapered_apex_z(35.0, 12.0, math.radians(30.0))
         self.assertLess(z_small, z_large)
+
+
+class TestTaperedConeHalfAngle(unittest.TestCase):
+    def test_zero_angle_gives_zero(self):
+        # α = 0 → zylindrische Grenze, kein Kegelwinkel.
+        self.assertEqual(tapered_cone_half_angle(37.0, 55.0, 0.0), 0.0)
+
+    def test_common_apex(self):
+        # Cup-Laufbahn (α) und Kegel-Laufbahn (α−2β) müssen denselben Apex-z
+        # = −R/tan(Winkel) auf der Lagerachse haben (reine Rollbewegung).
+        inner_d, outer_d = 37.11, 54.89
+        alpha = math.radians(14.0)
+        beta = tapered_cone_half_angle(inner_d, outer_d, alpha)
+        cone_angle = alpha - 2.0 * beta
+        cup_apex = -(outer_d * 0.5) / math.tan(alpha)
+        cone_apex = -(inner_d * 0.5) / math.tan(cone_angle)
+        self.assertAlmostEqual(cup_apex, cone_apex, places=4)
+
+    def test_beta_between_zero_and_half_alpha(self):
+        alpha = math.radians(14.0)
+        beta = tapered_cone_half_angle(37.11, 54.89, alpha)
+        self.assertGreater(beta, 0.0)
+        self.assertLess(beta, alpha * 0.5)
 
 
 def _is_simple_closed_profile(points, tol=1e-9):
@@ -926,6 +949,40 @@ class TestSphericalInnerRingProfile(unittest.TestCase):
         half_proj = roller_length * 0.5 * math.cos(alpha)
         # Innenkante der oberen Reihe muss oberhalb der Lagermitte sitzen.
         self.assertGreater(row_z - half_proj, 0.0)
+
+    def test_single_row_has_one_central_raceway(self):
+        from uni_rolling_bearing import raceway
+
+        # Einreihiges Tonnenlager (rows=1): EINE zentrale Mulde um z=0.
+        profile = raceway.spherical_inner_ring_profile(
+            bore_d=50.0, shoulder_d=58.89, width=23.0,
+            pitch_d=70.0, roller_d=9.52, roller_length=13.34, rows=1,
+        )
+        self.assertTrue(_is_simple_closed_profile(profile))
+        shoulder_r = 58.89 * 0.5
+        # Bohrung und Schulter sind die radialen Extreme.
+        self.assertAlmostEqual(min(r for r, _ in profile), 25.0, places=6)
+        self.assertAlmostEqual(max(r for r, _ in profile), shoulder_r, places=6)
+        # Laufbahnmulde liegt zentriert um z=0 (Punkte unter der Schulter mit
+        # Vorzeichenwechsel in z).
+        sub = [(r, z) for r, z in profile if r < shoulder_r - 1e-3]
+        self.assertTrue(any(z < -0.5 for _, z in sub))
+        self.assertTrue(any(z > 0.5 for _, z in sub))
+        # Anders als zweireihig gibt es KEINEN Mittelbord auf Schulterhöhe
+        # zwischen zwei Mulden: es existiert ein Profilpunkt direkt bei z≈0
+        # unterhalb der Schulter (Muldenboden).
+        self.assertTrue(any(abs(z) < 1.0 and r < shoulder_r - 1e-3 for r, z in profile))
+
+    def test_single_and_double_row_profiles_differ(self):
+        from uni_rolling_bearing import raceway
+
+        kw = dict(
+            bore_d=50.0, shoulder_d=58.89, width=23.0, pitch_d=70.0,
+            roller_d=9.52, roller_length=13.34,
+        )
+        one = raceway.spherical_inner_ring_profile(**kw, rows=1)
+        two = raceway.spherical_inner_ring_profile(**kw, rows=2)
+        self.assertNotEqual(one, two)
 
 
 if __name__ == "__main__":

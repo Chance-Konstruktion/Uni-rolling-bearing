@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import math
 
 import bpy
@@ -15,6 +16,7 @@ from .geometry import (
     resolve_geometry,
     suggest_defaults,
     tapered_apex_z,
+    tapered_cone_half_angle,
 )
 from .tolerances import apply_tolerances
 
@@ -25,20 +27,6 @@ MM_TO_M = 0.001
 # Verhindert rekursive Updates, wenn der Auto-Recompute-Callback Properties
 # zurückschreibt, die selbst an den Callback gebunden sind.
 _AUTO_RECOMPUTE_GUARD = False
-
-
-def _groove_conformity_for(props):
-    """Größte gewählte Konformität – für die Bauraum-Begrenzung der Kugel.
-
-    Die Kugel muss in BEIDE Rillen (Innen-/Außenring) passen; die strengere
-    (= größere f) Rille begrenzt den maximalen Kugel-Ø.
-    """
-    if props.bearing_type not in (constants.BALL, constants.VGROOVE):
-        return None
-    return max(
-        float(getattr(props, "groove_conformity_inner", 0.52)),
-        float(getattr(props, "groove_conformity_outer", 0.52)),
-    )
 
 
 def apply_suggested_defaults(props) -> None:
@@ -58,7 +46,6 @@ def apply_suggested_defaults(props) -> None:
             props.outer_diameter,
             radial_clearance=props.radial_clearance,
             gap_factor=props.gap_factor,
-            groove_conformity=_groove_conformity_for(props),
         )
         props.ring_thickness = suggestion.ring_thickness
         props.roller_diameter = suggestion.roller_diameter
@@ -91,48 +78,76 @@ def _props_to_resolve_kwargs(props) -> dict:
         radial_clearance=props.radial_clearance,
         gap_factor=props.gap_factor,
         auto_fit=props.auto_fit,
-        groove_conformity=_groove_conformity_for(props),
     )
 
 
-def safe_resolve_geometry(props):
-    """Kapselt ``resolve_geometry`` für den UI-Draw (fängt unerwartete Fehler ab)."""
+def _spherical_rows(props) -> int:
+    """Anzahl Wälzkörperreihen beim Tonnen-/Pendelrollenlager (1 oder 2)."""
     try:
-        return resolve_geometry(**_props_to_resolve_kwargs(props))
+        return int(getattr(props, "spherical_rows", "1"))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _resolve_for_props(props):
+    """Löst die Geometrie auf und passt typenspezifische Werte an.
+
+    Beim zweireihigen Pendelrollenlager wird die (einreihige) Tonnenlänge auf
+    die Länge je Reihe verkürzt, damit zwei Reihen plus Mittelbord in die
+    Lagerbreite passen. Profil-, Käfig-, Wälzkörper- und Tragzahl-Berechnung
+    verwenden dann denselben Wert.
+    """
+    spec, error = resolve_geometry(**_props_to_resolve_kwargs(props))
+    if (
+        spec is not None
+        and props.bearing_type == constants.SPHERICAL
+        and _spherical_rows(props) == 2
+    ):
+        spec = dataclasses.replace(
+            spec,
+            roller_length=spec.roller_length * constants.SPHERICAL_TWO_ROW_LENGTH_FACTOR,
+        )
+    return spec, error
+
+
+def safe_resolve_geometry(props):
+    """Kapselt die Geometrie-Auflösung für den UI-Draw (fängt Fehler ab)."""
+    try:
+        return _resolve_for_props(props)
     except Exception as exc:  # pragma: no cover – defensive für Blender-UI
         return None, f"Interner Fehler: {exc}"
 
 
-def _tapered_roller_radii(props, spec: ResolvedBearing) -> tuple:
-    """Berechnet (r_small, r_large) für die Kegelrolle so, dass sie nach dem
-    Kippen um den Kontaktwinkel im zylindrischen Laufbahnspalt bleibt."""
-    contact_angle = math.radians(props.contact_angle_deg)
-    half_cone = contact_angle * 0.5  # β ≈ α/2 (klassische Apex-Geometrie)
-    length = spec.roller_length
-    mean_r = spec.roller_d * 0.5
-
-    sin_a = math.sin(contact_angle)
-    cos_a = max(math.cos(contact_angle), 1e-6)
-
-    # Radial verfügbarer Halbspalt um den (mittigen) Teilkreis.
-    radial_half_gap = (spec.outer_inner_d - spec.inner_outer_d) * 0.5
-    clearance = props.radial_clearance
-    # Nach dem Tilt wandert das große Stirnflächenzentrum um sin(α)·L/2 nach
-    # außen. Dort darf radius_large·cos α nicht über den Restspalt hinaus.
-    max_face_r = max(
-        0.05,
-        (radial_half_gap * 0.5 - sin_a * length * 0.5 - clearance) / cos_a,
+def _tapered_cone_half_angle(props, spec: ResolvedBearing) -> float:
+    """Halber Kegelwinkel β der Rolle für gemeinsamen Apex (siehe geometry)."""
+    return tapered_cone_half_angle(
+        spec.inner_outer_d,
+        spec.outer_inner_d,
+        math.radians(props.contact_angle_deg),
     )
 
-    delta = math.sin(half_cone) * length * 0.5
+
+def _tapered_roller_tilt(props, spec: ResolvedBearing) -> float:
+    """Neigung der Rollenachse zur Lagerachse: θ = α − β.
+
+    Die Rollenmantellinien liegen damit parallel zu Cup- (α) und Kegel-
+    (α − 2β) Laufbahn; alle Achsen treffen sich in einem gemeinsamen Apex.
+    """
+    return math.radians(props.contact_angle_deg) - _tapered_cone_half_angle(props, spec)
+
+
+def _tapered_roller_radii(props, spec: ResolvedBearing) -> tuple:
+    """(r_small, r_large) der Kegelrolle aus Mittel-Ø und halbem Kegelwinkel β.
+
+    Die Rolle ist ein Kegelstumpf mit Halbwinkel β; über die Rollenlänge L
+    wächst der Radius um ``tan β · L/2`` zur großen Stirn (+z) und schrumpft
+    zur kleinen Stirn (−z). Mittelradius = ``roller_d / 2``.
+    """
+    beta = _tapered_cone_half_angle(props, spec)
+    mean_r = spec.roller_d * 0.5
+    delta = math.tan(beta) * spec.roller_length * 0.5
     radius_small = max(0.05, mean_r - delta)
     radius_large = mean_r + delta
-
-    if radius_large > max_face_r:
-        scale = max_face_r / radius_large
-        radius_large = max_face_r
-        radius_small = max(0.05, radius_small * scale)
-
     return radius_small, radius_large
 
 
@@ -142,10 +157,10 @@ def _build_rolling_elements(props, spec: ResolvedBearing, collection):
     ring_r = spec.pitch_d * 0.5
     roller_r = spec.roller_d * 0.5
     segments = props.segments
-    tapered_tilt = math.radians(props.contact_angle_deg)
 
     if props.bearing_type == constants.TAPERED:
         taper_r_small, taper_r_large = _tapered_roller_radii(props, spec)
+        tapered_tilt = _tapered_roller_tilt(props, spec)
 
     for i in range(spec.element_count):
         a = 2.0 * math.pi * i / spec.element_count
@@ -183,30 +198,43 @@ def _build_rolling_elements(props, spec: ResolvedBearing, collection):
             )
             obj.rotation_euler[2] = a
         elif props.bearing_type == constants.SPHERICAL:
-            # Zweireihig (DIN 635-2): jede Position erzeugt zwei Rollen
-            # symmetrisch um z=0, jeweils um ±α gekippt.
-            alpha = math.radians(float(getattr(props, "spherical_contact_angle_deg", 10.0)))
-            row_z = raceway.spherical_inner_row_z(
-                _effective_dims(props).width, spec.roller_length, alpha
-            )
-            for sign, label in ((-1, "A"), (+1, "B")):
-                pos = (position[0], position[1], sign * row_z)
-                row_obj = mesh_builders.add_barrel_roller(
-                    f"BarrelRoller_{i + 1:02d}{label}",
+            if _spherical_rows(props) == 1:
+                # Einreihiges Tonnenlager (DIN 635-1): eine Tonne mittig auf
+                # dem Teilkreis, Achse parallel zur Lagerachse.
+                obj = mesh_builders.add_barrel_roller(
+                    f"BarrelRoller_{i + 1:02d}",
                     radius_mid=roller_r,
                     radius_end=roller_r * 0.78,
                     length=spec.roller_length,
-                    location=pos,
+                    location=position,
                     segments=max(12, segments // 2),
                     collection=collection,
                 )
-                row_obj.rotation_euler[2] = a
-                # Tonnen kippen radial nach außen → kleine Stirn zur Lagermitte.
-                row_obj.rotation_euler[1] = -sign * alpha
-                elements.append(row_obj)
-            # Erste obj-Variable überspringen; wir haben bereits über elements
-            # erweitert und brauchen kein zusätzliches Element.
-            continue
+                obj.rotation_euler[2] = a
+            else:
+                # Zweireihiges Pendelrollenlager (DIN 635-2): zwei Tonnen
+                # symmetrisch um z=0, jeweils um ±α gekippt.
+                alpha = math.radians(float(getattr(props, "spherical_contact_angle_deg", 10.0)))
+                row_z = raceway.spherical_inner_row_z(
+                    _effective_dims(props).width, spec.roller_length, alpha
+                )
+                for sign, label in ((-1, "A"), (+1, "B")):
+                    pos = (position[0], position[1], sign * row_z)
+                    row_obj = mesh_builders.add_barrel_roller(
+                        f"BarrelRoller_{i + 1:02d}{label}",
+                        radius_mid=roller_r,
+                        radius_end=roller_r * 0.78,
+                        length=spec.roller_length,
+                        location=pos,
+                        segments=max(12, segments // 2),
+                        collection=collection,
+                    )
+                    row_obj.rotation_euler[2] = a
+                    # Tonnen kippen radial nach außen → kleine Stirn zur Lagermitte.
+                    row_obj.rotation_euler[1] = -sign * alpha
+                    elements.append(row_obj)
+                # Beide Reihen sind bereits in elements; kein Standard-Append.
+                continue
         else:
             raise ValueError(f"Unbekannter Lagertyp: {props.bearing_type}")
 
@@ -286,7 +314,7 @@ def _build_pocket_cutter(props, spec: ResolvedBearing, position, angle, name, co
         cutter.rotation_euler[2] = angle
     elif bt == constants.TAPERED:
         taper_r_small, taper_r_large = _tapered_roller_radii(props, spec)
-        tilt = math.radians(props.contact_angle_deg)
+        tilt = _tapered_roller_tilt(props, spec)
         cutter = mesh_builders.add_tapered_roller(
             name,
             radius_small=taper_r_small + _pocket_clearance(props),
@@ -571,11 +599,14 @@ def _inner_ring_profile(props, spec: ResolvedBearing):
     if bt == constants.TAPERED:
         cone_w = float(getattr(props, "tapered_cone_width_mm", 0.0))
         inner_width = cone_w if cone_w > 0.0 else eff.width
+        # Die Kegel-(Innen-)Laufbahn steht flacher als der Kontaktwinkel α:
+        # α − 2β, damit Rolle und beide Laufbahnen einen gemeinsamen Apex haben.
+        cone_angle = math.radians(props.contact_angle_deg) - 2.0 * _tapered_cone_half_angle(props, spec)
         # Bordhöhe so begrenzen, dass der Bord die Außenlaufbahn nicht berührt.
         flange_h = max(0.0, float(getattr(props, "tapered_flange_height_mm", 0.0)))
         if flange_h > 0.0:
             half_w = inner_width * 0.5
-            delta = math.tan(math.radians(max(0.0, props.contact_angle_deg))) * half_w
+            delta = math.tan(max(0.0, cone_angle)) * half_w
             r_plus = spec.inner_outer_d * 0.5 + delta
             max_flange = max(0.0, spec.outer_inner_d * 0.5 - r_plus - props.radial_clearance)
             flange_h = min(flange_h, max_flange)
@@ -583,7 +614,7 @@ def _inner_ring_profile(props, spec: ResolvedBearing):
             bore_d=eff.bore_diameter,
             shoulder_d=spec.inner_outer_d,
             width=inner_width,
-            contact_angle_rad=math.radians(props.contact_angle_deg),
+            contact_angle_rad=cone_angle,
             large_flange_height_mm=flange_h,
         )
     if bt == constants.SPHERICAL:
@@ -597,6 +628,7 @@ def _inner_ring_profile(props, spec: ResolvedBearing):
             contact_angle_rad=math.radians(
                 float(getattr(props, "spherical_contact_angle_deg", 10.0))
             ),
+            rows=_spherical_rows(props),
         )
     # Zylinder- und Nadellager nutzen einen einfachen zylindrischen Innenring
     # (Bord liegt am Außenring).
@@ -1015,7 +1047,7 @@ class UNI_OT_create_bearing(bpy.types.Operator):
 
     def execute(self, context):
         props = context.scene.uni_bearing
-        spec, error = resolve_geometry(**_props_to_resolve_kwargs(props))
+        spec, error = _resolve_for_props(props)
         if error or spec is None:
             self.report({"ERROR"}, error or "Geometrie konnte nicht aufgelöst werden.")
             return {"CANCELLED"}
@@ -1064,14 +1096,20 @@ class UNI_OT_create_bearing(bpy.types.Operator):
                     )
         if props.bearing_type == constants.TAPERED:
             assembly["contact_angle_deg"] = props.contact_angle_deg
+            # Apex aus der tatsächlichen Rollenneigung θ = α − β (dort treffen
+            # sich Rollen-, Cup- und Kegel-Laufbahn-Achsen).
             assembly["tapered_apex_z_mm"] = tapered_apex_z(
-                spec.pitch_d, spec.roller_length, math.radians(props.contact_angle_deg)
+                spec.pitch_d, spec.roller_length, _tapered_roller_tilt(props, spec)
             )
             assembly["tapered_flange_height_mm"] = props.tapered_flange_height_mm
             if props.tapered_cone_width_mm > 0.0:
                 assembly["tapered_cone_width_mm"] = props.tapered_cone_width_mm
             if props.tapered_cup_width_mm > 0.0:
                 assembly["tapered_cup_width_mm"] = props.tapered_cup_width_mm
+        if props.bearing_type == constants.SPHERICAL:
+            assembly["spherical_rows"] = _spherical_rows(props)
+            if _spherical_rows(props) == 2:
+                assembly["spherical_contact_angle_deg"] = props.spherical_contact_angle_deg
         if props.bearing_type == constants.VGROOVE:
             assembly["vgroove_depth_mm"] = props.vgroove_depth_mm
             assembly["vgroove_half_angle_deg"] = props.vgroove_half_angle_deg
@@ -1096,6 +1134,7 @@ class UNI_OT_create_bearing(bpy.types.Operator):
             radial_load_Fr_N=props.radial_load_fr_n,
             axial_load_Fa_N=props.axial_load_fa_n,
             speed_rpm=props.speed_rpm,
+            rows=(_spherical_rows(props) if props.bearing_type == constants.SPHERICAL else None),
         )
         from . import fits as fits_mod
         fit = fits_mod.recommend_fits(

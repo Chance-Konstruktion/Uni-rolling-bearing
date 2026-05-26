@@ -17,7 +17,8 @@ Ein Blender-Addon zur Erstellung parametrischer Wälzlager (Kugel-, Zylinderroll
 - Zylinderrollenlager
 - Nadellager
 - Kegelrollenlager
-- Tonnenlager (sphärische Rollen)
+- Tonnenlager (einreihig, DIN 635-1) und Pendelrollenlager (zweireihig,
+  DIN 635-2) – umschaltbar über die Wälzkörper-Sektion
 - **U-Rillen-Kugellager / Führungsrolle (SG-Reihe)** – Kugellager mit
   V-/U-Rille im Außenmantel, Presets `SG10`, `SG15`, `SG20`, `SG25`,
   `SG35`, `SG66`
@@ -139,9 +140,12 @@ erzeugt, sondern aus einem typabhängigen Querschnittsprofil zu einem manifold
 Volumen revolviert (Modul `raceway.py`). Folgende Laufbahnen werden modelliert:
 
 - **Kugellager** – Rillen-Bogen (groove) mit Konformitätsfaktor f = r_groove/d_ball
-  in Innen- und Außenring. Reicht der Bogen geometrisch nicht bis zur Schulter
-  (z. B. weil der Wälzkörper-Ø sehr klein gewählt wurde), fällt das Profil
-  automatisch auf einen Hohlzylinder zurück. Zusätzlich kann eine 45°-Fase
+  in Innen- und Außenring. Die Kugel füllt den nutzbaren radialen Spalt (sie
+  sitzt mittig zwischen beiden Laufbahnen und reicht bis an die Schultern),
+  damit der Rillenbogen sichtbar unter die Schulter schneidet. Reicht der Bogen
+  geometrisch nicht bis zur Schulter (z. B. weil der Wälzkörper-Ø sehr klein
+  vorgegeben wurde), fällt das Profil automatisch auf einen Hohlzylinder
+  zurück. Zusätzlich kann eine 45°-Fase
   (DIN 620 / ISO 582 r_s) an der Bohrungs- bzw. Außenring-Kante eingestellt
   werden (`bearing_chamfer_mm`, Default 0.3 mm). Die Fase wird bei zu wenig
   Bauraum automatisch heruntergeclampt.
@@ -149,11 +153,16 @@ Volumen revolviert (Modul `raceway.py`). Folgende Laufbahnen werden modelliert:
   innen vorstehenden Borden, die die Rollen axial halten; Innenring zylindrisch.
   Bei zu engem Bauraum (Rolle füllt nahezu die ganze Lagerbreite) wird der
   Bord automatisch weggelassen.
-- **Kegelrollenlager** – Beide Ringe haben tatsächlich konische Laufbahnen,
-  geneigt mit dem Kontaktwinkel α (siehe nächster Abschnitt).
-- **Tonnenlager / Pendelrollenlager** – Außenring mit sphärischer
-  Innenlaufbahn, deren Sphärenradius automatisch aus Pitch-Ø und
-  Wälzkörperabmaßen abgeleitet wird.
+- **Kegelrollenlager** – Beide Ringe haben konische Laufbahnen mit gemeinsamem
+  Apex: die Cup-(Außen-)Laufbahn steht unter dem Kontaktwinkel α, die Kegel-
+  (Innen-)Laufbahn flacher unter α − 2β, und die Rolle ist ein echter
+  Kegelstumpf mit Halbwinkel β, um α − β gekippt (siehe nächster Abschnitt).
+- **Tonnenlager (einreihig, DIN 635-1)** – eine Tonnenrolle pro Position auf
+  einer zentralen konkaven Innenlaufbahn, Außenring mit sphärischer
+  Innenlaufbahn. **Pendelrollenlager (zweireihig, DIN 635-2)** – zwei um ±α
+  geneigte Reihen auf zwei Innenlaufbahnen mit Mittelbord. Die Reihenzahl wird
+  in der Wälzkörper-Sektion gewählt (Default: einreihig). Der Sphärenradius des
+  Außenrings wird automatisch aus Pitch-Ø und Wälzkörperabmaßen abgeleitet.
 - **U-Rillen-Kugellager (SG)** – Innen identisch zum Rillenkugellager,
   zusätzlich V-Rille im Außenmantel des Außenrings. Tiefe und Halbwinkel
   der V-Rille sind im Panel einstellbar (`vgroove_depth_mm`,
@@ -163,12 +172,18 @@ Volumen revolviert (Modul `raceway.py`). Folgende Laufbahnen werden modelliert:
 
 ## Kegelrollenlager: Kontaktwinkel
 
-Für Kegelrollenlager ist der Kontaktwinkel α einstellbar (Default 14°). Die
-Wälzkörper werden im Mesh-Frame um die lokale Y-Achse gekippt, *bevor* sie auf
-den Teilkreis rotiert werden – die Achsen aller Rollen treffen sich daher
-exakt auf der Lagerachse in einem gemeinsamen Apex. Der berechnete Apex-Z
-wird als Metadatum (`tapered_apex_z_mm`) am Bearing-Empty hinterlegt. Seit
-v0.6 sind die Laufbahnen passend zu α geneigt (vorher zylindrisch).
+Für Kegelrollenlager ist der Kontaktwinkel α einstellbar (Default 14°); per
+Konvention ist α die Neigung der Cup-(Außen-)Laufbahn zur Lagerachse. Damit
+Rolle und beide Laufbahnen einen gemeinsamen Apex auf der Lagerachse haben
+(reine Rollbewegung), leitet das Addon den halben Kegelwinkel der Rolle
+
+    β = ½ · (α − arctan( R_i/R_o · tan α ))
+
+aus den Laufbahnradien ab. Daraus folgen die flachere Kegel-(Innen-)Laufbahn
+unter α − 2β und die Rollenachsen-Neigung α − β. Die Wälzkörper werden als
+echte Kegelstümpfe (Halbwinkel β) im Mesh-Frame um die lokale Y-Achse gekippt,
+*bevor* sie auf den Teilkreis rotiert werden. Der berechnete Apex-Z wird als
+Metadatum (`tapered_apex_z_mm`) am Bearing-Empty hinterlegt.
 
 ## Käfig (optional)
 
