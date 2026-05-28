@@ -408,6 +408,33 @@
   Maßquellen vorliegen – erfundene Normmaße wären für ein norm-orientiertes
   Tool kontraproduktiv.
 
+### v0.24.1 – Bugfix: Kegelrollen-Resolver kontaktwinkel-bewusst (Visual-Konsistenz)
+- **Gefixter Bug:** Der Resolver (``geometry.resolve_geometry`` /
+  ``suggest_defaults``) ignorierte den Kegelrollen-Kontaktwinkel α und lieferte
+  ``roller_d``-Werte, die der Operator (``operators._tapered_roller_radii``)
+  beim Rendern auf ``max_face_r`` zurückclampte, damit die α-gekippte Großend-
+  Stirn die Außenlaufbahn nicht durchstößt. Folge: die im Panel angezeigte
+  ``Effektive Roller-Ø`` konnte deutlich größer sein als die tatsächlich
+  gerenderte Rolle (bei 30206 z. B. 7.61 mm Soll → 4.20 mm gezeichnet). Der
+  Bug existierte schon vor v0.24.0; durch die dünneren Ringe / höheren Füll-
+  grade aus v0.24.0 wurde er besonders auffällig.
+- **Fix:** Neuer Helfer ``geometry._tapered_max_roller_d`` spiegelt die
+  Operator-Clamp-Bedingung. ``resolve_geometry`` und ``suggest_defaults``
+  erhalten den optionalen Parameter ``contact_angle_deg`` und cappen
+  ``roller_d`` damit für TAPERED konsistent. Der Operator-Clamp greift nicht
+  mehr → Panel-Wert = gerenderte Rolle. Verifiziert mit Regressionstest
+  ``TestTaperedResolverIsContactAngleAware``.
+- **Konsequenz für Stückzahlen:** Bei α=14° begrenzt der Tilt die maximale
+  Rollengröße – die Stückzahl liegt damit systematisch ÜBER dem Katalog
+  (30206 → 39 statt 17). Die in v0.24.0 angekündigte Katalog-Stückzahl war
+  eine Folge des Mismatches und nicht real darstellbar. Das parametrische
+  Modell kann mit α=14° und Standard-Wandstärken keine katalogtreue Stück-
+  zahl UND visuell konsistente Rollen liefern – der Trade-off wird bewusst
+  zu Gunsten der visuellen Konsistenz aufgelöst (Spherical bleibt unverändert
+  – dort ist der Clamp nicht aktiv).
+- Referenz-Test-Bänder für Tapered-Counts entsprechend angepasst und
+  kommentiert; sind nun Geometrie-Regressionsbänder, kein Katalog-Vergleich.
+
 ---
 
 ## Als Nächstes (kurzfristig) 🟡

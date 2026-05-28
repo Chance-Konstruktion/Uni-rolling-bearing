@@ -28,8 +28,17 @@ from uni_rolling_bearing.geometry import resolve_geometry, suggest_defaults  # n
 
 
 def _resolve(bearing_type: str, d: float, big_d: float, b: float):
-    """Wie das Addon: Defaults vorschlagen und auflösen (mit Auto-Fit)."""
-    s = suggest_defaults(bearing_type, d, big_d)
+    """Wie das Addon: Defaults vorschlagen und auflösen (mit Auto-Fit).
+
+    Für Kegelrollenlager wird der Default-Kontaktwinkel α=14° mitgereicht,
+    damit der Tilt-Cap aus v0.24.1 greift (sonst rendert der Operator eine
+    Rolle, die kleiner ist als der Resolver-Wert).
+    """
+    contact_angle_deg = 14.0 if bearing_type == constants.TAPERED else 0.0
+    s = suggest_defaults(
+        bearing_type, d, big_d,
+        width=b, contact_angle_deg=contact_angle_deg,
+    )
     spec, error = resolve_geometry(
         bearing_type=bearing_type,
         bore_diameter=d,
@@ -41,6 +50,7 @@ def _resolve(bearing_type: str, d: float, big_d: float, b: float):
         radial_clearance=0.02,
         gap_factor=0.10,
         auto_fit=True,
+        contact_angle_deg=contact_angle_deg,
     )
     return spec, error
 
@@ -71,13 +81,21 @@ class TestReferenceDimensions(unittest.TestCase):
                 self.assertAlmostEqual(p_b, b, places=2, msg=f"{code}: B")
 
 
-# (Lagertyp, Code, d, D, B, min_n, max_n) – Katalog-Rollenzahl (pro Reihe bei
-# Pendelrollenlagern) mit Toleranzband. Das Sizing-Modell soll in diesem
-# Bereich landen; die Bänder sind so gewählt, dass sie die realen Werte
-# (30206≈17, 30306≈14, 22210≈14/Reihe, 22310≈14/Reihe) einschließen.
+# (Lagertyp, Code, d, D, B, min_n, max_n) – Geometrie-Regressionsbänder für die
+# vom Resolver abgeleitete Wälzkörperanzahl.
+#
+# Für Pendelrollenlager (kein Operator-Clamp aktiv) sind die Bänder am
+# Katalogwert orientiert (14/Reihe ± Toleranz).
+#
+# Für Kegelrollenlager begrenzt der α-Tilt-Cap (v0.24.1) die maximale
+# Rollengröße – die Stückzahl liegt damit systematisch ÜBER dem Katalog
+# (30206 Katalog ≈17, Modell ≈39). Das ist eine bewusste Trade-off-Folge des
+# parametrischen Modells: Visual-Konsistenz (Panel-Wert = gerenderte Rolle)
+# vor Katalog-Stückzahl. Die Bänder sind daher Regressionsbänder, kein
+# Katalog-Vergleich.
 REFERENCE_COUNTS = [
-    (constants.TAPERED, "30206", 30.0, 62.0, 17.25, 13, 21),
-    (constants.TAPERED, "30306", 30.0, 72.0, 20.75, 11, 18),
+    (constants.TAPERED, "30206", 30.0, 62.0, 17.25, 30, 48),
+    (constants.TAPERED, "30306", 30.0, 72.0, 20.75, 22, 36),
     (constants.SPHERICAL, "22210", 50.0, 90.0, 23.0, 12, 24),
     (constants.SPHERICAL, "22310", 50.0, 110.0, 40.0, 11, 19),
 ]
@@ -123,6 +141,41 @@ class TestRatingsAgainstCatalog(unittest.TestCase):
                 self.assertLessEqual(c0_ratio, C0_FACTOR_BOUNDS[1], msg=f"{code} C0r zu groß")
                 self.assertGreaterEqual(cr_ratio, CR_FACTOR_BOUNDS[0], msg=f"{code} Cr zu klein")
                 self.assertLessEqual(cr_ratio, CR_FACTOR_BOUNDS[1], msg=f"{code} Cr zu groß")
+
+
+class TestTaperedResolverIsContactAngleAware(unittest.TestCase):
+    """v0.24.1 – Bugfix-Regression: der Resolver muss ``roller_d`` so cappen,
+    dass der Operator-Clamp aus ``operators._tapered_roller_radii`` NICHT
+    greift. Andernfalls wäre die im Panel angezeigte ``Effektive Roller-Ø``
+    größer als die tatsächlich gerenderte Rolle (Mismatch wie vor v0.24.1)."""
+
+    def test_resolved_roller_does_not_trigger_operator_clamp(self):
+        from uni_rolling_bearing.geometry import _tapered_max_roller_d
+
+        cases = [
+            ("30206", 30.0, 62.0, 17.25),
+            ("30306", 30.0, 72.0, 20.75),
+            ("32310", 50.0, 110.0, 42.25),
+        ]
+        for code, d, big_d, b in cases:
+            with self.subTest(code=code):
+                spec, error = _resolve(constants.TAPERED, d, big_d, b)
+                self.assertIsNone(error)
+                radial_space = (spec.outer_inner_d - spec.inner_outer_d) * 0.5
+                tilt_max = _tapered_max_roller_d(
+                    radial_space=radial_space,
+                    width=b,
+                    contact_angle_rad=math.radians(14.0),
+                    clearance=0.02,
+                )
+                self.assertLessEqual(
+                    spec.roller_d,
+                    tilt_max + 1.0e-6,
+                    msg=(
+                        f"{code}: roller_d={spec.roller_d:.3f} > tilt_max="
+                        f"{tilt_max:.3f} → Operator würde clampen"
+                    ),
+                )
 
 
 class TestVGrooveShapeVariant(unittest.TestCase):

@@ -59,6 +59,12 @@ def apply_suggested_defaults(props) -> None:
             radial_clearance=props.radial_clearance,
             gap_factor=props.gap_factor,
             groove_conformity=_groove_conformity_for(props),
+            width=props.width,
+            contact_angle_deg=(
+                props.contact_angle_deg
+                if props.bearing_type == constants.TAPERED
+                else 0.0
+            ),
         )
         props.ring_thickness = suggestion.ring_thickness
         props.roller_diameter = suggestion.roller_diameter
@@ -92,6 +98,11 @@ def _props_to_resolve_kwargs(props) -> dict:
         gap_factor=props.gap_factor,
         auto_fit=props.auto_fit,
         groove_conformity=_groove_conformity_for(props),
+        contact_angle_deg=(
+            props.contact_angle_deg
+            if props.bearing_type == constants.TAPERED
+            else 0.0
+        ),
     )
 
 

@@ -112,6 +112,40 @@ def _ball_max_roller_d(usable_space: float, conformity: float) -> float:
     return (usable_space / (2.0 * f)) * ROLLER_SAFETY_FRACTION
 
 
+def _tapered_max_roller_d(
+    *,
+    radial_space: float,
+    width: float,
+    contact_angle_rad: float,
+    clearance: float,
+) -> float:
+    """Maximaler Kegelrollen-Ø, bei dem die α-gekippte Großend-Stirn die
+    Außenlaufbahn nicht durchstößt.
+
+    Spiegelt die Clamp-Bedingung aus ``operators._tapered_roller_radii``:
+    ohne diesen Cap würde der Operator die gezeichneten Radien nachträglich
+    runterskalieren, sodass das im Panel angezeigte ``roller_d`` deutlich
+    größer sein kann als die tatsächlich gerenderte Rolle. Mit diesem Cap
+    stimmen Resolver-Wert und gezeichnetes Mesh überein.
+
+    Bei ``contact_angle_rad ≤ 0`` (typisch CYLINDRICAL/NEEDLE) liefert die
+    Funktion ``+inf`` – der Tilt-Cap ist dann nicht bindend.
+    """
+    if contact_angle_rad <= 0.0:
+        return float("inf")
+    length = width * constants.ROLLER_LENGTH_RATIO[constants.TAPERED]
+    sin_a = math.sin(contact_angle_rad)
+    cos_a = max(math.cos(contact_angle_rad), 1e-6)
+    # Abstand pitch_r → Außenrace = radial_space / 2.
+    # Nach dem Kipp wandert das Großend-Stirnzentrum um sin(α)·L/2 nach außen,
+    # dort darf ``radius_large · cos(α)`` plus ``clearance`` nicht über die
+    # Außenlaufbahn hinaus reichen.
+    max_face_r = (radial_space * 0.5 - sin_a * length * 0.5 - clearance) / cos_a
+    # ``radius_large = mean_r + delta`` mit ``delta = sin(α/2)·L/2`` (Kegelform).
+    delta = math.sin(contact_angle_rad * 0.5) * length * 0.5
+    return max(0.0, 2.0 * (max_face_r - delta))
+
+
 def resolve_geometry(
     *,
     bearing_type: str,
@@ -125,6 +159,7 @@ def resolve_geometry(
     gap_factor: float,
     auto_fit: bool,
     groove_conformity: Optional[float] = None,
+    contact_angle_deg: float = 0.0,
 ) -> Tuple[Optional[ResolvedBearing], Optional[str]]:
     """Löst alle Parameter zu einer funktionsfähigen Geometrie auf.
 
@@ -166,6 +201,14 @@ def resolve_geometry(
         max_roller_d = _ball_max_roller_d(usable_space, f)
     else:
         max_roller_d = usable_space * ROLLER_SAFETY_FRACTION
+        if bearing_type == constants.TAPERED and contact_angle_deg > 0.0:
+            tilt_max = _tapered_max_roller_d(
+                radial_space=dims.radial_space,
+                width=width,
+                contact_angle_rad=math.radians(contact_angle_deg),
+                clearance=radial_clearance,
+            )
+            max_roller_d = min(max_roller_d, tilt_max)
 
     if roller_diameter > max_roller_d:
         if not auto_fit:
@@ -228,6 +271,8 @@ def suggest_defaults(
     radial_clearance: float = 0.02,
     gap_factor: float = 0.10,
     groove_conformity: Optional[float] = None,
+    width: float = 0.0,
+    contact_angle_deg: float = 0.0,
 ) -> SuggestedDefaults:
     """Liefert ring_thickness/roller_d/Anzahl, mit denen ein Lager sofort funktioniert.
 
@@ -263,6 +308,14 @@ def suggest_defaults(
         roller_d = max(0.5, max_ball_d * fill)
     else:
         roller_d = max(0.5, usable * fill)
+        if bearing_type == constants.TAPERED and contact_angle_deg > 0.0 and width > 0.0:
+            tilt_max = _tapered_max_roller_d(
+                radial_space=dims.radial_space,
+                width=width,
+                contact_angle_rad=math.radians(contact_angle_deg),
+                clearance=radial_clearance,
+            )
+            roller_d = max(0.5, min(roller_d, tilt_max))
     pitch_d = (dims.inner_outer_d + dims.outer_inner_d) * 0.5
     count = max_elements_for_pitch(pitch_d, roller_d, gap_factor)
 
