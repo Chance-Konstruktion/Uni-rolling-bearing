@@ -65,14 +65,19 @@ ROLLER_LENGTH_RATIO: Dict[str, float] = {
 # beiden Reihen am Mittelband überlappen.
 SPHERICAL_TWO_ROW_LENGTH_FACTOR = 0.70
 
-# Empfohlene Ringstärke als Anteil von (D − d). Praxisorientierte Faustwerte:
-# Rillenkugellager bei ≈ 1/12 – der Wert wird zusammen mit der Rillen-Formel
-# in ``geometry.resolve_geometry`` ausgelegt: ``ring_thickness`` ist die
-# Mindestwand zwischen Bohrung und Rillenboden (nicht die Schulterhöhe), die
-# Kugel sinkt mit ``f·d_ball`` in die Rille ein. So treffen die Defaults
-# reale Maßreihen (6204 → ø7.94 mm).
+# Empfohlene Ringstärke als Anteil von (D − d). Praxisorientierte Faustwerte.
+#
+# Bei Rillenkugellagern ist ``ring_thickness`` die radiale Wand von der Bohrung
+# (bzw. dem Außen-Ø) bis zur **Schulter** (dem zylindrischen Laufbahnsteg neben
+# der Rille). Die Kugel überspannt anschließend den Schulterabstand PLUS die
+# innere und äußere Rillentiefe (DIN-625-Rillenformel, siehe
+# ``geometry.ball_diameter_from_groove``). Damit die Schultern – und über die
+# Rillenformel die Kugel – reale Maßreihen treffen (6204 → ø≈7.9 mm), sitzt die
+# Schulterwand bei ≈ 2/15·(D−d); die frühere 1/12-Wand legte die „Schulter“
+# faktisch auf den Rillenboden und ließ die Kugel zwischen den Schultern
+# schweben (zu klein/lose wirkend).
 TYPE_RING_THICKNESS_RATIO: Dict[str, float] = {
-    BALL: 1.0 / 12.0,
+    BALL: 2.0 / 15.0,
     CYLINDRICAL: 1.0 / 7.0,
     NEEDLE: 1.0 / 12.0,
     # Kegel- und Pendelrollenlager haben vergleichsweise dünne Ringe und
@@ -82,8 +87,8 @@ TYPE_RING_THICKNESS_RATIO: Dict[str, float] = {
     TAPERED: 1.0 / 9.0,
     SPHERICAL: 1.0 / 9.0,
     # SG-Führungsrollen sind Rillenkugellager mit zusätzlicher V-Rille im
-    # Außenmantel – dieselbe Wand-Faustregel wie beim Standard-Kugellager.
-    VGROOVE: 1.0 / 12.0,
+    # Außenmantel – dieselbe Schulterwand-Faustregel wie beim Standard-Kugellager.
+    VGROOVE: 2.0 / 15.0,
 }
 
 # Empfohlener Anteil des nutzbaren Radial-Spalts, den der Wälzkörper-Ø

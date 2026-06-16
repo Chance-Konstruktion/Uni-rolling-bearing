@@ -140,12 +140,16 @@ erzeugt, sondern aus einem typabhängigen Querschnittsprofil zu einem manifold
 Volumen revolviert (Modul `raceway.py`). Folgende Laufbahnen werden modelliert:
 
 - **Kugellager** – Rillen-Bogen (groove) mit Konformitätsfaktor f = r_groove/d_ball
-  in Innen- und Außenring. Die Kugel füllt den nutzbaren radialen Spalt (sie
-  sitzt mittig zwischen beiden Laufbahnen und reicht bis an die Schultern),
-  damit der Rillenbogen sichtbar unter die Schulter schneidet. Reicht der Bogen
-  geometrisch nicht bis zur Schulter (z. B. weil der Wälzkörper-Ø sehr klein
-  vorgegeben wurde), fällt das Profil automatisch auf einen Hohlzylinder
-  zurück. Zusätzlich kann eine 45°-Fase
+  in Innen- und Außenring. Der Kugel-Ø wird nach der **DIN-625-Rillenformel**
+  ausgelegt: `d_w = Schulterspalt + innere Rillentiefe + äußere Rillentiefe −
+  Lagerluft` (siehe `geometry.ball_diameter_from_groove`). Die Kugel ist damit
+  *größer* als der reine Schulterspalt und taucht über beide Schultern hinaus in
+  die Rillen ein (statt zwischen den Schultern zu schweben – früher wirkte die
+  Kugel dadurch „zu klein“). Nach oben begrenzt sie nur die Restwand zwischen
+  Rillenboden und Bohrung/Außenmantel. Die vorgeschlagene Kugelzahl orientiert
+  sich am katalognahen Umfangsfüllgrad (≈ 60 %, z. B. 6204 → 8 Kugeln). Reicht
+  der Bogen geometrisch nicht bis zur Schulter, fällt das Profil automatisch auf
+  einen Hohlzylinder zurück. Zusätzlich kann eine 45°-Fase
   (DIN 620 / ISO 582 r_s) an der Bohrungs- bzw. Außenring-Kante eingestellt
   werden (`bearing_chamfer_mm`, Default 0.3 mm). Die Fase wird bei zu wenig
   Bauraum automatisch heruntergeclampt.

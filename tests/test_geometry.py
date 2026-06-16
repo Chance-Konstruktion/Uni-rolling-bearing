@@ -100,16 +100,42 @@ class TestResolveGeometry(unittest.TestCase):
         )
 
     def test_roller_does_not_clip_outer_race(self):
-        # Selbst bei maximalem Wälzkörper-Ø darf der äußere Punkt der Rolle
-        # nicht in den Außenring ragen.
+        # Zylinderrollen sitzen zwischen den Schultern (keine Rille): selbst bei
+        # maximalem Ø darf die Rolle nicht über die Schultern hinausragen.
         spec, error = resolve_geometry(
-            **_base_kwargs(roller_diameter=50.0, auto_fit=True)
+            **_base_kwargs(bearing_type=constants.CYLINDRICAL, roller_diameter=50.0, auto_fit=True)
         )
         self.assertIsNone(error)
         outer_extent = spec.pitch_d * 0.5 + spec.roller_d * 0.5
         self.assertLessEqual(outer_extent, spec.outer_inner_d * 0.5 + 1e-6)
         inner_extent = spec.pitch_d * 0.5 - spec.roller_d * 0.5
         self.assertGreaterEqual(inner_extent, spec.inner_outer_d * 0.5 - 1e-6)
+
+    def test_ball_reaches_into_groove_but_not_through_wall(self):
+        # Kugeln tauchen über die Schultern hinaus in die Rillen ein (Ø > Schulter-
+        # spalt). Der Rillenboden (conformity·d_w vom Teilkreis) muss aber innerhalb
+        # der Ringwände bleiben, sonst durchsticht die Rille Bohrung/Außenmantel.
+        from uni_rolling_bearing.geometry import (
+            BALL_GROOVE_CONFORMITY_INNER,
+            BALL_GROOVE_CONFORMITY_OUTER,
+            MIN_BALL_WALL_MM,
+        )
+
+        spec, error = resolve_geometry(
+            **_base_kwargs(bearing_type=constants.BALL, roller_diameter=50.0, auto_fit=True)
+        )
+        self.assertIsNone(error)
+        pitch_r = spec.pitch_d * 0.5
+        # Kugel ragt über beide Schultern hinaus (das ist der Fix gegen „zu klein“).
+        self.assertGreater(pitch_r + spec.roller_d * 0.5, spec.outer_inner_d * 0.5)
+        self.assertLess(pitch_r - spec.roller_d * 0.5, spec.inner_outer_d * 0.5)
+        # Rillenboden bleibt mit Mindestwand innerhalb von Bohrung/Außenmantel.
+        inner_groove_bottom = pitch_r - BALL_GROOVE_CONFORMITY_INNER * spec.roller_d
+        outer_groove_bottom = pitch_r + BALL_GROOVE_CONFORMITY_OUTER * spec.roller_d
+        bore_r = 20.0 * 0.5
+        outer_r = 47.0 * 0.5
+        self.assertGreaterEqual(inner_groove_bottom, bore_r + MIN_BALL_WALL_MM - 1e-6)
+        self.assertLessEqual(outer_groove_bottom, outer_r - MIN_BALL_WALL_MM + 1e-6)
 
     def test_bore_not_smaller_than_outer(self):
         spec, error = resolve_geometry(**_base_kwargs(bore_diameter=50.0, outer_diameter=47.0))
@@ -130,15 +156,33 @@ class TestResolveGeometry(unittest.TestCase):
         self.assertIn("Wälzkörper-Ø", error)
 
     def test_roller_too_large_is_clamped_with_auto_fit(self):
-        spec, error = resolve_geometry(**_base_kwargs(roller_diameter=50.0, auto_fit=True))
+        # Rolle (kein Rillen-Sizing): wird auf den Schulterspalt geclampt.
+        spec, error = resolve_geometry(
+            **_base_kwargs(bearing_type=constants.CYLINDRICAL, roller_diameter=50.0, auto_fit=True)
+        )
         self.assertIsNone(error)
         self.assertLess(spec.roller_d, 50.0)
-        # Kugellager: radialer Spalt = ((47-2·4) - (20+2·4))/2 = 5.5 mm,
-        # abzgl. Lagerluft 2·0.02 = 0.04 mm. Die Kugel füllt den Spalt wie eine
-        # Rolle (· ROLLER_SAFETY_FRACTION), damit sie bis an beide Schultern
-        # reicht und der Rillenbogen sichtbar einschneidet.
+        # Radialer Spalt = ((47-2·4) - (20+2·4))/2 = 5.5 mm, abzgl. Lagerluft
+        # 2·0.02 = 0.04 mm, mal Sicherheitsanteil 0.98.
         max_allowed = (5.5 - 0.04) * 0.98
         self.assertAlmostEqual(spec.roller_d, max_allowed, places=4)
+
+    def test_ball_too_large_clamped_to_wall_limit(self):
+        # Kugel wird NICHT auf den Schulterspalt, sondern auf die Restwand-Grenze
+        # geclampt (Kugel darf in die Rillen reichen).
+        from uni_rolling_bearing.geometry import max_ball_diameter_for_walls
+
+        spec, error = resolve_geometry(
+            **_base_kwargs(bearing_type=constants.BALL, roller_diameter=50.0, auto_fit=True)
+        )
+        self.assertIsNone(error)
+        max_allowed = max_ball_diameter_for_walls(
+            bore_diameter=20.0, outer_diameter=47.0,
+            inner_outer_d=spec.inner_outer_d, outer_inner_d=spec.outer_inner_d,
+        )
+        self.assertAlmostEqual(spec.roller_d, max_allowed, places=4)
+        # Diese Grenze liegt über dem reinen Schulterspalt (Kugel taucht ein).
+        self.assertGreater(spec.roller_d, spec.outer_inner_d * 0.5 - spec.inner_outer_d * 0.5)
 
     def test_too_many_elements_without_auto_fit(self):
         spec, error = resolve_geometry(
