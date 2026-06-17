@@ -58,6 +58,20 @@ def params_from_obj(obj) -> BearingParams:
     return BearingParams(**kwargs)
 
 
+def set_params_on_obj(obj, params: BearingParams) -> None:
+    """Schreibt eine :class:`BearingParams`-Instanz zurück in die Objekt-Properties."""
+    for spec in uischema.SCHEMA:
+        value = getattr(params, spec.name)
+        if spec.py_kind == "enum":
+            setattr(obj, spec.name, str(value))
+        elif spec.py_kind == "int":
+            setattr(obj, spec.name, int(value))
+        elif spec.py_kind == "bool":
+            setattr(obj, spec.name, bool(value))
+        else:
+            setattr(obj, spec.name, float(value))
+
+
 def apply_visibility(obj) -> None:
     """Blendet kontextabhängig nicht genutzte Felder aus (Werte bleiben erhalten)."""
     vis = uischema.visible_fields(
@@ -151,6 +165,7 @@ __all__ = [
     "ViewProviderBearing",
     "add_properties",
     "params_from_obj",
+    "set_params_on_obj",
     "apply_visibility",
     "make_bearing",
 ]

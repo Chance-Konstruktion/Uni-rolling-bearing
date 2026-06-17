@@ -296,8 +296,9 @@ class TestCommands(unittest.TestCase):
                 sys.modules.pop("FreeCADGui", None)
             else:
                 sys.modules["FreeCADGui"] = saved
-        self.assertEqual(ids, [wb_commands.CREATE_COMMAND])
+        self.assertEqual(ids, [wb_commands.CATALOG_COMMAND, wb_commands.CREATE_COMMAND])
         self.assertIn(wb_commands.CREATE_COMMAND, added)
+        self.assertIn(wb_commands.CATALOG_COMMAND, added)
 
     def test_command_resources_and_activate(self):
         from freecad_backend.workbench.wb_commands import CreateBearingCommand
@@ -349,11 +350,100 @@ class TestCommands(unittest.TestCase):
             else:
                 sys.modules["FreeCADGui"] = saved
 
-        from freecad_backend.workbench.wb_commands import CREATE_COMMAND
+        from freecad_backend.workbench.wb_commands import CREATE_COMMAND, CATALOG_COMMAND
 
+        expected = [CATALOG_COMMAND, CREATE_COMMAND]
         self.assertIn(CREATE_COMMAND, added)
-        self.assertEqual(wb.__dict__["_toolbars"]["UNI Bearings"], [CREATE_COMMAND])
-        self.assertEqual(wb.__dict__["_menus"]["UNI Bearings"], [CREATE_COMMAND])
+        self.assertIn(CATALOG_COMMAND, added)
+        self.assertEqual(wb.__dict__["_toolbars"]["UNI Bearings"], expected)
+        self.assertEqual(wb.__dict__["_menus"]["UNI Bearings"], expected)
+
+
+# --------------------------------------------------------------------------- #
+# 4) Host-freier Katalog-Helfer                                               #
+# --------------------------------------------------------------------------- #
+
+
+class TestCatalog(unittest.TestCase):
+    def test_bearing_type_choices_cover_constants(self):
+        from freecad_backend import catalog
+
+        ids = [bid for bid, _label, _desc in catalog.bearing_type_choices()]
+        self.assertEqual(ids, [bid for bid, _l, _d in constants.BEARING_TYPES])
+
+    def test_series_codes_sorted_and_nonempty(self):
+        from freecad_backend import catalog
+
+        codes = catalog.series_codes(constants.BALL)
+        self.assertIn("6204", codes)
+        self.assertEqual(codes, sorted(codes))
+
+    def test_preset_dims_known_and_unknown(self):
+        from freecad_backend import catalog
+
+        self.assertIsNotNone(catalog.preset_dims(constants.BALL, "6204"))
+        self.assertIsNone(catalog.preset_dims(constants.BALL, "NOPE"))
+
+    def test_apply_preset_sets_main_dims_and_defaults(self):
+        from freecad_backend import catalog
+
+        d, D, B = catalog.preset_dims(constants.BALL, "6204")
+        params = catalog.apply_preset(BearingParams(), constants.BALL, "6204")
+        self.assertEqual(params.bearing_type, constants.BALL)
+        self.assertAlmostEqual(params.bore_diameter, d)
+        self.assertAlmostEqual(params.outer_diameter, D)
+        self.assertAlmostEqual(params.width, B)
+        # Wälzkörper-Defaults wurden katalognah nachgezogen.
+        self.assertGreater(params.roller_diameter, 0.0)
+        self.assertGreaterEqual(params.element_count, 3)
+
+    def test_apply_preset_tapered_sets_cone_cup_widths(self):
+        from freecad_backend import catalog
+
+        codes = catalog.series_codes(constants.TAPERED)
+        params = catalog.apply_preset(BearingParams(), constants.TAPERED, codes[0])
+        self.assertEqual(params.bearing_type, constants.TAPERED)
+        self.assertGreater(params.tapered_cone_width_mm, 0.0)
+
+    def test_apply_preset_unknown_keeps_dims_but_sets_type(self):
+        from freecad_backend import catalog
+
+        base = BearingParams()
+        params = catalog.apply_preset(base, constants.SPHERICAL, "NOPE")
+        self.assertEqual(params.bearing_type, constants.SPHERICAL)
+        self.assertAlmostEqual(params.bore_diameter, base.bore_diameter)
+
+    def test_coding_matches_norm_engine(self):
+        from freecad_backend import catalog
+        from uni_rolling_bearing import norm_engine
+
+        self.assertEqual(catalog.coding_for(constants.BALL), "din623")
+        self.assertEqual(catalog.coding_for(constants.NEEDLE), "direct")
+        for bid, _l, _d in constants.BEARING_TYPES:
+            self.assertEqual(catalog.coding_for(bid), norm_engine.coding_for(bid))
+
+    def test_din623_series_bore_combine_to_known_preset(self):
+        from freecad_backend import catalog
+
+        series = catalog.mass_series_for(constants.BALL)
+        self.assertIn("62", series)
+        bores = catalog.bore_codes_for(constants.BALL, "62")
+        self.assertIn("04", bores)
+        code = catalog.combined_code("62", "04")
+        self.assertEqual(code, "6204")
+        self.assertIsNotNone(catalog.preset_dims(constants.BALL, code))
+
+    def test_direct_types_have_no_mass_series(self):
+        from freecad_backend import catalog
+
+        self.assertEqual(catalog.mass_series_for(constants.NEEDLE), [])
+        self.assertEqual(catalog.bore_codes_for(constants.NEEDLE, ""), [])
+
+    def test_norm_hint_nonempty_for_all_types(self):
+        from freecad_backend import catalog
+
+        for bid, _l, _d in constants.BEARING_TYPES:
+            self.assertTrue(catalog.norm_hint_for(bid))
 
 
 if __name__ == "__main__":
