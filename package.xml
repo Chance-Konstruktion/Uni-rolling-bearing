@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
+  <name>UNI Rolling Bearing Generator</name>
+  <description>
+    Parametrische, normgerechte Wälzlager (Kugel-, Zylinder-, Nadel-, Kegel-,
+    Pendel-/Tonnenrollenlager) als FreeCAD-Workbench. Teilt den host-freien
+    Geometrie-Kern mit dem gleichnamigen Blender-Add-on.
+  </description>
+  <version>0.29.0</version>
+  <date>2026-06-17</date>
+  <maintainer email="introareback@gmail.com">Chance-Konstruktion</maintainer>
+  <license file="LICENSE">MIT</license>
+
+  <url type="repository" branch="main">https://github.com/chance-konstruktion/uni-rolling-bearing</url>
+  <url type="bugtracker">https://github.com/chance-konstruktion/uni-rolling-bearing/issues</url>
+
+  <content>
+    <workbench>
+      <classname>UniBearingWorkbench</classname>
+      <subdirectory>./</subdirectory>
+      <icon>freecad_backend/workbench/icons/bearing.svg</icon>
+      <description>Erzeugt parametrische Wälzlager nach DIN/ISO direkt in FreeCAD.</description>
+      <tag>bearing</tag>
+      <tag>mechanical</tag>
+      <tag>parametric</tag>
+      <tag>DIN</tag>
+      <tag>ISO</tag>
+      <freecadmin>0.21</freecadmin>
+    </workbench>
+  </content>
+</package>

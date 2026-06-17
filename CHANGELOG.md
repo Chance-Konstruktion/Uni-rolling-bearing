@@ -9,6 +9,44 @@ Veröffentlichungsdaten erfasst; sie sind chronologisch absteigend gelistet.
 
 Geplante, noch offene Arbeiten stehen in [`ROADMAP.md`](ROADMAP.md).
 
+## [0.29.0] – 2026-06-17
+
+Erste Stufe des **FreeCAD-Ports**: derselbe host-freie Geometrie-Kern, jetzt mit
+einem zweiten Frontend. Blender bleibt unverändert; FreeCAD baut aus demselben
+`resolve_geometry`/`raceway`-Ergebnis echte `Part`-Solids.
+
+### Added
+- **`freecad_backend/`** – dünne Brücke zwischen Kern und FreeCAD:
+  - `params.py`: host-freie `BearingParams`-Datenklasse (spiegelt die Blender-UI,
+    inkl. `apply_suggested_defaults()`), **ohne** `bpy`/`FreeCAD`.
+  - `plan.py`: host-freier `BearingPlan` (Ring-Querschnittsprofile +
+    Wälzkörper-/Käfig-Platzierungen). Der „was wird wo gebaut"-Entscheidungsbaum
+    ohne Host – die Geometrie-Mathematik wird aus dem Kern aufgerufen, nicht
+    dupliziert.
+  - `backend_freecad.py`: baut aus dem Plan `Part`-Solids. Rotationskörper
+    entstehen aus **geraden Polygon-Meridianen** (Revolve), nie aus BSplines –
+    damit trifft der FreeCAD-Körper exakt dieselben Nennmaße wie der Blender-Mesh
+    (gerade Schultern bleiben gerade, kein Naht-/Verrundungs-Defekt).
+- **`InitGui.py`** + **`package.xml`** im Repo-Root: FreeCAD-Workbench-Discovery
+  und Addon-Manager-Metadaten. Robuste `__file__`-Ermittlung (FreeCAD setzt
+  `__file__` nicht) und `sys.path`-Bootstrap; Modulvariablen (Icon) erst nach der
+  Klassendefinition gesetzt (getrennte globals/locals).
+- Workbench-Icon (`freecad_backend/workbench/icons/bearing.svg`).
+- Tests `tests/test_freecad_backend.py` (12): saubere Revolve-Ringprofile je Typ,
+  Wälzkörperzahl/-typ, Käfig-Pocket-Cutter, Part-Backend mit gemocktem
+  `Part`/`FreeCAD` (Polygon- statt BSpline-Revolve, korrekte Primitive je Typ,
+  Boolean-Pockets) und der `InitGui.py`-Ausführungspfad ohne `__file__` /
+  getrennte Namensräume. Gesamt 185 Tests.
+
+### Changed
+- CI byte-kompiliert zusätzlich `freecad_backend/` und `InitGui.py` (Syntaxcheck).
+- Addon-Version `0.28.0 → 0.29.0`.
+
+> Hinweis: Die GUI-Commands/Toolbar der Workbench (Button „Lager erzeugen",
+> kontextabhängiger Eigenschaften-Editor) folgen im nächsten Schritt. Die
+> Geometrie ist bereits über `freecad_backend.backend_freecad.build_bearing`
+> nutzbar.
+
 ## [0.28.0] – 2026-06-17
 
 Wie zuvor bei Kugeln und Kegelrollen saßen auch Zylinder-, Nadel- und

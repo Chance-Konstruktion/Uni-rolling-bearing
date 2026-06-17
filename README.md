@@ -237,30 +237,67 @@ den Käfig komplett.
 
 ## Entwicklung
 
-Modulstruktur des Addons:
+Modulstruktur – ein **host-freier Geometrie-Kern**, zwei Frontends
+(Blender + FreeCAD):
 
 ```
-uni_rolling_bearing/
+uni_rolling_bearing/      # Geteilter Kern + Blender-Frontend
 ├── __init__.py        # bl_info, register/unregister (lazy bpy-Import)
-├── constants.py       # Lagertyp-IDs, Presets, Normhinweise
-├── geometry.py        # Pure Geometriefunktionen (testbar ohne Blender)
-├── raceway.py         # Laufbahn-Querschnittsprofile (testbar ohne Blender)
-├── mesh_builders.py   # BMesh-Helfer (Ringe, Revolution, Kugeln, Rollen, Tonnen)
-├── properties.py      # PropertyGroup für das N-Panel
-├── operators.py       # Erstell-/Preset-Operatoren
-└── panel.py           # N-Panel UI
+├── constants.py       # Lagertyp-IDs, Presets, Normhinweise            [Kern]
+├── geometry.py        # Pure Geometriefunktionen (testbar ohne Host)   [Kern]
+├── raceway.py         # Laufbahn-Querschnittsprofile (ohne Host)       [Kern]
+├── ratings.py · fits.py · tolerances.py · norm_engine.py · din623.py   [Kern]
+├── mesh_builders.py   # BMesh-Helfer (Ringe, Revolution, Kugeln, …)  [Blender]
+├── properties.py      # PropertyGroup für das N-Panel                [Blender]
+├── operators.py       # Erstell-/Preset-Operatoren                   [Blender]
+└── panel.py           # N-Panel UI                                   [Blender]
+
+freecad_backend/          # FreeCAD-Frontend (nutzt denselben Kern)
+├── params.py          # host-freie BearingParams (spiegelt die UI)
+├── plan.py            # host-freier BearingPlan (Profile + Platzierungen)
+├── backend_freecad.py # baut Part-Solids aus dem Plan (Polygon-Revolve)
+└── workbench/         # GUI-Commands/Toolbar (in Arbeit) + Icon
+InitGui.py · package.xml  # FreeCAD-Workbench-Discovery (Repo-Root)
 ```
+
+Der Kern importiert **weder** `bpy` **noch** `FreeCAD`; beide Frontends rufen
+dieselbe Geometrie. Dadurch laufen alle Tests ohne installierten Host.
 
 Syntaxcheck lokal:
 
 ```bash
-python -m compileall uni_rolling_bearing/
+python -m compileall uni_rolling_bearing/ freecad_backend/ InitGui.py
 ```
 
 Unit-Tests (laufen ohne Blender, prüfen die Geometrie-Schicht):
 
 ```bash
 python -m unittest discover tests
+```
+
+## FreeCAD-Workbench (ab v0.29, in Arbeit)
+
+Das Projekt wird zusätzlich als **FreeCAD-Workbench** verfügbar gemacht – mit
+demselben Geometrie-Kern wie das Blender-Addon. So entstehen in FreeCAD echte
+BREP-Solids, die sich nativ als **STEP/IGES** exportieren lassen (kein Umweg über
+eine Blender-Bridge mehr).
+
+Stand v0.29: Repo-Struktur (`InitGui.py`, `package.xml`), der host-freie Bauplan
+und das `Part`-Backend stehen und sind getestet. Rotationskörper werden bewusst
+aus **geraden Polygon-Meridianen** revolviert (nicht aus BSplines), damit der
+FreeCAD-Körper exakt dieselben Nennmaße trifft wie der Blender-Mesh.
+
+Die GUI-Commands/Toolbar (Button „Lager erzeugen", `Part::FeaturePython`-Proxy
+mit Live-Rebuild) folgen im nächsten Schritt – siehe [`ROADMAP.md`](ROADMAP.md).
+Die Geometrie ist bereits programmatisch nutzbar:
+
+```python
+from freecad_backend.params import BearingParams
+from freecad_backend.backend_freecad import build_bearing  # benötigt FreeCAD
+
+params = BearingParams(bearing_type="BALL", bore_diameter=20, outer_diameter=47, width=14)
+params.apply_suggested_defaults()
+result = build_bearing(params)   # result.inner_ring / .outer_ring / .elements …
 ```
 
 ## Lizenz
