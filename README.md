@@ -50,7 +50,8 @@ Aktuell berücksichtigt:
   Fa/C0r-interpoliert; Kegelrollen/Pendelrollen rechnen über den
   Kontaktwinkel α; Zylinderrollen-/Nadellager ignorieren `Fa`.
 
-Geplant (siehe ROADMAP):
+Geplant (siehe [ROADMAP](ROADMAP.md); umgesetzte Änderungen im
+[CHANGELOG](CHANGELOG.md)):
 
 - SG-Zwischengrößen (SG30/40/55) – ausstehend, bis belastbare Maßquellen
   vorliegen. Die U-Profil-Variante der SG-Außenrille ist seit v0.24 verfügbar
