@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-label="UNI Rolling Bearing Generator">
+  <title>UNI Rolling Bearing Generator</title>
+
+  <defs>
+    <linearGradient id="title" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"  stop-color="#eef2f6"/>
+      <stop offset="55%" stop-color="#c2c8cf"/>
+      <stop offset="100%" stop-color="#f5c518"/>
+    </linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8b939c"/>
+      <stop offset="100%" stop-color="#3c434c"/>
+    </linearGradient>
+    <linearGradient id="steel2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6b727b"/>
+      <stop offset="100%" stop-color="#2b3138"/>
+    </linearGradient>
+    <radialGradient id="glowY" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f5c518" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#f5c518" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowS" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#5a6470" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#5a6470" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#2a2f37" stroke-width="1"/>
+    </pattern>
+    <filter id="blur"><feGaussianBlur stdDeviation="16"/></filter>
+  </defs>
+
+  <!-- Hintergrund -->
+  <rect width="1280" height="640" fill="#15181c"/>
+  <rect width="1280" height="640" fill="url(#grid)"/>
+  <circle cx="1010" cy="300" r="520" fill="url(#glowY)"/>
+  <circle cx="120" cy="600" r="480" fill="url(#glowS)"/>
+  <rect x="22" y="22" width="1236" height="596" rx="14" fill="none" stroke="#f5c518" stroke-opacity="0.20" stroke-width="2"/>
+
+  <!-- ===== Textblock links ===== -->
+  <g font-family="'JetBrains Mono','SFMono-Regular',Consolas,monospace" font-size="17" letter-spacing="3" fill="#9aa3ad">
+    <text x="80" y="150">DIN 625 · ISO 15 · DIN 720 · DIN 635</text>
+  </g>
+
+  <g font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" font-weight="900" letter-spacing="-3">
+    <text x="76" y="262" font-size="86" fill="#f5c518" opacity="0.32" filter="url(#blur)">UNI Rolling</text>
+    <text x="78" y="260" font-size="86" fill="url(#title)">UNI Rolling</text>
+    <text x="76" y="352" font-size="86" fill="#f5c518" opacity="0.32" filter="url(#blur)">Bearing</text>
+    <text x="78" y="350" font-size="86" fill="url(#title)">Bearing</text>
+  </g>
+  <text x="82" y="392" font-family="'JetBrains Mono',Consolas,monospace" font-size="24" letter-spacing="10" fill="#f5c518">G E N E R A T O R</text>
+
+  <!-- Tagline (bilingual) -->
+  <g font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif">
+    <text x="82" y="446" font-size="25" font-weight="600" fill="#cfd6dd">Parametrische Wälzlager nach Norm</text>
+    <text x="82" y="476" font-size="18" fill="#828b95">Parametric standard bearings · one core, two hosts</text>
+  </g>
+
+  <!-- Chips -->
+  <g font-family="'JetBrains Mono','SFMono-Regular',Consolas,monospace" font-size="16" fill="#e6eaee">
+    <g>
+      <rect x="82"  y="512" width="120" height="40" rx="20" fill="none" stroke="#3c434c" stroke-width="1.5"/>
+      <text x="100" y="538">▶ Blender</text>
+    </g>
+    <g>
+      <rect x="214" y="512" width="130" height="40" rx="20" fill="none" stroke="#3c434c" stroke-width="1.5"/>
+      <text x="232" y="538">⬡ FreeCAD</text>
+    </g>
+    <g>
+      <rect x="356" y="512" width="150" height="40" rx="20" fill="none" stroke="#3c434c" stroke-width="1.5"/>
+      <text x="374" y="538">◉ 6 Lagertypen</text>
+    </g>
+    <g>
+      <rect x="518" y="512" width="120" height="40" rx="20" fill="none" stroke="#f5c518" stroke-opacity="0.55" stroke-width="1.5"/>
+      <text x="536" y="538" fill="#f5c518">● 202 Tests</text>
+    </g>
+  </g>
+
+  <!-- ===== Lager-Querschnitt rechts ===== -->
+  <g>
+    <!-- Corner-Brackets -->
+    <g stroke="#f5c518" stroke-width="3" fill="none" stroke-opacity="0.8">
+      <path d="M812 92 H858 M812 92 V138"/>
+      <path d="M1208 92 H1162 M1208 92 V138"/>
+      <path d="M812 508 H858 M812 508 V462"/>
+      <path d="M1208 508 H1162 M1208 508 V462"/>
+    </g>
+
+    <!-- Außenring -->
+    <circle cx="1010" cy="300" r="160" fill="none" stroke="url(#steel)" stroke-width="36"/>
+    <circle cx="1010" cy="300" r="178" fill="none" stroke="#1f242b" stroke-width="2"/>
+    <circle cx="1010" cy="300" r="142" fill="none" stroke="#1f242b" stroke-width="2"/>
+
+    <!-- Innenring -->
+    <circle cx="1010" cy="300" r="80" fill="none" stroke="url(#steel2)" stroke-width="34"/>
+    <circle cx="1010" cy="300" r="97" fill="none" stroke="#1f242b" stroke-width="2"/>
+    <circle cx="1010" cy="300" r="63" fill="none" stroke="#1f242b" stroke-width="2"/>
+    <circle cx="1010" cy="300" r="63" fill="#15181c"/>
+
+    <!-- Teilkreis -->
+    <circle cx="1010" cy="300" r="130" fill="none" stroke="#f5c518" stroke-opacity="0.6" stroke-width="1.6" stroke-dasharray="6 8"/>
+
+    <!-- Kugeln -->
+    <g fill="#f5c518" stroke="#b8920f" stroke-width="1.8">
+      <circle cx="1140.0" cy="300.0" r="22"/>
+      <circle cx="1115.2" cy="376.4" r="22"/>
+      <circle cx="1050.2" cy="423.6" r="22"/>
+      <circle cx="969.8"  cy="423.6" r="22"/>
+      <circle cx="904.8"  cy="376.4" r="22"/>
+      <circle cx="880.0"  cy="300.0" r="22"/>
+      <circle cx="904.8"  cy="223.6" r="22"/>
+      <circle cx="969.8"  cy="176.4" r="22"/>
+      <circle cx="1050.2" cy="176.4" r="22"/>
+      <circle cx="1115.2" cy="223.6" r="22"/>
+    </g>
+
+    <!-- Mittelpunkt-Kreuz -->
+    <g stroke="#5a6470" stroke-width="1.4">
+      <path d="M1010 284 V316 M994 300 H1026"/>
+    </g>
+  </g>
+
+  <!-- Bottom-Strip -->
+  <text x="80" y="600" font-family="'JetBrains Mono',Consolas,monospace" font-size="15" fill="#7b838d">&gt; d · D · B  →  resolve_geometry()  →  manifold mesh + BREP solid → STEP/IGES</text>
+  <text x="1198" y="600" text-anchor="end" font-family="'JetBrains Mono',Consolas,monospace" font-size="15" fill="#9aa3ad">MIT · v0.30</text>
+</svg>
