@@ -47,13 +47,15 @@ class UniBearingWorkbench(Gui.Workbench):
     def Initialize(self):
         """Wird beim ersten Aktivieren der Workbench aufgerufen.
 
-        Commands/Toolbar werden in einem Folge-PR unter
-        ``freecad_backend/workbench/`` registriert. Der Bootstrap oben stellt
-        bereits sicher, dass Kern und Brücke importierbar sind.
+        Registriert die GUI-Commands und hängt sie in Toolbar und Menü. Der
+        Bootstrap oben stellt sicher, dass Kern und Brücke importierbar sind.
         """
-        # Importprobe: scheitert früh und sichtbar, falls der Bootstrap nicht
-        # greift (statt erst beim ersten Button-Klick).
-        import freecad_backend  # noqa: F401
+        from freecad_backend.workbench import wb_commands
+
+        commands = wb_commands.register_commands()
+        self.appendToolbar("UNI Bearings", commands)
+        self.appendMenu("UNI Bearings", commands)
+        self._commands = commands
 
     def Activated(self):
         pass

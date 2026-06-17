@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 420" width="1280" height="420" role="img" aria-label="UNI Rolling Bearing Generator">
+  <title>UNI Rolling Bearing Generator</title>
+
+  <defs>
+    <!-- Titel-Gradient: Stahl-Silber -> Safety-Yellow -->
+    <linearGradient id="title" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"  stop-color="#eef2f6"/>
+      <stop offset="55%" stop-color="#c2c8cf"/>
+      <stop offset="100%" stop-color="#f5c518"/>
+    </linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#8b939c"/>
+      <stop offset="100%" stop-color="#3c434c"/>
+    </linearGradient>
+    <linearGradient id="steel2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#6b727b"/>
+      <stop offset="100%" stop-color="#2b3138"/>
+    </linearGradient>
+    <radialGradient id="glowY" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"  stop-color="#f5c518" stop-opacity="0.40"/>
+      <stop offset="100%" stop-color="#f5c518" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowS" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"  stop-color="#5a6470" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#5a6470" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#2a2f37" stroke-width="1"/>
+    </pattern>
+    <filter id="blur"><feGaussianBlur stdDeviation="14"/></filter>
+  </defs>
+
+  <!-- Hintergrund -->
+  <rect width="1280" height="420" fill="#15181c"/>
+  <rect width="1280" height="420" fill="url(#grid)"/>
+  <circle cx="1060" cy="170" r="430" fill="url(#glowY)"/>
+  <circle cx="180" cy="380" r="420" fill="url(#glowS)"/>
+  <rect x="0" y="0" width="1280" height="420" fill="none" stroke="#f5c518" stroke-opacity="0.18" stroke-width="2"/>
+
+  <!-- Eyebrow-Tags -->
+  <g font-family="'JetBrains Mono','SFMono-Regular',Consolas,monospace" font-size="15" letter-spacing="3" fill="#9aa3ad">
+    <text x="72" y="74">DIN 625 · ISO 15 · DIN 720 · DIN 635</text>
+  </g>
+
+  <!-- Hero-Titel mit Blur-Echo -->
+  <g font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" font-weight="900">
+    <text x="68" y="196" font-size="78" letter-spacing="-3" fill="#f5c518" opacity="0.35" filter="url(#blur)">UNI Rolling Bearing</text>
+    <text x="70" y="194" font-size="78" letter-spacing="-3" fill="url(#title)">UNI Rolling Bearing</text>
+  </g>
+
+  <!-- Tagline (bilingual) -->
+  <g font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif">
+    <text x="74" y="238" font-size="25" fill="#cfd6dd" font-weight="600">Parametrische Wälzlager nach Norm — für Blender &amp; FreeCAD</text>
+    <text x="74" y="266" font-size="17" fill="#828b95">Parametric standard rolling bearings · one geometry core, two hosts</text>
+  </g>
+
+  <!-- Feature-Chips -->
+  <g font-family="'JetBrains Mono','SFMono-Regular',Consolas,monospace" font-size="15" fill="#e6eaee">
+    <g>
+      <rect x="74"  y="300" width="150" height="38" rx="19" fill="none" stroke="#3c434c" stroke-width="1.5"/>
+      <text x="92"  y="324">◉ 6 Lagertypen</text>
+    </g>
+    <g>
+      <rect x="236" y="300" width="118" height="38" rx="19" fill="none" stroke="#3c434c" stroke-width="1.5"/>
+      <text x="254" y="324">▶ Blender</text>
+    </g>
+    <g>
+      <rect x="366" y="300" width="128" height="38" rx="19" fill="none" stroke="#3c434c" stroke-width="1.5"/>
+      <text x="384" y="324">⬡ FreeCAD</text>
+    </g>
+    <g>
+      <rect x="506" y="300" width="150" height="38" rx="19" fill="none" stroke="#f5c518" stroke-opacity="0.55" stroke-width="1.5"/>
+      <text x="524" y="324" fill="#f5c518">● 202 Tests</text>
+    </g>
+  </g>
+
+  <!-- Bottom-Strip -->
+  <g>
+    <rect x="0" y="384" width="1280" height="36" fill="#0f1216"/>
+    <text x="74" y="408" font-family="'JetBrains Mono',Consolas,monospace" font-size="14" fill="#7b838d">&gt; d · D · B  →  resolve_geometry()  →  raceway revolve  →  manifold solid</text>
+    <circle cx="1186" cy="402" r="5" fill="#3fb950"/>
+    <text x="1200" y="407" font-family="'JetBrains Mono',Consolas,monospace" font-size="14" fill="#9aa3ad">v0.30</text>
+  </g>
+
+  <!-- ===== Lager-Querschnitt (Hero-Icon) ===== -->
+  <g>
+    <!-- Corner-Brackets -->
+    <g stroke="#f5c518" stroke-width="2.5" fill="none" stroke-opacity="0.8">
+      <path d="M918 60 H958 M918 60 V100"/>
+      <path d="M1242 60 H1202 M1242 60 V100"/>
+      <path d="M918 360 H958 M918 360 V320"/>
+      <path d="M1242 360 H1202 M1242 360 V320"/>
+    </g>
+
+    <!-- Maßlinie unten -->
+    <g stroke="#5a6470" stroke-width="1.2">
+      <path d="M930 344 H1230"/>
+      <path d="M930 338 V350 M1230 338 V350"/>
+    </g>
+    <text x="1080" y="334" text-anchor="middle" font-family="'JetBrains Mono',Consolas,monospace" font-size="13" fill="#828b95">Ø D</text>
+
+    <!-- Außenring (Annulus über dicken Stroke) -->
+    <circle cx="1080" cy="200" r="135" fill="none" stroke="url(#steel)" stroke-width="30"/>
+    <circle cx="1080" cy="200" r="150" fill="none" stroke="#1f242b" stroke-width="2"/>
+    <circle cx="1080" cy="200" r="120" fill="none" stroke="#1f242b" stroke-width="2"/>
+
+    <!-- Innenring -->
+    <circle cx="1080" cy="200" r="64" fill="none" stroke="url(#steel2)" stroke-width="28"/>
+    <circle cx="1080" cy="200" r="78" fill="none" stroke="#1f242b" stroke-width="2"/>
+    <circle cx="1080" cy="200" r="50" fill="none" stroke="#1f242b" stroke-width="2"/>
+    <!-- Bohrung -->
+    <circle cx="1080" cy="200" r="50" fill="#15181c"/>
+
+    <!-- Teilkreis -->
+    <circle cx="1080" cy="200" r="100" fill="none" stroke="#f5c518" stroke-opacity="0.6" stroke-width="1.5" stroke-dasharray="5 7"/>
+
+    <!-- Kugeln (rotierend) -->
+    <g>
+      <animateTransform attributeName="transform" type="rotate" from="0 1080 200" to="360 1080 200" dur="18s" repeatCount="indefinite"/>
+      <g fill="#f5c518" stroke="#b8920f" stroke-width="1.5">
+        <circle cx="1180.0" cy="200.0" r="17"/>
+        <circle cx="1160.9" cy="258.8" r="17"/>
+        <circle cx="1110.9" cy="295.1" r="17"/>
+        <circle cx="1049.1" cy="295.1" r="17"/>
+        <circle cx="999.1"  cy="258.8" r="17"/>
+        <circle cx="980.0"  cy="200.0" r="17"/>
+        <circle cx="999.1"  cy="141.2" r="17"/>
+        <circle cx="1049.1" cy="104.9" r="17"/>
+        <circle cx="1110.9" cy="104.9" r="17"/>
+        <circle cx="1160.9" cy="141.2" r="17"/>
+      </g>
+    </g>
+
+    <!-- Mittelpunkt-Kreuz -->
+    <g stroke="#5a6470" stroke-width="1.2">
+      <path d="M1080 188 V212 M1068 200 H1092"/>
+    </g>
+  </g>
+</svg>

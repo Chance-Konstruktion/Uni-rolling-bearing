@@ -7,13 +7,14 @@ Bereits umgesetzte Änderungen stehen im [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Als Nächstes (kurzfristig) 🟡
 
-1. **FreeCAD-Workbench fertigstellen** (Port begonnen in v0.29)
-   - Der host-freie Kern wird seit v0.29 von einem zweiten Frontend genutzt
-     (`freecad_backend/`, `InitGui.py`, `package.xml`). Offen sind die
-     GUI-Commands/Toolbar (Button „Lager erzeugen"), ein
-     `Part::FeaturePython`-Proxy mit Live-Rebuild und ein kontextabhängiger
-     Eigenschaften-Editor (`setEditorMode`). Danach Gegencheck in echtem FreeCAD
-     (Workbench im Dropdown, Button erzeugt das Bauteil).
+1. **FreeCAD-Workbench: Gegencheck am Host** (Port umgesetzt in v0.29–v0.30)
+   - Kern, Bauplan, `Part`-Backend (v0.29) **und** die Workbench-GUI
+     (`Part::FeaturePython`-Proxy mit Live-Rebuild, Command „Lager erzeugen",
+     kontextabhängiger Eigenschaften-Editor, Toolbar/Menü – v0.30) stehen und
+     sind ohne Host getestet. **Offen ist nur die Restklasse:** der manuelle
+     Gegencheck in echtem FreeCAD (Workbench erscheint im Dropdown, Button
+     erzeugt das Bauteil, STEP-Export). Danach ggf. Feinschliff am
+     Eigenschaften-Editor und Norm-Preset-Anbindung in FreeCAD.
 
 2. **Weitere Norm-Tabellen**
    - SG-Reihe um Zwischengrößen (SG30, SG40, SG55) ergänzen, sobald belastbare

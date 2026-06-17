@@ -1,0 +1,360 @@
+"""Tests für die FreeCAD-Workbench-GUI – ohne laufendes FreeCAD.
+
+Drei Ebenen:
+
+1. **Host-freies UI-Schema** (`freecad_backend.uischema`): das Schema deckt exakt
+   die `BearingParams`-Felder ab, und die Sichtbarkeitsregeln spiegeln das
+   Blender-N-Panel (nur relevante Felder je Lagertyp/Käfig-Option).
+
+2. **Part::FeaturePython-Proxy** (`workbench.wb_bearing`) mit gemocktem
+   FreeCAD/Part: Eigenschaften werden angelegt, Defaults gesetzt, der
+   Editor kontextabhängig auf-/zugeblendet (`setEditorMode`), und der
+   Live-Rebuild (`execute`) erzeugt eine Shape.
+
+3. **Command + InitGui** (Blocker 3-Pfad): `register_commands` meldet den
+   Command an; `InitGui.Initialize()` hängt ihn in Toolbar und Menü.
+"""
+
+from __future__ import annotations
+
+import dataclasses
+import pathlib
+import sys
+import types
+import unittest
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from uni_rolling_bearing import constants  # noqa: E402
+from freecad_backend import uischema  # noqa: E402
+from freecad_backend.params import BearingParams  # noqa: E402
+
+
+# --------------------------------------------------------------------------- #
+# 1) UI-Schema + Sichtbarkeit                                                  #
+# --------------------------------------------------------------------------- #
+
+
+class TestUISchema(unittest.TestCase):
+    def test_schema_covers_all_params(self):
+        param_fields = {f.name for f in dataclasses.fields(BearingParams)}
+        self.assertEqual(uischema.schema_names(), param_fields)
+
+    def test_enum_specs_have_options(self):
+        for spec in uischema.SCHEMA:
+            if spec.py_kind == "enum":
+                self.assertTrue(spec.enum, f"{spec.name}: Enum ohne Optionen")
+                # Default muss eine gültige Option sein.
+                self.assertIn(str(uischema.default_for(spec.name)), spec.enum)
+
+    def test_ball_visibility(self):
+        vis = uischema.visible_fields(constants.BALL)
+        self.assertIn("groove_conformity_inner", vis)
+        self.assertIn("bearing_chamfer_mm", vis)
+        self.assertNotIn("contact_angle_deg", vis)
+        self.assertNotIn("vgroove_depth_mm", vis)
+        self.assertNotIn("spherical_rows", vis)
+        self.assertNotIn("cage_style", vis)  # use_cage default False
+
+    def test_tapered_visibility(self):
+        vis = uischema.visible_fields(constants.TAPERED)
+        self.assertIn("contact_angle_deg", vis)
+        self.assertIn("tapered_cup_width_mm", vis)
+        self.assertNotIn("groove_conformity_inner", vis)
+        self.assertNotIn("vgroove_depth_mm", vis)
+
+    def test_spherical_rows_gates_contact_angle(self):
+        one = uischema.visible_fields(constants.SPHERICAL, spherical_rows="1")
+        two = uischema.visible_fields(constants.SPHERICAL, spherical_rows="2")
+        self.assertIn("spherical_rows", one)
+        self.assertNotIn("spherical_contact_angle_deg", one)
+        self.assertIn("spherical_contact_angle_deg", two)
+
+    def test_vgroove_visibility(self):
+        vis = uischema.visible_fields(constants.VGROOVE)
+        self.assertIn("vgroove_shape", vis)
+        self.assertIn("groove_conformity_inner", vis)  # auch Kugel-Bauart
+
+    def test_cage_visibility(self):
+        off = uischema.visible_fields(constants.BALL, use_cage=False)
+        on = uischema.visible_fields(constants.BALL, use_cage=True, cage_style="POCKET")
+        massive = uischema.visible_fields(constants.BALL, use_cage=True, cage_style="MASSIVE")
+        self.assertNotIn("cage_style", off)
+        self.assertIn("cage_style", on)
+        self.assertNotIn("oil_pocket_diameter_mm", on)
+        self.assertIn("oil_pocket_diameter_mm", massive)
+
+    def test_visible_and_hidden_partition_schema(self):
+        for bt in (constants.BALL, constants.TAPERED, constants.SPHERICAL, constants.VGROOVE):
+            vis = uischema.visible_fields(bt)
+            hid = uischema.hidden_fields(bt)
+            self.assertEqual(vis | hid, uischema.schema_names())
+            self.assertEqual(vis & hid, set())
+
+
+# --------------------------------------------------------------------------- #
+# Gemockte FreeCAD-Umgebung                                                    #
+# --------------------------------------------------------------------------- #
+
+
+class _FakeShape:
+    def __init__(self, log, kind):
+        self._log, self.kind, self.Placement = log, kind, None
+
+    def revolve(self, *a):
+        self._log.append("revolve")
+        return _FakeShape(self._log, "solid")
+
+    def cut(self, other):
+        self._log.append("cut")
+        return _FakeShape(self._log, "cut")
+
+
+class _FakeFeature:
+    _RESERVED = {"Name", "Proxy", "Shape", "ViewObject", "Document"}
+
+    def __init__(self, name="Bearing"):
+        object.__setattr__(self, "_props", {})
+        object.__setattr__(self, "_types", {})
+        object.__setattr__(self, "_editor", {})
+        object.__setattr__(self, "Name", name)
+        object.__setattr__(self, "Proxy", None)
+        object.__setattr__(self, "Shape", None)
+        object.__setattr__(self, "ViewObject", None)
+        object.__setattr__(self, "Document", None)
+
+    def addProperty(self, fc_type, name, group="", doc=""):
+        self._types[name] = fc_type
+        self._props.setdefault(name, None)
+        return self
+
+    def setEditorMode(self, name, mode):
+        self._editor[name] = mode
+
+    def __getattr__(self, item):
+        props = object.__getattribute__(self, "_props")
+        if item in props:
+            return props[item]
+        raise AttributeError(item)
+
+    def __setattr__(self, key, value):
+        if key.startswith("_") or key in _FakeFeature._RESERVED:
+            object.__setattr__(self, key, value)
+        else:
+            self._props[key] = value
+
+
+class _FakeDocument:
+    def __init__(self, name="Unnamed"):
+        self.Name = name
+        self.Objects = []
+
+    def addObject(self, type_, name):
+        f = _FakeFeature(name)
+        f.Document = self
+        self.Objects.append(f)
+        return f
+
+    def recompute(self):
+        for o in self.Objects:
+            if o.Proxy is not None and hasattr(o.Proxy, "execute"):
+                o.Proxy.execute(o)
+        return True
+
+
+def _install_fakes():
+    """Installiert gemockte ``Part``/``FreeCAD``-Module. Liefert (log, restore)."""
+    log = []
+    part = types.ModuleType("Part")
+    part.makePolygon = lambda pts: (log.append("makePolygon"), _FakeShape(log, "wire"))[1]
+    part.Face = lambda wire: _FakeShape(log, "face")
+    part.makeSphere = lambda r: (log.append("makeSphere"), _FakeShape(log, "sphere"))[1]
+    part.makeCone = lambda r1, r2, h: (log.append("makeCone"), _FakeShape(log, "cone"))[1]
+    part.makeBox = lambda *a, **k: (log.append("makeBox"), _FakeShape(log, "box"))[1]
+    part.makeCompound = lambda shapes: (log.append("makeCompound"), _FakeShape(log, "compound"))[1]
+
+    class _Vec:
+        def __init__(self, *a):
+            self.a = a
+
+    class _Rot:
+        def __init__(self, *a):
+            self.a = a
+
+        def multiply(self, other):
+            return _Rot("mul")
+
+    class _Plc:
+        def __init__(self, v=None, r=None):
+            self.v, self.r = v, r
+
+        def multiply(self, other):
+            return _Plc("mul")
+
+    fc = types.ModuleType("FreeCAD")
+    fc.Vector, fc.Rotation, fc.Placement = _Vec, _Rot, _Plc
+    fc.GuiUp = False
+    fc.ActiveDocument = None
+    fc.newDocument = lambda *a, **k: _FakeDocument(a[0] if a else "Unnamed")
+
+    saved = {n: sys.modules.get(n) for n in ("Part", "FreeCAD")}
+    sys.modules["Part"], sys.modules["FreeCAD"] = part, fc
+
+    def restore():
+        for n, m in saved.items():
+            if m is None:
+                sys.modules.pop(n, None)
+            else:
+                sys.modules[n] = m
+
+    return log, restore
+
+
+# --------------------------------------------------------------------------- #
+# 2) Proxy                                                                     #
+# --------------------------------------------------------------------------- #
+
+
+class TestBearingProxy(unittest.TestCase):
+    def _proxy_obj(self):
+        from freecad_backend.workbench.wb_bearing import UniBearingProxy
+
+        obj = _FakeFeature()
+        proxy = UniBearingProxy(obj)
+        return proxy, obj
+
+    def test_adds_all_properties_with_defaults(self):
+        _, obj = self._proxy_obj()
+        self.assertEqual(set(obj._types), uischema.schema_names())
+        self.assertEqual(str(obj.bearing_type), "BALL")
+        self.assertAlmostEqual(float(obj.bore_diameter), 20.0)
+        self.assertEqual(int(obj.element_count), 10)
+
+    def test_initial_visibility_hides_irrelevant_fields(self):
+        _, obj = self._proxy_obj()
+        # BALL: Kontaktwinkel versteckt (2), Geometrie sichtbar (0).
+        self.assertEqual(obj._editor["contact_angle_deg"], 2)
+        self.assertEqual(obj._editor["bore_diameter"], 0)
+        self.assertEqual(obj._editor["groove_conformity_inner"], 0)
+
+    def test_params_from_obj_roundtrips_defaults(self):
+        from freecad_backend.workbench.wb_bearing import params_from_obj
+
+        _, obj = self._proxy_obj()
+        self.assertEqual(params_from_obj(obj), BearingParams())
+
+    def test_onchanged_type_updates_visibility(self):
+        proxy, obj = self._proxy_obj()
+        obj.bearing_type = "TAPERED"
+        proxy.onChanged(obj, "bearing_type")
+        self.assertEqual(obj._editor["contact_angle_deg"], 0)
+        self.assertEqual(obj._editor["groove_conformity_inner"], 2)
+
+    def test_execute_builds_shape(self):
+        proxy, obj = self._proxy_obj()
+        log, restore = _install_fakes()
+        try:
+            proxy.execute(obj)
+        finally:
+            restore()
+        self.assertIsNotNone(obj.Shape)
+        self.assertGreaterEqual(log.count("makeSphere"), 3)  # Kugellager
+        self.assertIn("makeCompound", log)
+
+    def test_make_bearing_creates_and_recomputes(self):
+        from freecad_backend.workbench import wb_bearing
+
+        log, restore = _install_fakes()
+        try:
+            obj = wb_bearing.make_bearing()
+        finally:
+            restore()
+        self.assertIsNotNone(obj.Proxy)
+        self.assertEqual(set(obj._types), uischema.schema_names())
+        self.assertIsNotNone(obj.Shape)  # recompute() rief execute()
+
+
+# --------------------------------------------------------------------------- #
+# 3) Command + InitGui                                                         #
+# --------------------------------------------------------------------------- #
+
+
+class TestCommands(unittest.TestCase):
+    def test_register_commands(self):
+        from freecad_backend.workbench import wb_commands
+
+        gui = types.ModuleType("FreeCADGui")
+        added = {}
+        gui.addCommand = lambda name, cmd: added.__setitem__(name, cmd)
+        saved = sys.modules.get("FreeCADGui")
+        sys.modules["FreeCADGui"] = gui
+        try:
+            ids = wb_commands.register_commands()
+        finally:
+            if saved is None:
+                sys.modules.pop("FreeCADGui", None)
+            else:
+                sys.modules["FreeCADGui"] = saved
+        self.assertEqual(ids, [wb_commands.CREATE_COMMAND])
+        self.assertIn(wb_commands.CREATE_COMMAND, added)
+
+    def test_command_resources_and_activate(self):
+        from freecad_backend.workbench.wb_commands import CreateBearingCommand
+
+        cmd = CreateBearingCommand()
+        res = cmd.GetResources()
+        self.assertEqual(res["MenuText"], "Lager erzeugen")
+        self.assertTrue(res["Pixmap"].endswith("bearing.svg"))
+        self.assertTrue(cmd.IsActive())
+
+        log, restore = _install_fakes()
+        try:
+            cmd.Activated()  # darf ohne Fehler ein Dokument+Objekt anlegen
+        finally:
+            restore()
+        self.assertIn("makeCompound", log)
+
+    def test_initgui_initialize_wires_toolbar_and_menu(self):
+        init_gui = ROOT / "InitGui.py"
+        src = init_gui.read_text(encoding="utf-8")
+
+        registered = []
+        added = {}
+
+        class _Workbench:
+            def appendToolbar(self, name, cmds):
+                self.__dict__.setdefault("_toolbars", {})[name] = cmds
+
+            def appendMenu(self, name, cmds):
+                self.__dict__.setdefault("_menus", {})[name] = cmds
+
+        gui = types.ModuleType("FreeCADGui")
+        gui.Workbench = _Workbench
+        gui.addWorkbench = lambda wb: registered.append(wb)
+        gui.addCommand = lambda name, cmd: added.__setitem__(name, cmd)
+
+        saved = sys.modules.get("FreeCADGui")
+        sys.modules["FreeCADGui"] = gui
+        try:
+            code = compile(src, str(init_gui), "exec")
+            g, l = {}, {}
+            exec(code, g, l)
+            self.assertEqual(len(registered), 1)
+            wb = registered[0]
+            wb.Initialize()
+        finally:
+            if saved is None:
+                sys.modules.pop("FreeCADGui", None)
+            else:
+                sys.modules["FreeCADGui"] = saved
+
+        from freecad_backend.workbench.wb_commands import CREATE_COMMAND
+
+        self.assertIn(CREATE_COMMAND, added)
+        self.assertEqual(wb.__dict__["_toolbars"]["UNI Bearings"], [CREATE_COMMAND])
+        self.assertEqual(wb.__dict__["_menus"]["UNI Bearings"], [CREATE_COMMAND])
+
+
+if __name__ == "__main__":
+    unittest.main()

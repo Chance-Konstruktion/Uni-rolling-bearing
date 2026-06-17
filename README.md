@@ -1,248 +1,148 @@
-# UNI Rolling Bearing Generator (Blender Addon)
+<div align="center">
+
+<img src="assets/banner.svg" alt="UNI Rolling Bearing Generator" width="100%">
+
+# ⚙️ UNI Rolling Bearing Generator
+
+**Parametrische, normgerechte Wälzlager — ein Geometrie-Kern, zwei Hosts.**
+<br>
+<sub>Parametric standard rolling bearings for <b>Blender</b> &amp; <b>FreeCAD</b> from a single shared core.</sub>
+
+<br>
 
 [![Tests](https://github.com/Chance-Konstruktion/Uni-rolling-bearing/actions/workflows/tests.yml/badge.svg)](https://github.com/Chance-Konstruktion/Uni-rolling-bearing/actions/workflows/tests.yml)
+![Version](https://img.shields.io/badge/version-0.30.0-f5c518)
+![Tests](https://img.shields.io/badge/tests-202%20passing-3fb950)
+![Blender](https://img.shields.io/badge/Blender-3.6%2B-ea7600)
+![FreeCAD](https://img.shields.io/badge/FreeCAD-0.21%2B-1f80c0)
+![License](https://img.shields.io/badge/license-MIT-9aa3ad)
 
-Ein Blender-Addon zur Erstellung parametrischer Wälzlager (Kugel-, Zylinderrollen-, Nadel-, Kegelrollen- und Tonnenlager) über ein übersichtliches N-Panel.
+[**Quick Start**](#quick-start) · [**Architektur**](#architektur) · [**Lagertypen**](#lagertypen) · [**FreeCAD**](#freecad) · [Changelog](CHANGELOG.md) · [Roadmap](ROADMAP.md)
 
-## Ziele des Addons
+</div>
 
-- **Kompakte Bedienung** im N-Panel mit Lagertyp-Dropdown als Einstieg.
-- **Normorientierte Eingabe** über Presets und Toleranz-/Lagerluft-Felder.
-- **Funktionsfähige Geometrie** durch Plausibilitätsprüfung und Auto-Fit von Wälzkörper-Parametern.
-- **Manifold-orientierte Meshes** für alle erzeugten Komponenten.
+---
 
-## Unterstützte Lagertypen
+## Was ist das? 🎯
 
-- Kugellager (Rillenkugellager, DIN 625)
-- Zylinderrollenlager
-- Nadellager
-- Kegelrollenlager
-- Tonnenlager (einreihig, DIN 635-1) und Pendelrollenlager (zweireihig,
-  DIN 635-2) – umschaltbar über die Wälzkörper-Sektion
-- **U-Rillen-Kugellager / Führungsrolle (SG-Reihe)** – Kugellager mit
-  V-/U-Rille im Außenmantel, Presets `SG10`, `SG15`, `SG20`, `SG25`,
-  `SG35`, `SG66`
+Ein Generator für **funktionsfähige Wälzlager** (Kugel-, Zylinder-, Nadel-, Kegel-,
+Tonnen-/Pendel- und U-Rillen-Lager) — bedienbar über ein **Blender-N-Panel** *und* eine
+**FreeCAD-Workbench**. Beide Hosts teilen sich denselben `bpy`-/`FreeCAD`-freien
+Geometrie-Kern, also rechnen sie *identisch* — Blender liefert ein Mesh, FreeCAD ein
+exportierbares BREP-Solid.
 
-## Normenbezug (aktueller Stand)
+> 💡 **Kurz gesagt:** Du gibst `d · D · B` ein, wählst den Lagertyp — und bekommst ein
+> normorientiertes, kollisionsfreies Lager mit echten Laufbahnen, Wälzkörpern und
+> optionalem Käfig.
 
-> Hinweis: Das Addon enthält aktuell **praxisnahe Start-Presets** und normorientierte Felder, aber noch **keine vollständige digitale Normdatenbank**.
+<table>
+<tr>
+<td width="33%" valign="top">
 
-Aktuell berücksichtigt:
+### 📐 Normgerecht
+ISO 15 Maßreihen, DIN 623/625/720/635, ISO 492-Toleranzen und DIN-5418-Passungen — als Presets *und* Live-Berechnung.
 
-- **ISO 15 / DIN ISO 15**: Maßreihen für Rillenkugel-, Zylinderrollen-,
-  Kegelrollen- und Pendelrollenlager als JSON-Datenquelle (`norm_engine.py`).
-- **DIN 623**: Bohrungskennzahl-Logik (`din623.py`); ~80 Rillenkugellager-
-  Größen aus den Tabellen generiert.
-- **DIN 625**: Rillenkugellager-Reihen 60/62/63/64/618/619.
-- **DIN 720**: Kegelrollen-Reihen 302/303/313/320/322/323 inkl. getrennter
-  Cone/Cup-Breiten.
-- **ISO 492 / DIN 620**: Toleranzklassen NORMAL/P6/P5/P4 werden in µm-
-  Abweichungen für d/D/B umgerechnet und als Metadaten hinterlegt.
-- **DIN 5418**: Empfohlene Welle-/Gehäuse-Passungen (g6…p6, G7…P7) je
-  Belastungsfall mit ISO 286-Abmaßen.
-- **ISO 76 / ISO 281**: Statische/dynamische Tragzahl und L10h-Lebensdauer
-  als Live-Vorschau im Panel. Die Beiwerte `f0`/`fc` werden über das
-  Hüllkurvenverhältnis γ = Dw·cos(α)/dm aus den ISO-Annex-Tabellen
-  interpoliert; γ, `f0`, `fc` werden zusätzlich als Metadaten am
-  Bearing-Empty abgelegt. Eingaben für radiale Last `Fr` und axiale Last
-  `Fa` werden über X-/Y-Faktoren (ISO 281 Tabelle 4) zur äquivalenten
-  Last `P = X·Fr + Y·Fa` kombiniert. Kugellager-Tabelle ist
-  Fa/C0r-interpoliert; Kegelrollen/Pendelrollen rechnen über den
-  Kontaktwinkel α; Zylinderrollen-/Nadellager ignorieren `Fa`.
+</td>
+<td width="33%" valign="top">
 
-Geplant (siehe [ROADMAP](ROADMAP.md); umgesetzte Änderungen im
-[CHANGELOG](CHANGELOG.md)):
+### 🧩 Funktionsfähig
+Auto-Fit begrenzt Wälzkörper-Ø &amp; Anzahl auf Plausibles. Keine clippenden Kugeln, keine kollidierenden Rollen, manifold-taugliche Geometrie.
 
-- SG-Zwischengrößen (SG30/40/55) – ausstehend, bis belastbare Maßquellen
-  vorliegen. Die U-Profil-Variante der SG-Außenrille ist seit v0.24 verfügbar
-  (`vgroove_shape` = U).
+</td>
+<td width="33%" valign="top">
 
-## Installation
+### 🔗 Zwei Hosts
+Ein host-freier Kern → Blender-Mesh **und** FreeCAD-Solid. STEP/IGES-Export nativ über FreeCAD, ganz ohne Bridge.
 
-### Variante A – Fertige ZIP direkt herunterladen
+</td>
+</tr>
+</table>
 
-Im Repo liegt unter [`dist/uni_rolling_bearing.zip`](dist/uni_rolling_bearing.zip)
-eine vorgebaute, Blender-installierbare ZIP. Auf GitHub einfach diese Datei
-über „Download raw file“ herunterladen und in Blender importieren – kein
-lokaler Build nötig.
+---
 
-### Variante B – Fertige ZIP selbst bauen
+## Highlights ✨
 
-```bash
-python build_addon_zip.py
-```
+<table>
+<tr>
+<td width="50%">
 
-Das Skript schreibt `dist/uni_rolling_bearing.zip`. Diese ZIP enthält genau
-den Addon-Ordner (ohne README, Tests, `.git` o. Ä.) – also genau das Format,
-das Blender erwartet.
+🧱 **6 Lagertypen** — Rillenkugel, Zylinder, Nadel, Kegel, Tonne/Pendel, U-Rillen (SG)
 
-In Blender:
+</td>
+<td width="50%">
 
-1. `Edit > Preferences > Add-ons > Install…`
-2. `dist/uni_rolling_bearing.zip` auswählen.
-3. Addon-Häkchen aktivieren („UNI Rolling Bearing Generator“).
-4. In der 3D-View mit `N` das Sidebar öffnen.
-5. Tab **UNI Bearings** auswählen.
+📐 **Normbezug** — ISO 15 · DIN 623/625/720 · ISO 492/76/281 · DIN 5418
 
-### Variante C – Direkt aus dem Repo (Entwickler)
+</td>
+</tr>
+<tr>
+<td>
 
-Den Ordner `uni_rolling_bearing/` (nicht das ganze Repo!) in das Blender-
-Addon-Verzeichnis kopieren bzw. symlinken:
+🔩 **Echte Laufbahnen** — Rillenbögen, konische Apex-Geometrie, Sphären
 
-| OS      | Pfad |
-|---------|------|
-| Windows | `%APPDATA%\Blender Foundation\Blender\<version>\scripts\addons\` |
-| macOS   | `~/Library/Application Support/Blender/<version>/scripts/addons/` |
-| Linux   | `~/.config/blender/<version>/scripts/addons/` |
+</td>
+<td>
 
-Anschließend in Blender im Add-on-Dialog aktivieren.
+⚖️ **Tragzahlen live** — `C0r`, `Cr`, `P`, `L10h` direkt im Panel
 
-## Bedienung
+</td>
+</tr>
+<tr>
+<td>
 
-1. **Lagertyp wählen** (Dropdown).
-2. Optional **Norm-Preset** anwenden:
-   - Für Lagertypen mit DIN 623-Coding (Kugel-, Zylinderrollen-, Kegelrollen-,
-     Pendelrollenlager) zuerst die **Massreihe** wählen (z. B. `60`, `62`,
-     `NU3`), dann die **Bohrungskennzahl** (`00`..`96`). Die kombinierte
-     Bezeichnung (z. B. `6204`, `NU306`, `30212`) und der abgeleitete
-     Bohrungs-Ø werden live angezeigt.
-   - Für Lagertypen mit direkter Code-Auswahl (Nadel-, SG-Reihe) bleibt der
-     freie Reihen-Code-Dropdown (z. B. `HK1010`, `SG20`).
-3. Geometrieparameter setzen (`d`, `D`, `B`, Ringstärke).
-4. Wälzkörper-Parameter setzen (`Ø`, Anzahl, Umfangsspalt).
-5. **Auto-Fit** aktiv lassen, damit unplausible Kombinationen automatisch korrigiert werden.
-6. Unten auf **Erstellen** klicken.
+🛟 **Käfig** — Pocket · Massiv · Ribbon · Leiter (Boolean-Pockets)
 
-## Was wurde für „funktionsfähig“ verbessert?
+</td>
+<td>
 
-Frühere Versionen konnten Geometrien erzeugen, bei denen:
+🧮 **Auto-Fit** — korrigiert unplausible Kombinationen still
 
-- Wälzkörper zu groß waren und in Ringe schnitten,
-- zu viele Wälzkörper gesetzt wurden und kollidierten,
-- alles zu einem einzelnen Mesh verschmolz (keine funktionale Baugruppe).
+</td>
+</tr>
+<tr>
+<td>
 
-Aktueller Stand:
+📦 **STEP / IGES** — nativ über FreeCAD-BREP-Solids
 
-- Plausibilitätsrechnung löst die Geometrie zuerst auf.
-- Bei aktivem Auto-Fit werden `Wälzkörper-Ø` und `Anzahl` begrenzt.
-- Komponenten bleiben als **separate Teile** unter einer gemeinsamen `Bearing`-Assembly (Empty parent) erhalten.
+</td>
+<td>
 
-## Technische Details
+🧪 **202 Tests** — host-frei, laufen ohne Blender/FreeCAD
 
-- Einheiten der Eingabe: **Millimeter**.
-- Blender-Skalierung beim Erzeugen: **mm -> m** (`0.001`).
-- Jeder Ring/Wälzkörper wird als eigenes manifold Mesh erzeugt.
-- Pro Erzeugung wird eine eigene Collection `Bearing_<Typ>` angelegt.
+</td>
+</tr>
+</table>
 
-## Laufbahnen (ab v0.6)
+---
 
-Die Innen- und Außenringe werden seit v0.6 nicht mehr als reine Hohlzylinder
-erzeugt, sondern aus einem typabhängigen Querschnittsprofil zu einem manifold
-Volumen revolviert (Modul `raceway.py`). Folgende Laufbahnen werden modelliert:
+## Architektur 🧩
 
-- **Kugellager** – Rillen-Bogen (groove) mit Konformitätsfaktor f = r_groove/d_ball
-  in Innen- und Außenring. Der Kugel-Ø wird nach der **DIN-625-Rillenformel**
-  ausgelegt: `d_w = Schulterspalt + innere Rillentiefe + äußere Rillentiefe −
-  Lagerluft` (siehe `geometry.ball_diameter_from_groove`). Die Kugel ist damit
-  *größer* als der reine Schulterspalt und taucht über beide Schultern hinaus in
-  die Rillen ein (statt zwischen den Schultern zu schweben – früher wirkte die
-  Kugel dadurch „zu klein“). Nach oben begrenzt sie nur die Restwand zwischen
-  Rillenboden und Bohrung/Außenmantel. Die vorgeschlagene Kugelzahl orientiert
-  sich am katalognahen Umfangsfüllgrad (≈ 60 %, z. B. 6204 → 8 Kugeln). Reicht
-  der Bogen geometrisch nicht bis zur Schulter, fällt das Profil automatisch auf
-  einen Hohlzylinder zurück. Zusätzlich kann eine 45°-Fase
-  (DIN 620 / ISO 582 r_s) an der Bohrungs- bzw. Außenring-Kante eingestellt
-  werden (`bearing_chamfer_mm`, Default 0.3 mm). Die Fase wird bei zu wenig
-  Bauraum automatisch heruntergeclampt.
-- **Zylinderrollen-/Nadellager** – NU-Bauart: Außenring mit zwei radial nach
-  innen vorstehenden Borden, die die Rollen axial halten; Innenring zylindrisch.
-  Bei zu engem Bauraum (Rolle füllt nahezu die ganze Lagerbreite) wird der
-  Bord automatisch weggelassen. Die Rolle füllt den Laufbahnspalt jetzt satt
-  (~94 % Füllgrad, dünnere Ringwand 1/8·(D−d) bei Zylinderrollen) statt mit
-  großem Spiel zu schweben – NU206 → ø≈7.5 mm/13 Rollen statt zuvor ~5.3 mm/24.
-- **Kegelrollenlager** – Beide Ringe haben konische Laufbahnen mit gemeinsamem
-  Apex: die Cup-(Außen-)Laufbahn steht unter dem Kontaktwinkel α, die Kegel-
-  (Innen-)Laufbahn flacher unter α − 2β, und die Rolle ist ein echter
-  Kegelstumpf mit Halbwinkel β, um α − β gekippt (siehe nächster Abschnitt).
-  Der mittlere Rollen-Ø wird über `geometry.tapered_roller_diameter` so
-  ausgelegt, dass die geneigte Rolle senkrecht zu ihrer Achse an der
-  Cup-Laufbahn anliegt (Spalt ≈ `radial_space · cos α`) – sonst säße die Rolle
-  zu klein und schwebte zwischen den Laufbahnen. Zusammen mit der etwas
-  dünneren Ringwand (1/10·(D−d)) füllt die Kegelrolle damit ~57 % des
-  Radialbands (statt früher ~53 %), bei katalognaher Rollenzahl.
-- **Tonnenlager (einreihig, DIN 635-1)** – eine Tonnenrolle pro Position auf
-  einer zentralen konkaven Innenlaufbahn, Außenring mit sphärischer
-  Innenlaufbahn. **Pendelrollenlager (zweireihig, DIN 635-2)** – zwei um ±α
-  geneigte Reihen auf zwei Innenlaufbahnen mit Mittelbord. Die Reihenzahl wird
-  in der Wälzkörper-Sektion gewählt (Default: einreihig). Der Sphärenradius des
-  Außenrings wird automatisch aus Pitch-Ø und Wälzkörperabmaßen abgeleitet.
-- **U-Rillen-Kugellager (SG)** – Innen identisch zum Rillenkugellager,
-  zusätzlich V-Rille im Außenmantel des Außenrings. Tiefe und Halbwinkel
-  der V-Rille sind im Panel einstellbar (`vgroove_depth_mm`,
-  `vgroove_half_angle_deg`); 0 mm Tiefe wählt automatisch ≈35 % der
-  Außenwand. Bei zu wenig Bauraum (sehr dünne Außenwand) fällt das Profil
-  auf das Standard-Kugellager-Außenringprofil zurück.
+Ein **geteilter Geometrie-Kern** ohne `bpy`/`FreeCAD`, zwei dünne Frontends:
 
-## Kegelrollenlager: Kontaktwinkel
+<pre>
+                 ┌───────────────────────────────────────────┐
+                 │   uni_rolling_bearing/  ·  KERN (host-frei)│
+                 │   geometry · raceway · ratings · fits      │
+                 │   tolerances · norm_engine · din623        │
+                 └───────────────┬───────────────┬────────────┘
+                                 │               │
+              resolve_geometry() │               │ build_plan()
+                                 ▼               ▼
+                 ┌───────────────────┐   ┌────────────────────────┐
+                 │  Blender-Frontend │   │  FreeCAD-Frontend       │
+                 │  mesh_builders    │   │  freecad_backend/       │
+                 │  operators·panel  │   │  plan · backend · ui    │
+                 │  → BMesh-Objekte  │   │  → Part-BREP-Solids     │
+                 └───────────────────┘   └────────────────────────┘
+                          │                         │
+                       🟧 Mesh                  🟦 Solid → STEP/IGES
+</pre>
 
-Für Kegelrollenlager ist der Kontaktwinkel α einstellbar (Default 14°); per
-Konvention ist α die Neigung der Cup-(Außen-)Laufbahn zur Lagerachse. Damit
-Rolle und beide Laufbahnen einen gemeinsamen Apex auf der Lagerachse haben
-(reine Rollbewegung), leitet das Addon den halben Kegelwinkel der Rolle
-
-    β = ½ · (α − arctan( R_i/R_o · tan α ))
-
-aus den Laufbahnradien ab. Daraus folgen die flachere Kegel-(Innen-)Laufbahn
-unter α − 2β und die Rollenachsen-Neigung α − β. Die Wälzkörper werden als
-echte Kegelstümpfe (Halbwinkel β) im Mesh-Frame um die lokale Y-Achse gekippt,
-*bevor* sie auf den Teilkreis rotiert werden. Der berechnete Apex-Z wird als
-Metadatum (`tapered_apex_z_mm`) am Bearing-Empty hinterlegt.
-
-## Käfig (optional)
-
-Über die Checkbox **Käfig erzeugen** wird ein parametrischer Käfig miterzeugt
-und als eigene `Cage`-Sub-Assembly unter dem Bearing-Empty geparented.
-
-Seit v0.7 ist der Default ein **einteiliger Sleeve-Käfig mit typabhängigen
-Pockets**: Aus einem Hohlzylinder werden per Boolean-Difference oversized
-Wälzkörper-Stempel herausgeschnitten, sodass die Pockets typgerecht
-sphärisch (Kugel), zylindrisch (Zylinder/Nadel), kegelig (Kegelrolle) oder
-tonnenförmig (Tonnenlager) entstehen. Der erzeugte Pocket-Käfig wird als
-`cage_style = "pocket"` am Bearing-Empty markiert.
-
-Seit v0.21 gibt es zusätzlich die Bauart **Massiv** (`cage_style = "massive"`):
-ein Pocket-Sleeve mit radialen Schmiertaschen-Bohrungen im tangentialen
-Steg zwischen je zwei Wälzkörper-Pockets, wie sie für gefräste Messing-
-Massivkäfige typisch sind. Der Durchmesser kann manuell vorgegeben oder
-automatisch gewählt werden (`oil_pocket_diameter_mm`, 0 = automatisch);
-reicht der Bauraum nicht, fällt der Käfig auf einen reinen Pocket-Sleeve
-zurück.
-
-Schlägt der Boolean fehl (z. B. wegen degenerierter Cutter bei sehr grober
-Auflösung), fällt das Addon automatisch auf den historischen
-**Leiter-Käfig** zurück (`cage_style = "ladder"`): zwei axiale Endplatten
-zwischen Lagerrand und Wälzkörperende, verbunden durch tangentiale Webs in
-den Lücken zwischen den Wälzkörpern.
-
-Ist zu wenig Bauraum vorhanden (Wälzkörper füllen fast die ganze Breite,
-kein Tangentialspalt o. Ä.), meldet das Addon eine Warnung und überspringt
-den Käfig komplett.
-
-## Einschränkungen
-
-- Keine FEM-/Kontaktmechanik.
-- Keine vollständige DIN/ISO-Tabellenabdeckung aller Reihen.
-- Tragzahlen und Lebensdauer sind vereinfachte Näherungen, keine
-  zertifizierten Auslegungswerte.
-
-## Entwicklung
-
-Modulstruktur – ein **host-freier Geometrie-Kern**, zwei Frontends
-(Blender + FreeCAD):
+<details>
+<summary><b>Vollständige Modulstruktur</b></summary>
 
 ```
 uni_rolling_bearing/      # Geteilter Kern + Blender-Frontend
-├── __init__.py        # bl_info, register/unregister (lazy bpy-Import)
 ├── constants.py       # Lagertyp-IDs, Presets, Normhinweise            [Kern]
 ├── geometry.py        # Pure Geometriefunktionen (testbar ohne Host)   [Kern]
 ├── raceway.py         # Laufbahn-Querschnittsprofile (ohne Host)       [Kern]
@@ -256,50 +156,221 @@ freecad_backend/          # FreeCAD-Frontend (nutzt denselben Kern)
 ├── params.py          # host-freie BearingParams (spiegelt die UI)
 ├── plan.py            # host-freier BearingPlan (Profile + Platzierungen)
 ├── backend_freecad.py # baut Part-Solids aus dem Plan (Polygon-Revolve)
-└── workbench/         # GUI-Commands/Toolbar (in Arbeit) + Icon
+├── uischema.py        # host-freies Property-Schema + Sichtbarkeitsregeln
+└── workbench/
+    ├── wb_bearing.py  # Part::FeaturePython-Proxy (Live-Rebuild, Editor)
+    ├── wb_commands.py # GUI-Command „Lager erzeugen"
+    └── icons/         # Workbench-Icon
 InitGui.py · package.xml  # FreeCAD-Workbench-Discovery (Repo-Root)
 ```
 
-Der Kern importiert **weder** `bpy` **noch** `FreeCAD`; beide Frontends rufen
-dieselbe Geometrie. Dadurch laufen alle Tests ohne installierten Host.
+Der Kern importiert **weder** `bpy` **noch** `FreeCAD` — beide Frontends rufen dieselbe
+Geometrie. Deshalb laufen alle Tests ganz ohne installierten Host.
+</details>
 
-Syntaxcheck lokal:
+---
+
+## Quick Start 🚀
+
+### ▶ Blender
+
+1. **ZIP holen** — vorgebaut unter [`dist/uni_rolling_bearing.zip`](dist/uni_rolling_bearing.zip) (oder selbst bauen, s. u.).
+2. **Installieren** — `Edit > Preferences > Add-ons > Install…`, ZIP wählen, Häkchen aktivieren.
+3. **Öffnen** — in der 3D-View `N` drücken, Tab **UNI Bearings** → Lagertyp wählen → **Erstellen**.
 
 ```bash
-python -m compileall uni_rolling_bearing/ freecad_backend/ InitGui.py
+python build_addon_zip.py        # schreibt dist/uni_rolling_bearing.zip
 ```
 
-Unit-Tests (laufen ohne Blender, prüfen die Geometrie-Schicht):
+### ⬡ FreeCAD
+
+1. **Mod ablegen** — Repo als Mod-Ordner unter `Mod/` (oder via Addon-Manager); `InitGui.py` + `package.xml` liegen dafür im Root.
+2. **Neustart** — Workbench **„UNI Bearings"** erscheint im Dropdown.
+3. **Bauen** — Button **„Lager erzeugen"**; alle Parameter stehen im Eigenschaften-Editor und bauen das Lager **live** neu.
+
+```python
+# Geometrie auch rein programmatisch nutzbar (benötigt FreeCAD):
+from freecad_backend.params import BearingParams
+from freecad_backend.backend_freecad import build_bearing
+
+p = BearingParams(bearing_type="BALL", bore_diameter=20, outer_diameter=47, width=14)
+p.apply_suggested_defaults()
+result = build_bearing(p)        # result.inner_ring / .outer_ring / .elements …
+```
+
+> 💡 **Kein CAD-Profi?** Lass **Auto-Fit** an und nimm ein Preset (z. B. `6204`). Damit
+> kommt immer ein sauberes, funktionsfähiges Lager raus — auch ohne Detailwissen.
+
+---
+
+## Lagertypen 🧱
+
+| Typ | Norm | Besonderheit |
+| :-- | :-- | :-- |
+| **Rillenkugellager** | DIN 625 / ISO 15 | Kugel nach DIN-625-Rillenformel, taucht in beide Rillen ein |
+| **Zylinderrollenlager** | DIN 5412 / ISO 15 | NU-Bauart mit Borden am Außenring, ~94 % Spaltfüllung |
+| **Nadellager** | DIN 617 / ISO 15 | schlanke Rollen, hoher Füllgrad |
+| **Kegelrollenlager** | DIN 720 / ISO 355 | konische Laufbahnen mit gemeinsamem Apex, einstellbares α |
+| **Tonnen-/Pendelrollenlager** | DIN 635-1/-2 | ein- oder zweireihig, sphärische Außenlaufbahn |
+| **U-Rillen-Kugellager (SG)** | SG/W-Reihe | Führungsrolle mit V-/U-Rille im Außenmantel |
+
+<details>
+<summary><b>Laufbahnen im Detail</b> — wie die Wälzkörper sitzen</summary>
+
+<br>
+
+- **Kugellager** — Rillen-Bogen mit Konformität `f = r_groove/d_ball` in beiden Ringen.
+  Kugel-Ø nach **DIN-625-Rillenformel**: `d_w = Schulterspalt + innere + äußere
+  Rillentiefe − Lagerluft` (`geometry.ball_diameter_from_groove`). Die Kugel ist damit
+  *größer* als der reine Schulterspalt und taucht über beide Schultern in die Rillen ein,
+  statt dazwischen zu schweben. Optionale 45°-Fase (DIN 620 / ISO 582 `r_s`,
+  `bearing_chamfer_mm`).
+- **Zylinder-/Nadellager** — NU-Außenring mit zwei nach innen vorstehenden Borden;
+  Innenring zylindrisch. Rolle füllt den Spalt satt (~94 %, Ringwand `1/8·(D−d)`).
+  NU206 → ø≈7.5 mm / 13 Rollen statt zuvor ~5.3 mm / 24.
+- **Kegelrollenlager** — Cup-Laufbahn unter α, Kegel-Laufbahn flacher unter `α − 2β`,
+  Rolle als echter Kegelstumpf (Halbwinkel β), um `α − β` gekippt. Mittlerer Rollen-Ø
+  über `geometry.tapered_roller_diameter` (`d_we ≈ radial_space · cos α`), damit die
+  geneigte Rolle senkrecht zu ihrer Achse anliegt.
+- **Tonnen-/Pendelrollenlager** — einreihig (DIN 635-1): eine Tonne pro Position auf
+  konkaver Innenlaufbahn; zweireihig (DIN 635-2): zwei um ±α geneigte Reihen mit
+  Mittelbord. Sphärenradius des Außenrings automatisch aus Pitch-Ø + Wälzkörpermaßen.
+- **U-Rillen (SG)** — innen wie Rillenkugellager, zusätzlich V-/U-Rille im Außenmantel
+  (`vgroove_depth_mm`, `vgroove_half_angle_deg`, `vgroove_shape`).
+
+</details>
+
+<details>
+<summary><b>Kegelrollenlager: Kontaktwinkel</b> — gemeinsamer Apex</summary>
+
+<br>
+
+α (Default 14°) ist die Neigung der Cup-Laufbahn zur Lagerachse. Für reine Rollbewegung
+treffen sich Rolle und beide Laufbahnen in einem **gemeinsamen Apex**; daraus leitet das
+Tool den halben Kegelwinkel der Rolle ab:
+
+```
+β = ½ · (α − arctan( R_i / R_o · tan α ))
+```
+
+→ Kegel-(Innen-)Laufbahn unter `α − 2β`, Rollenachse unter `α − β`. Die Rollen werden als
+echte Kegelstümpfe um die lokale Y-Achse gekippt, *bevor* sie auf den Teilkreis rotieren.
+Der Apex-Z wird als Metadatum (`tapered_apex_z_mm`) hinterlegt.
+
+</details>
+
+<details>
+<summary><b>Käfig</b> — Pocket · Massiv · Ribbon · Leiter</summary>
+
+<br>
+
+Checkbox **Käfig erzeugen** → eigene `Cage`-Sub-Assembly. Bauarten:
+
+- **Pocket** (Default) — einteiliger Sleeve, aus dem typgerechte Wälzkörper-Stempel per
+  Boolean-Difference herausgeschnitten werden (sphärisch/zylindrisch/kegelig/tonnenförmig).
+- **Massiv** — Pocket-Sleeve mit radialen Schmiertaschen-Bohrungen (`oil_pocket_diameter_mm`,
+  0 = automatisch), wie bei gefrästen Messing-Massivkäfigen.
+- **Ribbon** — zwei genietete Halbringe (Pressblech-Stil).
+- **Leiter** — Fallback bei misslungenem Boolean: zwei Endplatten + tangentiale Webs.
+
+Reicht der Bauraum nicht (Wälzkörper füllen fast die ganze Breite), wird der Käfig
+übersprungen und gewarnt.
+
+</details>
+
+<details>
+<summary><b>Normbezug &amp; Tragzahlen</b> — was abgedeckt ist</summary>
+
+<br>
+
+> **Hinweis:** praxisnahe Start-Presets + normorientierte Felder, noch **keine**
+> vollständige digitale Normdatenbank.
+
+- **ISO 15 / DIN ISO 15** — Maßreihen als JSON-Datenquelle (`norm_engine.py`).
+- **DIN 623** — Bohrungskennzahl-Logik (`din623.py`), ~80 Rillenkugellager-Größen.
+- **DIN 625** — Reihen 60/62/63/64/618/619. **DIN 720** — 302/303/313/320/322/323 mit
+  getrennten Cone/Cup-Breiten.
+- **ISO 492 / DIN 620** — Klassen NORMAL/P6/P5/P4 → µm-Abweichungen für d/D/B.
+- **DIN 5418** — Welle-/Gehäuse-Passungen je Belastungsfall (ISO-286-Abmaße).
+- **ISO 76 / ISO 281** — statische/dynamische Tragzahl + L10h live im Panel; `f0`/`fc`
+  über γ = `Dw·cos α / dm` interpoliert, äquivalente Last `P = X·Fr + Y·Fa`.
+
+</details>
+
+---
+
+## FreeCAD 🛠️
+
+Das Projekt ist als **FreeCAD-Workbench** verfügbar — derselbe Kern wie in Blender, aber
+echte **BREP-Solids** statt Mesh. Rotationskörper entstehen aus **geraden
+Polygon-Meridianen** (kein BSpline), damit der FreeCAD-Körper *exakt* dieselben Nennmaße
+trifft wie der Blender-Mesh: gerade Schultern bleiben gerade, kein Naht-/Verrundungs-Defekt.
+
+Die Workbench bietet einen `Part::FeaturePython`-Proxy mit **Live-Rebuild** und einem
+**kontextabhängigen Eigenschaften-Editor** (nur Felder, die der gewählte Lagertyp wirklich
+nutzt). Daraus lässt sich nativ **STEP/IGES** exportieren.
+
+> **Stand v0.30:** Kern, Bauplan, `Part`-Backend und die komplette Workbench-GUI sind
+> umgesetzt und host-frei getestet. Einzig der manuelle Gegencheck in echtem FreeCAD ist
+> naturgemäß nur am Host prüfbar — Details in der [Roadmap](ROADMAP.md).
+
+---
+
+## Troubleshooting 🔧
+
+<details>
+<summary><b>„Wälzkörper schneidet in den Ring" / Lager sieht falsch aus</b></summary>
+
+<br>
+
+**Auto-Fit** aktiviert lassen — es begrenzt `Wälzkörper-Ø` und `Anzahl` auf plausible Werte
+und löst die Geometrie vor dem Bau auf. Die Ergebnis-Sektion zeigt, ob Werte angepasst
+wurden.
+</details>
+
+<details>
+<summary><b>Käfig fehlt im Ergebnis</b></summary>
+
+<br>
+
+Bei sehr grober Auflösung oder zu wenig Bauraum kann der Boolean-Schnitt fehlschlagen →
+Fallback auf den **Leiter-Käfig**, oder der Käfig wird mit Warnung übersprungen.
+`Auflösung Segmente` erhöhen oder etwas mehr Breite/Pocket-Spiel geben.
+</details>
+
+<details>
+<summary><b>FreeCAD: Workbench erscheint nicht im Dropdown</b></summary>
+
+<br>
+
+`InitGui.py` und `package.xml` müssen im **Wurzelverzeichnis** des Mod-Ordners liegen.
+Veraltete `*.backup`-Ordner im Mod-Verzeichnis ausschließen und FreeCAD neu starten.
+</details>
+
+---
+
+## Entwicklung 🧪
 
 ```bash
+# Syntaxcheck (beide Frontends)
+python -m compileall uni_rolling_bearing/ freecad_backend/ InitGui.py
+
+# Unit-Tests — laufen ohne Blender/FreeCAD
 python -m unittest discover tests
 ```
 
-## FreeCAD-Workbench (ab v0.29, in Arbeit)
+**Einschränkungen:** keine FEM-/Kontaktmechanik · keine vollständige DIN/ISO-Abdeckung
+aller Reihen · Tragzahlen/Lebensdauer sind vereinfachte Näherungen, keine zertifizierten
+Auslegungswerte.
 
-Das Projekt wird zusätzlich als **FreeCAD-Workbench** verfügbar gemacht – mit
-demselben Geometrie-Kern wie das Blender-Addon. So entstehen in FreeCAD echte
-BREP-Solids, die sich nativ als **STEP/IGES** exportieren lassen (kein Umweg über
-eine Blender-Bridge mehr).
+---
 
-Stand v0.29: Repo-Struktur (`InitGui.py`, `package.xml`), der host-freie Bauplan
-und das `Part`-Backend stehen und sind getestet. Rotationskörper werden bewusst
-aus **geraden Polygon-Meridianen** revolviert (nicht aus BSplines), damit der
-FreeCAD-Körper exakt dieselben Nennmaße trifft wie der Blender-Mesh.
+## Lizenz 📄
 
-Die GUI-Commands/Toolbar (Button „Lager erzeugen", `Part::FeaturePython`-Proxy
-mit Live-Rebuild) folgen im nächsten Schritt – siehe [`ROADMAP.md`](ROADMAP.md).
-Die Geometrie ist bereits programmatisch nutzbar:
+MIT — siehe [`LICENSE`](LICENSE).
 
-```python
-from freecad_backend.params import BearingParams
-from freecad_backend.backend_freecad import build_bearing  # benötigt FreeCAD
-
-params = BearingParams(bearing_type="BALL", bore_diameter=20, outer_diameter=47, width=14)
-params.apply_suggested_defaults()
-result = build_bearing(params)   # result.inner_ring / .outer_ring / .elements …
-```
-
-## Lizenz
-
-Siehe `LICENSE`.
+<div align="center">
+<br>
+<sub><b>UNI Rolling Bearing Generator</b> · ein Kern, zwei Hosts · Blender 🟧 + FreeCAD 🟦<br>
+Made for Maschinenbau — <i>d · D · B → ready-to-use bearing</i></sub>
+</div>
