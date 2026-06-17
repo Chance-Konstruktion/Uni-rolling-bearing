@@ -1,9 +1,11 @@
 """FreeCAD-GUI-Schicht der UNI-Bearing-Workbench.
 
-Platzhalter: Die eigentlichen GUI-Commands (z. B. „Lager erzeugen") und die
-Toolbar werden hier in einem Folge-PR ergänzt. Die Geometrie ist bereits über
-``freecad_backend.backend_freecad.build_bearing`` verfügbar; dieses Paket fügt
-nur das FreeCAD-spezifische Command-/Proxy-Frontend hinzu.
+* ``wb_bearing``  – ``Part::FeaturePython``-Proxy mit Live-Rebuild und
+  kontextabhängigem Eigenschaften-Editor; Factory ``make_bearing``.
+* ``wb_commands`` – GUI-Command „Lager erzeugen" + ``register_commands``.
+
+Die Geometrie selbst stammt aus ``freecad_backend.backend_freecad`` (geteilter
+Kern). FreeCAD-Importe erfolgen lazy, damit die Logik ohne Host testbar bleibt.
 """
 
 from __future__ import annotations

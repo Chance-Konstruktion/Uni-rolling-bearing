@@ -9,6 +9,41 @@ Veröffentlichungsdaten erfasst; sie sind chronologisch absteigend gelistet.
 
 Geplante, noch offene Arbeiten stehen in [`ROADMAP.md`](ROADMAP.md).
 
+## [0.30.0] – 2026-06-17
+
+Zweite Stufe des **FreeCAD-Ports**: die Workbench ist jetzt bedienbar. Ein Klick
+erzeugt ein parametrisches Lager-Objekt, das sich über den Eigenschaften-Editor
+live neu aufbaut – mit demselben Geometrie-Kern wie das Blender-Add-on.
+
+### Added
+- **`freecad_backend/uischema.py`** – host-freies UI-Schema: deklariert alle
+  Lager-Eigenschaften (Typ, Gruppe, Label; Defaults direkt aus `BearingParams`)
+  und die kontextabhängigen Sichtbarkeitsregeln (`visible_fields`), die das
+  Blender-N-Panel spiegeln. Komplett ohne FreeCAD testbar.
+- **`freecad_backend/workbench/wb_bearing.py`** – `Part::FeaturePython`-Proxy:
+  - legt die Eigenschaften aus dem Schema an,
+  - **Live-Rebuild** (`execute`) baut die Geometrie bei jeder Änderung neu,
+  - **kontextabhängiger Eigenschaften-Editor** via `setEditorMode`: nur Felder,
+    die der gewählte Lagertyp/Käfig wirklich nutzt, sind sichtbar (Werte bleiben
+    erhalten),
+  - Factory `make_bearing` + minimaler ViewProvider (Icon im Baum).
+- **`freecad_backend/workbench/wb_commands.py`** – GUI-Command „Lager erzeugen"
+  (`register_commands`).
+- **`InitGui.Initialize()`** registriert den Command und hängt ihn in Toolbar
+  und Menü „UNI Bearings".
+- Tests `tests/test_freecad_workbench.py` (17): Schema deckt alle
+  `BearingParams`-Felder ab, Sichtbarkeitsregeln je Lagertyp/Käfig, Proxy
+  (Property-Anlage, Defaults, Editor-Sichtbarkeit, `onChanged`, `execute`,
+  `make_bearing`) mit gemocktem FreeCAD/Part, Command-Registrierung und der
+  `InitGui.Initialize()`-Pfad. Gesamt 202 Tests.
+
+### Changed
+- Addon-Version `0.29.0 → 0.30.0`; `package.xml` `0.29.0 → 0.30.0`.
+
+> Restklasse (nur am Ziel-Host prüfbar): die tatsächliche GUI-Registrierung in
+> echtem FreeCAD (Workbench im Dropdown, Button erzeugt das Bauteil) – siehe
+> ROADMAP.
+
 ## [0.29.0] – 2026-06-17
 
 Erste Stufe des **FreeCAD-Ports**: derselbe host-freie Geometrie-Kern, jetzt mit

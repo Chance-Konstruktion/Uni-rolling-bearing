@@ -256,7 +256,11 @@ freecad_backend/          # FreeCAD-Frontend (nutzt denselben Kern)
 ├── params.py          # host-freie BearingParams (spiegelt die UI)
 ├── plan.py            # host-freier BearingPlan (Profile + Platzierungen)
 ├── backend_freecad.py # baut Part-Solids aus dem Plan (Polygon-Revolve)
-└── workbench/         # GUI-Commands/Toolbar (in Arbeit) + Icon
+├── uischema.py        # host-freies Property-Schema + Sichtbarkeitsregeln
+└── workbench/
+    ├── wb_bearing.py  # Part::FeaturePython-Proxy (Live-Rebuild, Editor)
+    ├── wb_commands.py # GUI-Command „Lager erzeugen"
+    └── icons/         # Workbench-Icon
 InitGui.py · package.xml  # FreeCAD-Workbench-Discovery (Repo-Root)
 ```
 
@@ -275,21 +279,29 @@ Unit-Tests (laufen ohne Blender, prüfen die Geometrie-Schicht):
 python -m unittest discover tests
 ```
 
-## FreeCAD-Workbench (ab v0.29, in Arbeit)
+## FreeCAD-Workbench (ab v0.29)
 
-Das Projekt wird zusätzlich als **FreeCAD-Workbench** verfügbar gemacht – mit
-demselben Geometrie-Kern wie das Blender-Addon. So entstehen in FreeCAD echte
-BREP-Solids, die sich nativ als **STEP/IGES** exportieren lassen (kein Umweg über
-eine Blender-Bridge mehr).
+Das Projekt ist zusätzlich als **FreeCAD-Workbench** verfügbar – mit demselben
+Geometrie-Kern wie das Blender-Addon. So entstehen in FreeCAD echte BREP-Solids,
+die sich nativ als **STEP/IGES** exportieren lassen (kein Umweg über eine
+Blender-Bridge mehr). Rotationskörper werden bewusst aus **geraden
+Polygon-Meridianen** revolviert (nicht aus BSplines), damit der FreeCAD-Körper
+exakt dieselben Nennmaße trifft wie der Blender-Mesh.
 
-Stand v0.29: Repo-Struktur (`InitGui.py`, `package.xml`), der host-freie Bauplan
-und das `Part`-Backend stehen und sind getestet. Rotationskörper werden bewusst
-aus **geraden Polygon-Meridianen** revolviert (nicht aus BSplines), damit der
-FreeCAD-Körper exakt dieselben Nennmaße trifft wie der Blender-Mesh.
+**Installation (FreeCAD):** das Repo als Mod-Ordner unter `Mod/` ablegen (bzw.
+über den Addon-Manager) – `InitGui.py` und `package.xml` liegen dafür im Root.
+Nach dem Neustart erscheint die Workbench **„UNI Bearings"** im Dropdown; der
+Button **„Lager erzeugen"** legt ein parametrisches Lager an. Alle Parameter
+stehen im Eigenschaften-Editor und bauen das Lager bei Änderung live neu; je nach
+Lagertyp werden nur die relevanten Felder angezeigt.
 
-Die GUI-Commands/Toolbar (Button „Lager erzeugen", `Part::FeaturePython`-Proxy
-mit Live-Rebuild) folgen im nächsten Schritt – siehe [`ROADMAP.md`](ROADMAP.md).
-Die Geometrie ist bereits programmatisch nutzbar:
+> Stand v0.30: Kern, Bauplan, `Part`-Backend und die komplette Workbench-GUI
+> (Proxy mit Live-Rebuild, Command, Toolbar/Menü, kontextabhängiger Editor) sind
+> umgesetzt und ohne Host getestet. Der finale Gegencheck in echtem FreeCAD ist
+> die einzig verbleibende, nur am Host prüfbare Restklasse – siehe
+> [`ROADMAP.md`](ROADMAP.md).
+
+Die Geometrie ist auch programmatisch nutzbar:
 
 ```python
 from freecad_backend.params import BearingParams
