@@ -21,8 +21,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Byte-compile addon (Syntaxcheck)
-        run: python -m compileall -q uni_rolling_bearing/
+      - name: Byte-compile addon + FreeCAD-Frontend (Syntaxcheck)
+        run: python -m compileall -q uni_rolling_bearing/ freecad_backend/ InitGui.py
 
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
