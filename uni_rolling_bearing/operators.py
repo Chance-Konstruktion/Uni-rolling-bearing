@@ -46,6 +46,7 @@ def apply_suggested_defaults(props) -> None:
             props.outer_diameter,
             radial_clearance=props.radial_clearance,
             gap_factor=props.gap_factor,
+            contact_angle_deg=props.contact_angle_deg,
         )
         props.ring_thickness = suggestion.ring_thickness
         props.roller_diameter = suggestion.roller_diameter
@@ -83,6 +84,8 @@ def _props_to_resolve_kwargs(props) -> dict:
         # nicht durchsticht.
         conformity_inner=props.groove_conformity_inner,
         conformity_outer=props.groove_conformity_outer,
+        # Kegelrollen-Sizing (cos α) nutzt den eingestellten Kontaktwinkel.
+        contact_angle_deg=props.contact_angle_deg,
     )
 
 

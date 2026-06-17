@@ -35,6 +35,10 @@ MIN_BALL_WALL_MM = 0.4
 # So liefert der Vorschlag katalognahe Stückzahlen (6204 → 8 statt 11 Kugeln).
 BALL_SUGGEST_PITCH_GAP = 0.55
 
+# Default-Kontaktwinkel [°] für die Kegelrollen-Auslegung, wenn keiner übergeben
+# wird (entspricht dem UI-Default ``contact_angle_deg``).
+DEFAULT_TAPERED_CONTACT_ANGLE_DEG = 14.0
+
 # Numerische Toleranz, um Division durch ~0 in Winkelberechnungen zu vermeiden.
 PROFILE_EPSILON = 1.0e-6
 
@@ -178,6 +182,28 @@ def max_ball_diameter_for_walls(
     return max(0.0, min(max_inner, max_outer))
 
 
+def tapered_roller_diameter(
+    *,
+    radial_space: float,
+    radial_clearance: float,
+    contact_angle_rad: float,
+    safety: float = ROLLER_SAFETY_FRACTION,
+) -> float:
+    """Mittlerer Kegelrollen-Ø, der die Cup-Laufbahn berührt (keine Schwebe).
+
+    Die Kegelrolle ist um ~α gegen die Lagerachse geneigt; der Abstand zwischen
+    Cone- und Cup-Laufbahn **senkrecht zur Rollenachse** ist ``radial_space ·
+    cos α`` (die Cup-Seite ist die bindende, weil sie steiler als die
+    Cone-Seite steht). Eine Rolle, die nur den *radialen* Spalt füllt, säße zu
+    klein und schwebte zwischen den Laufbahnen – derselbe Effekt wie zuvor bei
+    den Kugeln. Mit dem ``cos α``-Faktor sitzt die Rolle korrekt an, ohne die
+    (steilere) Cup-Laufbahn zu durchschneiden.
+    """
+    cos_a = math.cos(max(0.0, contact_angle_rad))
+    usable = radial_space * cos_a - 2.0 * radial_clearance
+    return max(0.0, usable * safety)
+
+
 def resolve_geometry(
     *,
     bearing_type: str,
@@ -192,6 +218,7 @@ def resolve_geometry(
     auto_fit: bool,
     conformity_inner: float = BALL_GROOVE_CONFORMITY_INNER,
     conformity_outer: float = BALL_GROOVE_CONFORMITY_OUTER,
+    contact_angle_deg: float = DEFAULT_TAPERED_CONTACT_ANGLE_DEG,
 ) -> Tuple[Optional[ResolvedBearing], Optional[str]]:
     """Löst alle Parameter zu einer funktionsfähigen Geometrie auf.
 
@@ -245,8 +272,17 @@ def resolve_geometry(
             conformity_inner=conformity_inner,
             conformity_outer=conformity_outer,
         )
+    elif bearing_type == constants.TAPERED:
+        # Kegelrolle sitzt geneigt: senkrecht zur Rollenachse ist der nutzbare
+        # Spalt ``radial_space·cos α``. So wird die Rolle so groß wie möglich,
+        # ohne die Cup-Laufbahn zu durchschneiden (gegen „Rolle zu klein“).
+        max_roller_d = tapered_roller_diameter(
+            radial_space=dims.radial_space,
+            radial_clearance=radial_clearance,
+            contact_angle_rad=math.radians(contact_angle_deg),
+        )
     else:
-        # Rollen füllen den Schulterspalt (mit Sicherheitsabschlag).
+        # Übrige Rollen füllen den Schulterspalt (mit Sicherheitsabschlag).
         max_roller_d = usable_space * ROLLER_SAFETY_FRACTION
 
     if roller_diameter > max_roller_d:
@@ -309,6 +345,7 @@ def suggest_defaults(
     *,
     radial_clearance: float = 0.02,
     gap_factor: float = 0.10,
+    contact_angle_deg: float = DEFAULT_TAPERED_CONTACT_ANGLE_DEG,
 ) -> SuggestedDefaults:
     """Liefert ring_thickness/roller_d/Anzahl, mit denen ein Lager sofort funktioniert.
 
@@ -316,7 +353,10 @@ def suggest_defaults(
     ``constants.TYPE_RING_THICKNESS_RATIO``). Die Wälzkörper-Auslegung ist
     typabhängig:
 
-    * **Rollen** füllen den nutzbaren Schulterspalt (``constants.TYPE_ROLLER_FILL``).
+    * **Rollen** (Zylinder/Nadel/Tonne) füllen den nutzbaren Schulterspalt
+      (``constants.TYPE_ROLLER_FILL``).
+    * **Kegelrollen** sitzen geneigt und werden über ``cos α`` an die
+      Cup-Laufbahn gesetzt (``tapered_roller_diameter``) – sonst zu klein.
     * **Kugeln** folgen der DIN-625-Rillenformel (``ball_diameter_from_groove``)
       und tauchen über die Schultern hinaus in die Rillen ein; die vorgeschlagene
       Kugelzahl nutzt einen katalognahen Umfangsspalt (``BALL_SUGGEST_PITCH_GAP``).
@@ -352,6 +392,16 @@ def suggest_defaults(
         )
         roller_d = max(0.5, roller_d)
         count = max_elements_for_pitch(pitch_d, roller_d, BALL_SUGGEST_PITCH_GAP)
+    elif bearing_type == constants.TAPERED:
+        roller_d = max(
+            0.5,
+            tapered_roller_diameter(
+                radial_space=dims.radial_space,
+                radial_clearance=radial_clearance,
+                contact_angle_rad=math.radians(contact_angle_deg),
+            ),
+        )
+        count = max_elements_for_pitch(pitch_d, roller_d, gap_factor)
     else:
         usable = max(MIN_USABLE_SPACE_MM, dims.radial_space - 2.0 * radial_clearance)
         fill = constants.TYPE_ROLLER_FILL.get(bearing_type, SUGGESTED_ROLLER_FILL)

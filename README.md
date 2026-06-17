@@ -161,6 +161,12 @@ Volumen revolviert (Modul `raceway.py`). Folgende Laufbahnen werden modelliert:
   Apex: die Cup-(Außen-)Laufbahn steht unter dem Kontaktwinkel α, die Kegel-
   (Innen-)Laufbahn flacher unter α − 2β, und die Rolle ist ein echter
   Kegelstumpf mit Halbwinkel β, um α − β gekippt (siehe nächster Abschnitt).
+  Der mittlere Rollen-Ø wird über `geometry.tapered_roller_diameter` so
+  ausgelegt, dass die geneigte Rolle senkrecht zu ihrer Achse an der
+  Cup-Laufbahn anliegt (Spalt ≈ `radial_space · cos α`) – sonst säße die Rolle
+  zu klein und schwebte zwischen den Laufbahnen. Zusammen mit der etwas
+  dünneren Ringwand (1/10·(D−d)) füllt die Kegelrolle damit ~57 % des
+  Radialbands (statt früher ~53 %), bei katalognaher Rollenzahl.
 - **Tonnenlager (einreihig, DIN 635-1)** – eine Tonnenrolle pro Position auf
   einer zentralen konkaven Innenlaufbahn, Außenring mit sphärischer
   Innenlaufbahn. **Pendelrollenlager (zweireihig, DIN 635-2)** – zwei um ±α

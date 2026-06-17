@@ -31,11 +31,13 @@ from uni_rolling_bearing.geometry import (  # noqa: E402
     BALL_GROOVE_DEPTH_FRACTION_INNER,
     BALL_GROOVE_DEPTH_FRACTION_OUTER,
     MIN_BALL_WALL_MM,
+    ROLLER_SAFETY_FRACTION,
     ball_diameter_from_groove,
     compute_dims,
     is_ball_type,
     resolve_geometry,
     suggest_defaults,
+    tapered_roller_diameter,
 )
 
 
@@ -309,6 +311,71 @@ class TestAllTypesCleanProfiles(unittest.TestCase):
                         ok, reason = _is_clean_revolve_profile(prof)
                         self.assertTrue(ok, msg=f"{bt}/{code} {name}: {reason}")
         self.assertTrue(any_checked, "Keine Profile geprüft – Preset-Katalog leer?")
+
+
+# --------------------------------------------------------------------------- #
+# 4) Kegelrollen-Sizing (analog zum Kugel-Fix: Rollen nicht „zu klein“)        #
+# --------------------------------------------------------------------------- #
+
+
+# d, D, T, erwartete Rollenzahl-Schranken (Katalogbereich, vgl. test_reference_cases).
+TAPERED_REFERENCE = [
+    ("30206", 30.0, 62.0, 17.25, 13, 21),
+    ("30306", 30.0, 72.0, 20.75, 11, 18),
+    ("32208", 40.0, 80.0, 23.0, 10, 20),
+    ("30210", 50.0, 90.0, 21.75, 12, 24),
+]
+
+
+class TestTaperedRollerFormula(unittest.TestCase):
+    def test_closed_form(self):
+        rs, clr, a = 9.6, 0.02, math.radians(14.0)
+        d = tapered_roller_diameter(radial_space=rs, radial_clearance=clr, contact_angle_rad=a)
+        expected = (rs * math.cos(a) - 2.0 * clr) * ROLLER_SAFETY_FRACTION
+        self.assertAlmostEqual(d, expected, places=9)
+
+    def test_steeper_angle_gives_smaller_roller(self):
+        # cos α fällt mit α → steilere Reihe ⇒ kleinerer (anliegender) Rollen-Ø.
+        flat = tapered_roller_diameter(radial_space=10.0, radial_clearance=0.0, contact_angle_rad=math.radians(10.0))
+        steep = tapered_roller_diameter(radial_space=10.0, radial_clearance=0.0, contact_angle_rad=math.radians(28.0))
+        self.assertGreater(flat, steep)
+
+
+class TestTaperedRollerSizing(unittest.TestCase):
+    def test_roller_fills_healthy_band_fraction(self):
+        # Nach dem Fix füllt die Kegelrolle ein deutliches Band (≥ 55 % von
+        # (D−d)/2) statt als zu kleine Rolle zwischen den Laufbahnen zu schweben.
+        for code, d, big_d, T, _lo, _hi in TAPERED_REFERENCE:
+            with self.subTest(code=code):
+                _s, spec, error = _resolve_for(constants.TAPERED, d, big_d, T)
+                self.assertIsNone(error, msg=f"{code}: {error}")
+                band = (big_d - d) / 2.0
+                self.assertGreaterEqual(
+                    spec.roller_d, 0.55 * band,
+                    msg=f"{code}: Kegelrolle {spec.roller_d:.2f} zu klein (< 55 % von {band:.1f})",
+                )
+
+    def test_roller_seats_against_cup_without_clipping(self):
+        # Senkrecht zur Rollenachse muss der Rollenradius die Cup-Laufbahn fast
+        # berühren (kleiner positiver Spalt) – nicht schweben, nicht durchschneiden.
+        for code, d, big_d, T, _lo, _hi in TAPERED_REFERENCE:
+            with self.subTest(code=code):
+                _s, spec, error = _resolve_for(constants.TAPERED, d, big_d, T)
+                self.assertIsNone(error, msg=f"{code}: {error}")
+                pitch_r = spec.pitch_d * 0.5
+                R_o = spec.outer_inner_d * 0.5
+                cup_perp = (R_o - pitch_r) * math.cos(math.radians(14.0))
+                gap = cup_perp - spec.roller_d * 0.5
+                self.assertGreater(gap, -1e-6, msg=f"{code}: Rolle schneidet Cup-Laufbahn")
+                self.assertLess(gap, 0.5, msg=f"{code}: Rolle schwebt zu weit von der Cup-Laufbahn")
+
+    def test_count_in_catalog_range(self):
+        for code, d, big_d, T, lo, hi in TAPERED_REFERENCE:
+            with self.subTest(code=code):
+                _s, spec, error = _resolve_for(constants.TAPERED, d, big_d, T)
+                self.assertIsNone(error, msg=f"{code}: {error}")
+                self.assertGreaterEqual(spec.element_count, lo, msg=f"{code} n zu klein")
+                self.assertLessEqual(spec.element_count, hi, msg=f"{code} n zu groß")
 
 
 class TestRollerTypesFitWithinRaces(unittest.TestCase):
