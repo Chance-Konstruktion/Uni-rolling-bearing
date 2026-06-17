@@ -7,9 +7,37 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 
 from . import constants
+from .raceway import (
+    BALL_GROOVE_CONFORMITY_INNER,
+    BALL_GROOVE_CONFORMITY_OUTER,
+)
 
 # Mindesthöhe [mm] für den nutzbaren Ringspalt, damit ein Wälzkörper sinnvoll passt.
 MIN_USABLE_SPACE_MM = 0.2
+
+# --- Rillenkugellager: Kugel-Sizing nach der DIN-625-Rillenformel ------------
+#
+# Anteil der Kugel-Ø, um den die Laufbahn-Rille je Ring unter die Schulter
+# einschneidet (Rillentiefe = e·d_ball). Die Kugel überspannt den Schulter-
+# abstand plus beide Rillentiefen, taucht also über die Schultern hinaus in
+# beide Rillen ein – genau das verhinderte die alte „Kugel = Schulterspalt“-
+# Logik (Kugel zu klein, schwebte zwischen den Schultern).
+BALL_GROOVE_DEPTH_FRACTION_INNER = 0.10
+BALL_GROOVE_DEPTH_FRACTION_OUTER = 0.10
+
+# Mindest-Restwand [mm] zwischen Rillenboden und Bohrung bzw. Außenmantel.
+# Begrenzt den Kugel-Ø nach oben, damit die Rille die Ringwand nicht durchsticht.
+MIN_BALL_WALL_MM = 0.4
+
+# Umfangs-Spaltfaktor für die *vorgeschlagene* Kugelanzahl. Reale Rillenkugel-
+# lager füllen den Teilkreis nur zu ~60 % mit Kugeln (Rest = Käfigstege), daher
+# deutlich mehr Luft als der dichtest-gepackte Resolver-Default (gap_factor).
+# So liefert der Vorschlag katalognahe Stückzahlen (6204 → 8 statt 11 Kugeln).
+BALL_SUGGEST_PITCH_GAP = 0.55
+
+# Default-Kontaktwinkel [°] für die Kegelrollen-Auslegung, wenn keiner übergeben
+# wird (entspricht dem UI-Default ``contact_angle_deg``).
+DEFAULT_TAPERED_CONTACT_ANGLE_DEG = 14.0
 
 # Numerische Toleranz, um Division durch ~0 in Winkelberechnungen zu vermeiden.
 PROFILE_EPSILON = 1.0e-6
@@ -95,6 +123,87 @@ def roller_length_for_type(bearing_type: str, width: float, roller_d: float) -> 
     return width * ratio
 
 
+def is_ball_type(bearing_type: str) -> bool:
+    """True für rillenkugelbasierte Lager (Standard-Kugellager + SG-V-Rille)."""
+    return bearing_type in (constants.BALL, constants.VGROOVE)
+
+
+def ball_diameter_from_groove(
+    *,
+    radial_space: float,
+    radial_clearance: float,
+    depth_fraction_inner: float = BALL_GROOVE_DEPTH_FRACTION_INNER,
+    depth_fraction_outer: float = BALL_GROOVE_DEPTH_FRACTION_OUTER,
+) -> float:
+    """Kugel-Ø aus der DIN-625-Rillenformel.
+
+    Die Kugel überspannt den **Schulterabstand** (``radial_space`` = radialer
+    Abstand zwischen Außenring-Innenschulter und Innenring-Außenschulter) PLUS
+    die **innere und äußere Rillentiefe**, abzüglich der radialen Lagerluft
+    (Toleranz)::
+
+        d_w = radial_space + t_rille_innen + t_rille_außen − Lagerluft
+
+    Mit den Rillentiefen als Anteil des Kugel-Ø (``t = e·d_w``) ergibt sich
+    geschlossen::
+
+        d_w = (radial_space − 2·Lagerluft) / (1 − e_innen − e_außen)
+
+    Weil ``e_innen + e_außen > 0`` ist, wird die Kugel damit **größer** als der
+    reine Schulterspalt und taucht über beide Schultern hinaus in die Rillen ein
+    (statt zwischen den Schultern zu schweben).
+    """
+    denom = 1.0 - depth_fraction_inner - depth_fraction_outer
+    denom = max(0.2, denom)  # Schutz gegen entartete Anteile (Summe ≥ 1)
+    return max(0.0, (radial_space - 2.0 * radial_clearance) / denom)
+
+
+def max_ball_diameter_for_walls(
+    *,
+    bore_diameter: float,
+    outer_diameter: float,
+    inner_outer_d: float,
+    outer_inner_d: float,
+    conformity_inner: float = BALL_GROOVE_CONFORMITY_INNER,
+    conformity_outer: float = BALL_GROOVE_CONFORMITY_OUTER,
+    min_wall: float = MIN_BALL_WALL_MM,
+) -> float:
+    """Größter Kugel-Ø, bei dem der Rillenboden die Ringwand nicht durchsticht.
+
+    Der Rillenboden liegt ``conformity·d_ball`` vom Kugelmittelpunkt (Teilkreis)
+    entfernt; zwischen ihm und Bohrung bzw. Außenmantel muss ``min_wall``
+    Material stehen bleiben.
+    """
+    bore_r = bore_diameter * 0.5
+    outer_r = outer_diameter * 0.5
+    pitch_r = (inner_outer_d + outer_inner_d) * 0.25
+    max_inner = (pitch_r - bore_r - min_wall) / max(conformity_inner, PROFILE_EPSILON)
+    max_outer = (outer_r - min_wall - pitch_r) / max(conformity_outer, PROFILE_EPSILON)
+    return max(0.0, min(max_inner, max_outer))
+
+
+def tapered_roller_diameter(
+    *,
+    radial_space: float,
+    radial_clearance: float,
+    contact_angle_rad: float,
+    safety: float = ROLLER_SAFETY_FRACTION,
+) -> float:
+    """Mittlerer Kegelrollen-Ø, der die Cup-Laufbahn berührt (keine Schwebe).
+
+    Die Kegelrolle ist um ~α gegen die Lagerachse geneigt; der Abstand zwischen
+    Cone- und Cup-Laufbahn **senkrecht zur Rollenachse** ist ``radial_space ·
+    cos α`` (die Cup-Seite ist die bindende, weil sie steiler als die
+    Cone-Seite steht). Eine Rolle, die nur den *radialen* Spalt füllt, säße zu
+    klein und schwebte zwischen den Laufbahnen – derselbe Effekt wie zuvor bei
+    den Kugeln. Mit dem ``cos α``-Faktor sitzt die Rolle korrekt an, ohne die
+    (steilere) Cup-Laufbahn zu durchschneiden.
+    """
+    cos_a = math.cos(max(0.0, contact_angle_rad))
+    usable = radial_space * cos_a - 2.0 * radial_clearance
+    return max(0.0, usable * safety)
+
+
 def resolve_geometry(
     *,
     bearing_type: str,
@@ -107,17 +216,25 @@ def resolve_geometry(
     radial_clearance: float,
     gap_factor: float,
     auto_fit: bool,
+    conformity_inner: float = BALL_GROOVE_CONFORMITY_INNER,
+    conformity_outer: float = BALL_GROOVE_CONFORMITY_OUTER,
+    contact_angle_deg: float = DEFAULT_TAPERED_CONTACT_ANGLE_DEG,
 ) -> Tuple[Optional[ResolvedBearing], Optional[str]]:
     """Löst alle Parameter zu einer funktionsfähigen Geometrie auf.
 
     Gibt ``(spec, None)`` bei Erfolg oder ``(None, error_message)`` zurück.
     Mit ``auto_fit=True`` werden unplausible Werte stillschweigend korrigiert.
 
-    Der Wälzkörper (Kugel wie Rolle) füllt den nutzbaren radialen Spalt: er
-    sitzt mittig zwischen Innen- und Außenlaufbahn und reicht – abzüglich
-    Lagerluft und Sicherheitsanteil – bis an beide Schultern. Nur so schneidet
-    der Rillenbogen bei Kugellagern tatsächlich unter die Schulter und wird im
-    Mesh sichtbar.
+    Wälzkörper-Sizing ist typabhängig:
+
+    * **Rollen** (Zylinder/Nadel/Kegel/Tonne) füllen den nutzbaren radialen
+      Spalt zwischen den Schultern (abzüglich Lagerluft und Sicherheitsanteil)
+      und sitzen mittig auf dem Teilkreis.
+    * **Kugeln** (Rillenkugel- und SG-V-Rillen-Lager) werden nach der DIN-625-
+      Rillenformel ausgelegt: ``d_w = Schulterspalt + Rillentiefe_innen +
+      Rillentiefe_außen − Lagerluft``. Die Kugel ist damit *größer* als der
+      Schulterspalt und taucht über beide Schultern hinaus in die Rillen ein;
+      nach oben begrenzt sie nur die Restwand bis Bohrung/Außenmantel.
     """
     if bore_diameter >= outer_diameter:
         return None, (
@@ -144,7 +261,29 @@ def resolve_geometry(
             f"oder Ringstärke verkleinern."
         )
 
-    max_roller_d = usable_space * ROLLER_SAFETY_FRACTION
+    if is_ball_type(bearing_type):
+        # Kugel darf über die Schultern hinaus in die Rillen reichen; Grenze ist
+        # die Restwand zwischen Rillenboden und Bohrung/Außenmantel.
+        max_roller_d = max_ball_diameter_for_walls(
+            bore_diameter=bore_diameter,
+            outer_diameter=outer_diameter,
+            inner_outer_d=dims.inner_outer_d,
+            outer_inner_d=dims.outer_inner_d,
+            conformity_inner=conformity_inner,
+            conformity_outer=conformity_outer,
+        )
+    elif bearing_type == constants.TAPERED:
+        # Kegelrolle sitzt geneigt: senkrecht zur Rollenachse ist der nutzbare
+        # Spalt ``radial_space·cos α``. So wird die Rolle so groß wie möglich,
+        # ohne die Cup-Laufbahn zu durchschneiden (gegen „Rolle zu klein“).
+        max_roller_d = tapered_roller_diameter(
+            radial_space=dims.radial_space,
+            radial_clearance=radial_clearance,
+            contact_angle_rad=math.radians(contact_angle_deg),
+        )
+    else:
+        # Übrige Rollen füllen den Schulterspalt (mit Sicherheitsabschlag).
+        max_roller_d = usable_space * ROLLER_SAFETY_FRACTION
 
     if roller_diameter > max_roller_d:
         if not auto_fit:
@@ -206,15 +345,21 @@ def suggest_defaults(
     *,
     radial_clearance: float = 0.02,
     gap_factor: float = 0.10,
+    contact_angle_deg: float = DEFAULT_TAPERED_CONTACT_ANGLE_DEG,
 ) -> SuggestedDefaults:
     """Liefert ring_thickness/roller_d/Anzahl, mit denen ein Lager sofort funktioniert.
 
-    Pro Lagertyp wird ein eigener Ringstärke-Anteil und Wälzkörper-Füllgrad
-    verwendet (siehe ``constants.TYPE_RING_THICKNESS_RATIO`` und
-    ``TYPE_ROLLER_FILL``). Damit erhält man typische Industriewerte für
-    Wandstärke und Wälzkörper-Ø ohne manuelle Berechnung. Der Wälzkörper füllt
-    den nutzbaren Spalt; bei Kugellagern reicht er damit bis an beide Schultern
-    und der Rillenbogen schneitet sichtbar ins Material.
+    Pro Lagertyp wird ein eigener Ringstärke-Anteil verwendet (siehe
+    ``constants.TYPE_RING_THICKNESS_RATIO``). Die Wälzkörper-Auslegung ist
+    typabhängig:
+
+    * **Rollen** (Zylinder/Nadel/Tonne) füllen den nutzbaren Schulterspalt
+      (``constants.TYPE_ROLLER_FILL``).
+    * **Kegelrollen** sitzen geneigt und werden über ``cos α`` an die
+      Cup-Laufbahn gesetzt (``tapered_roller_diameter``) – sonst zu klein.
+    * **Kugeln** folgen der DIN-625-Rillenformel (``ball_diameter_from_groove``)
+      und tauchen über die Schultern hinaus in die Rillen ein; die vorgeschlagene
+      Kugelzahl nutzt einen katalognahen Umfangsspalt (``BALL_SUGGEST_PITCH_GAP``).
     """
     if bore_diameter >= outer_diameter:
         # Degenerate Eingabe – minimaler Default damit nichts crasht.
@@ -230,11 +375,38 @@ def suggest_defaults(
     )
 
     dims = compute_dims(bore_diameter, outer_diameter, ring_thickness)
-    usable = max(MIN_USABLE_SPACE_MM, dims.radial_space - 2.0 * radial_clearance)
-    fill = constants.TYPE_ROLLER_FILL.get(bearing_type, SUGGESTED_ROLLER_FILL)
-    roller_d = max(0.5, usable * fill)
     pitch_d = (dims.inner_outer_d + dims.outer_inner_d) * 0.5
-    count = max_elements_for_pitch(pitch_d, roller_d, gap_factor)
+
+    if is_ball_type(bearing_type):
+        roller_d = ball_diameter_from_groove(
+            radial_space=dims.radial_space, radial_clearance=radial_clearance
+        )
+        roller_d = min(
+            roller_d,
+            max_ball_diameter_for_walls(
+                bore_diameter=bore_diameter,
+                outer_diameter=outer_diameter,
+                inner_outer_d=dims.inner_outer_d,
+                outer_inner_d=dims.outer_inner_d,
+            ),
+        )
+        roller_d = max(0.5, roller_d)
+        count = max_elements_for_pitch(pitch_d, roller_d, BALL_SUGGEST_PITCH_GAP)
+    elif bearing_type == constants.TAPERED:
+        roller_d = max(
+            0.5,
+            tapered_roller_diameter(
+                radial_space=dims.radial_space,
+                radial_clearance=radial_clearance,
+                contact_angle_rad=math.radians(contact_angle_deg),
+            ),
+        )
+        count = max_elements_for_pitch(pitch_d, roller_d, gap_factor)
+    else:
+        usable = max(MIN_USABLE_SPACE_MM, dims.radial_space - 2.0 * radial_clearance)
+        fill = constants.TYPE_ROLLER_FILL.get(bearing_type, SUGGESTED_ROLLER_FILL)
+        roller_d = max(0.5, usable * fill)
+        count = max_elements_for_pitch(pitch_d, roller_d, gap_factor)
 
     return SuggestedDefaults(
         ring_thickness=ring_thickness,

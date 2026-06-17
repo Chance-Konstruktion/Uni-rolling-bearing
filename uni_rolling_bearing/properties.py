@@ -458,12 +458,14 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
             "Nur Kegelrollenlager: Winkel zwischen Wälzkörperachse und "
             "Lagerachse. Alle Rollenachsen treffen sich auf der Lagerachse "
             "in einem gemeinsamen Apex (DIN 720 / ISO 355). Typisch 10–18° "
-            "für Standardreihen, 25–30° für steile Reihen."
+            "für Standardreihen, 25–30° für steile Reihen. Steuert bei aktivem "
+            "Auto-Berechnen auch den Kegelrollen-Ø (cos α an der Cup-Laufbahn)."
         ),
         default=14.0,
         min=0.0,
         max=45.0,
         soft_max=30.0,
+        update=_on_dimension_changed,
     )
 
     segments: IntProperty(
