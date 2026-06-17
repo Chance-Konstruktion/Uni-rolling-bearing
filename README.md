@@ -367,7 +367,7 @@ Auslegungswerte.
 
 ## Lizenz 📄
 
-MIT — siehe [`LICENSE`](LICENSE).
+siehe [`LICENSE`](LICENSE).
 
 <div align="center">
 <br>
