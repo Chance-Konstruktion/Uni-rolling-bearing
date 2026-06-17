@@ -4,7 +4,7 @@
 
 # ⚙️ UNI Rolling Bearing Generator
 
-**Parametrische, normgerechte Wälzlager — ein Geometrie-Kern, zwei Hosts.**
+**Parametric, standard-compliant rolling bearings — one geometry core, two hosts.**
 <br>
 <sub>Parametric standard rolling bearings for <b>Blender</b> &amp; <b>FreeCAD</b> from a single shared core.</sub>
 
@@ -15,44 +15,45 @@
 ![Tests](https://img.shields.io/badge/tests-202%20passing-3fb950)
 ![Blender](https://img.shields.io/badge/Blender-3.6%2B-ea7600)
 ![FreeCAD](https://img.shields.io/badge/FreeCAD-0.21%2B-1f80c0)
-![License](https://img.shields.io/badge/license-MIT-9aa3ad)
+![License](https://img.shields.io/badge/license-GPLv3-9aa3ad)
 
-[**Quick Start**](#quick-start) · [**Architektur**](#architektur) · [**Lagertypen**](#lagertypen) · [**FreeCAD**](#freecad) · [Changelog](CHANGELOG.md) · [Roadmap](ROADMAP.md)
+[🇬🇧 English](README.md) · **[🇩🇪 Deutsch](README.de.md)**
+
+[**Quick Start**](#quick-start) · [**Architecture**](#architecture) · [**Bearing types**](#bearing-types) · [**FreeCAD**](#freecad) · [Changelog](CHANGELOG.md) · [Roadmap](ROADMAP.md)
 
 </div>
 
 ---
 
-## Was ist das? 🎯
+## What is this? 🎯
 
-Ein Generator für **funktionsfähige Wälzlager** (Kugel-, Zylinder-, Nadel-, Kegel-,
-Tonnen-/Pendel- und U-Rillen-Lager) — bedienbar über ein **Blender-N-Panel** *und* eine
-**FreeCAD-Workbench**. Beide Hosts teilen sich denselben `bpy`-/`FreeCAD`-freien
-Geometrie-Kern, also rechnen sie *identisch* — Blender liefert ein Mesh, FreeCAD ein
-exportierbares BREP-Solid.
+A generator for **functional rolling bearings** (ball, cylindrical, needle, tapered,
+barrel/spherical and U-groove bearings) — operated through a **Blender N-panel** *and* a
+**FreeCAD workbench**. Both hosts share the same `bpy`-/`FreeCAD`-free geometry core, so they
+compute *identically* — Blender produces a mesh, FreeCAD an exportable BREP solid.
 
-> 💡 **Kurz gesagt:** Du gibst `d · D · B` ein, wählst den Lagertyp — und bekommst ein
-> normorientiertes, kollisionsfreies Lager mit echten Laufbahnen, Wälzkörpern und
-> optionalem Käfig.
+> 💡 **In short:** You enter `d · D · B`, choose the bearing type — and get a
+> standards-oriented, collision-free bearing with real raceways, rolling elements and an
+> optional cage.
 
 <table>
 <tr>
 <td width="33%" valign="top">
 
-### 📐 Normgerecht
-ISO 15 Maßreihen, DIN 623/625/720/635, ISO 492-Toleranzen und DIN-5418-Passungen — als Presets *und* Live-Berechnung.
+### 📐 Standard-compliant
+ISO 15 dimension series, DIN 623/625/720/635, ISO 492 tolerances and DIN 5418 fits — as presets *and* live calculation.
 
 </td>
 <td width="33%" valign="top">
 
-### 🧩 Funktionsfähig
-Auto-Fit begrenzt Wälzkörper-Ø &amp; Anzahl auf Plausibles. Keine clippenden Kugeln, keine kollidierenden Rollen, manifold-taugliche Geometrie.
+### 🧩 Functional
+Auto-fit limits rolling-element Ø &amp; count to plausible values. No clipping balls, no colliding rollers, manifold-ready geometry.
 
 </td>
 <td width="33%" valign="top">
 
-### 🔗 Zwei Hosts
-Ein host-freier Kern → Blender-Mesh **und** FreeCAD-Solid. STEP/IGES-Export nativ über FreeCAD, ganz ohne Bridge.
+### 🔗 Two hosts
+One host-free core → Blender mesh **and** FreeCAD solid. STEP/IGES export natively through FreeCAD, no bridge required.
 
 </td>
 </tr>
@@ -66,48 +67,48 @@ Ein host-freier Kern → Blender-Mesh **und** FreeCAD-Solid. STEP/IGES-Export na
 <tr>
 <td width="50%">
 
-🧱 **6 Lagertypen** — Rillenkugel, Zylinder, Nadel, Kegel, Tonne/Pendel, U-Rillen (SG)
+🧱 **6 bearing types** — deep-groove ball, cylindrical, needle, tapered, barrel/spherical, U-groove (SG)
 
 </td>
 <td width="50%">
 
-📐 **Normbezug** — ISO 15 · DIN 623/625/720 · ISO 492/76/281 · DIN 5418
+📐 **Standards basis** — ISO 15 · DIN 623/625/720 · ISO 492/76/281 · DIN 5418
 
 </td>
 </tr>
 <tr>
 <td>
 
-🔩 **Echte Laufbahnen** — Rillenbögen, konische Apex-Geometrie, Sphären
+🔩 **Real raceways** — groove arcs, conical apex geometry, spheres
 
 </td>
 <td>
 
-⚖️ **Tragzahlen live** — `C0r`, `Cr`, `P`, `L10h` direkt im Panel
-
-</td>
-</tr>
-<tr>
-<td>
-
-🛟 **Käfig** — Pocket · Massiv · Ribbon · Leiter (Boolean-Pockets)
-
-</td>
-<td>
-
-🧮 **Auto-Fit** — korrigiert unplausible Kombinationen still
+⚖️ **Load ratings live** — `C0r`, `Cr`, `P`, `L10h` straight in the panel
 
 </td>
 </tr>
 <tr>
 <td>
 
-📦 **STEP / IGES** — nativ über FreeCAD-BREP-Solids
+🛟 **Cage** — pocket · solid · ribbon · ladder (boolean pockets)
 
 </td>
 <td>
 
-🧪 **202 Tests** — host-frei, laufen ohne Blender/FreeCAD
+🧮 **Auto-fit** — silently corrects implausible combinations
+
+</td>
+</tr>
+<tr>
+<td>
+
+📦 **STEP / IGES** — natively via FreeCAD BREP solids
+
+</td>
+<td>
+
+🧪 **202 tests** — host-free, run without Blender/FreeCAD
 
 </td>
 </tr>
@@ -115,13 +116,13 @@ Ein host-freier Kern → Blender-Mesh **und** FreeCAD-Solid. STEP/IGES-Export na
 
 ---
 
-## Architektur 🧩
+## Architecture 🧩
 
-Ein **geteilter Geometrie-Kern** ohne `bpy`/`FreeCAD`, zwei dünne Frontends:
+A **shared geometry core** without `bpy`/`FreeCAD`, two thin frontends:
 
 <pre>
                  ┌───────────────────────────────────────────┐
-                 │   uni_rolling_bearing/  ·  KERN (host-frei)│
+                 │   uni_rolling_bearing/  ·  CORE (host-free)│
                  │   geometry · raceway · ratings · fits      │
                  │   tolerances · norm_engine · din623        │
                  └───────────────┬───────────────┬────────────┘
@@ -129,43 +130,43 @@ Ein **geteilter Geometrie-Kern** ohne `bpy`/`FreeCAD`, zwei dünne Frontends:
               resolve_geometry() │               │ build_plan()
                                  ▼               ▼
                  ┌───────────────────┐   ┌────────────────────────┐
-                 │  Blender-Frontend │   │  FreeCAD-Frontend       │
+                 │  Blender frontend │   │  FreeCAD frontend       │
                  │  mesh_builders    │   │  freecad_backend/       │
                  │  operators·panel  │   │  plan · backend · ui    │
-                 │  → BMesh-Objekte  │   │  → Part-BREP-Solids     │
+                 │  → BMesh objects  │   │  → Part BREP solids     │
                  └───────────────────┘   └────────────────────────┘
                           │                         │
                        🟧 Mesh                  🟦 Solid → STEP/IGES
 </pre>
 
 <details>
-<summary><b>Vollständige Modulstruktur</b></summary>
+<summary><b>Full module structure</b></summary>
 
 ```
-uni_rolling_bearing/      # Geteilter Kern + Blender-Frontend
-├── constants.py       # Lagertyp-IDs, Presets, Normhinweise            [Kern]
-├── geometry.py        # Pure Geometriefunktionen (testbar ohne Host)   [Kern]
-├── raceway.py         # Laufbahn-Querschnittsprofile (ohne Host)       [Kern]
-├── ratings.py · fits.py · tolerances.py · norm_engine.py · din623.py   [Kern]
-├── mesh_builders.py   # BMesh-Helfer (Ringe, Revolution, Kugeln, …)  [Blender]
-├── properties.py      # PropertyGroup für das N-Panel                [Blender]
-├── operators.py       # Erstell-/Preset-Operatoren                   [Blender]
-└── panel.py           # N-Panel UI                                   [Blender]
+uni_rolling_bearing/      # Shared core + Blender frontend
+├── constants.py       # bearing-type IDs, presets, standard notes          [Core]
+├── geometry.py        # pure geometry functions (testable host-free)        [Core]
+├── raceway.py         # raceway cross-section profiles (host-free)          [Core]
+├── ratings.py · fits.py · tolerances.py · norm_engine.py · din623.py        [Core]
+├── mesh_builders.py   # BMesh helpers (rings, revolution, spheres, …)    [Blender]
+├── properties.py      # PropertyGroup for the N-panel                    [Blender]
+├── operators.py       # create/preset operators                          [Blender]
+└── panel.py           # N-panel UI                                       [Blender]
 
-freecad_backend/          # FreeCAD-Frontend (nutzt denselben Kern)
-├── params.py          # host-freie BearingParams (spiegelt die UI)
-├── plan.py            # host-freier BearingPlan (Profile + Platzierungen)
-├── backend_freecad.py # baut Part-Solids aus dem Plan (Polygon-Revolve)
-├── uischema.py        # host-freies Property-Schema + Sichtbarkeitsregeln
+freecad_backend/          # FreeCAD frontend (uses the same core)
+├── params.py          # host-free BearingParams (mirrors the UI)
+├── plan.py            # host-free BearingPlan (profiles + placements)
+├── backend_freecad.py # builds Part solids from the plan (polygon revolve)
+├── uischema.py        # host-free property schema + visibility rules
 └── workbench/
-    ├── wb_bearing.py  # Part::FeaturePython-Proxy (Live-Rebuild, Editor)
-    ├── wb_commands.py # GUI-Command „Lager erzeugen"
-    └── icons/         # Workbench-Icon
-InitGui.py · package.xml  # FreeCAD-Workbench-Discovery (Repo-Root)
+    ├── wb_bearing.py  # Part::FeaturePython proxy (live rebuild, editor)
+    ├── wb_commands.py # GUI command "Create bearing"
+    └── icons/         # workbench icon
+InitGui.py · package.xml  # FreeCAD workbench discovery (repo root)
 ```
 
-Der Kern importiert **weder** `bpy` **noch** `FreeCAD` — beide Frontends rufen dieselbe
-Geometrie. Deshalb laufen alle Tests ganz ohne installierten Host.
+The core imports **neither** `bpy` **nor** `FreeCAD` — both frontends call the same
+geometry. That is why all tests run without an installed host.
 </details>
 
 ---
@@ -174,22 +175,22 @@ Geometrie. Deshalb laufen alle Tests ganz ohne installierten Host.
 
 ### ▶ Blender
 
-1. **ZIP holen** — vorgebaut unter [`dist/uni_rolling_bearing.zip`](dist/uni_rolling_bearing.zip) (oder selbst bauen, s. u.).
-2. **Installieren** — `Edit > Preferences > Add-ons > Install…`, ZIP wählen, Häkchen aktivieren.
-3. **Öffnen** — in der 3D-View `N` drücken, Tab **UNI Bearings** → Lagertyp wählen → **Erstellen**.
+1. **Get the ZIP** — prebuilt at [`dist/uni_rolling_bearing.zip`](dist/uni_rolling_bearing.zip) (or build it yourself, see below).
+2. **Install** — `Edit > Preferences > Add-ons > Install…`, choose the ZIP, tick the checkbox.
+3. **Open** — in the 3D view press `N`, tab **UNI Bearings** → pick a bearing type → **Create**.
 
 ```bash
-python build_addon_zip.py        # schreibt dist/uni_rolling_bearing.zip
+python build_addon_zip.py        # writes dist/uni_rolling_bearing.zip
 ```
 
 ### ⬡ FreeCAD
 
-1. **Mod ablegen** — Repo als Mod-Ordner unter `Mod/` (oder via Addon-Manager); `InitGui.py` + `package.xml` liegen dafür im Root.
-2. **Neustart** — Workbench **„UNI Bearings"** erscheint im Dropdown.
-3. **Bauen** — Button **„Lager erzeugen"**; alle Parameter stehen im Eigenschaften-Editor und bauen das Lager **live** neu.
+1. **Drop in the Mod** — place the repo as a Mod folder under `Mod/` (or via the Addon Manager); `InitGui.py` + `package.xml` live in the root for this.
+2. **Restart** — the workbench **"UNI Bearings"** appears in the dropdown.
+3. **Build** — button **"Create bearing"**; all parameters live in the property editor and rebuild the bearing **live**.
 
 ```python
-# Geometrie auch rein programmatisch nutzbar (benötigt FreeCAD):
+# The geometry is also usable purely programmatically (requires FreeCAD):
 from freecad_backend.params import BearingParams
 from freecad_backend.backend_freecad import build_bearing
 
@@ -198,102 +199,102 @@ p.apply_suggested_defaults()
 result = build_bearing(p)        # result.inner_ring / .outer_ring / .elements …
 ```
 
-> 💡 **Kein CAD-Profi?** Lass **Auto-Fit** an und nimm ein Preset (z. B. `6204`). Damit
-> kommt immer ein sauberes, funktionsfähiges Lager raus — auch ohne Detailwissen.
+> 💡 **Not a CAD pro?** Leave **Auto-fit** on and pick a preset (e.g. `6204`). That always
+> yields a clean, functional bearing — even without detailed knowledge.
 
 ---
 
-## Lagertypen 🧱
+## Bearing types 🧱
 
-| Typ | Norm | Besonderheit |
+| Type | Standard | Distinctive feature |
 | :-- | :-- | :-- |
-| **Rillenkugellager** | DIN 625 / ISO 15 | Kugel nach DIN-625-Rillenformel, taucht in beide Rillen ein |
-| **Zylinderrollenlager** | DIN 5412 / ISO 15 | NU-Bauart mit Borden am Außenring, ~94 % Spaltfüllung |
-| **Nadellager** | DIN 617 / ISO 15 | schlanke Rollen, hoher Füllgrad |
-| **Kegelrollenlager** | DIN 720 / ISO 355 | konische Laufbahnen mit gemeinsamem Apex, einstellbares α |
-| **Tonnen-/Pendelrollenlager** | DIN 635-1/-2 | ein- oder zweireihig, sphärische Außenlaufbahn |
-| **U-Rillen-Kugellager (SG)** | SG/W-Reihe | Führungsrolle mit V-/U-Rille im Außenmantel |
+| **Deep-groove ball bearing** | DIN 625 / ISO 15 | ball per DIN 625 groove formula, sinks into both grooves |
+| **Cylindrical roller bearing** | DIN 5412 / ISO 15 | NU design with flanges on the outer ring, ~94 % gap fill |
+| **Needle bearing** | DIN 617 / ISO 15 | slim rollers, high fill ratio |
+| **Tapered roller bearing** | DIN 720 / ISO 355 | conical raceways with a common apex, adjustable α |
+| **Barrel/spherical roller bearing** | DIN 635-1/-2 | single or double row, spherical outer raceway |
+| **U-groove ball bearing (SG)** | SG/W series | guide roller with V/U groove in the outer shell |
 
 <details>
-<summary><b>Laufbahnen im Detail</b> — wie die Wälzkörper sitzen</summary>
+<summary><b>Raceways in detail</b> — how the rolling elements sit</summary>
 
 <br>
 
-- **Kugellager** — Rillen-Bogen mit Konformität `f = r_groove/d_ball` in beiden Ringen.
-  Kugel-Ø nach **DIN-625-Rillenformel**: `d_w = Schulterspalt + innere + äußere
-  Rillentiefe − Lagerluft` (`geometry.ball_diameter_from_groove`). Die Kugel ist damit
-  *größer* als der reine Schulterspalt und taucht über beide Schultern in die Rillen ein,
-  statt dazwischen zu schweben. Optionale 45°-Fase (DIN 620 / ISO 582 `r_s`,
+- **Ball bearings** — groove arc with conformity `f = r_groove/d_ball` in both rings.
+  Ball Ø per the **DIN 625 groove formula**: `d_w = shoulder gap + inner + outer
+  groove depth − bearing clearance` (`geometry.ball_diameter_from_groove`). The ball is
+  thus *larger* than the bare shoulder gap and dips over both shoulders into the grooves,
+  instead of floating between them. Optional 45° chamfer (DIN 620 / ISO 582 `r_s`,
   `bearing_chamfer_mm`).
-- **Zylinder-/Nadellager** — NU-Außenring mit zwei nach innen vorstehenden Borden;
-  Innenring zylindrisch. Rolle füllt den Spalt satt (~94 %, Ringwand `1/8·(D−d)`).
-  NU206 → ø≈7.5 mm / 13 Rollen statt zuvor ~5.3 mm / 24.
-- **Kegelrollenlager** — Cup-Laufbahn unter α, Kegel-Laufbahn flacher unter `α − 2β`,
-  Rolle als echter Kegelstumpf (Halbwinkel β), um `α − β` gekippt. Mittlerer Rollen-Ø
-  über `geometry.tapered_roller_diameter` (`d_we ≈ radial_space · cos α`), damit die
-  geneigte Rolle senkrecht zu ihrer Achse anliegt.
-- **Tonnen-/Pendelrollenlager** — einreihig (DIN 635-1): eine Tonne pro Position auf
-  konkaver Innenlaufbahn; zweireihig (DIN 635-2): zwei um ±α geneigte Reihen mit
-  Mittelbord. Sphärenradius des Außenrings automatisch aus Pitch-Ø + Wälzkörpermaßen.
-- **U-Rillen (SG)** — innen wie Rillenkugellager, zusätzlich V-/U-Rille im Außenmantel
+- **Cylindrical/needle bearings** — NU outer ring with two inward-protruding flanges;
+  inner ring cylindrical. The roller fills the gap fully (~94 %, ring wall `1/8·(D−d)`).
+  NU206 → ø≈7.5 mm / 13 rollers instead of the previous ~5.3 mm / 24.
+- **Tapered roller bearings** — cup raceway at α, cone raceway flatter at `α − 2β`,
+  the roller a true truncated cone (half angle β), tilted by `α − β`. Mean roller Ø
+  via `geometry.tapered_roller_diameter` (`d_we ≈ radial_space · cos α`), so the
+  inclined roller contacts perpendicular to its axis.
+- **Barrel/spherical roller bearings** — single row (DIN 635-1): one barrel per position on
+  a concave inner raceway; double row (DIN 635-2): two rows tilted by ±α with a
+  centre flange. The outer-ring sphere radius is derived automatically from pitch Ø + rolling-element dimensions.
+- **U-groove (SG)** — inside like a deep-groove ball bearing, plus a V/U groove in the outer shell
   (`vgroove_depth_mm`, `vgroove_half_angle_deg`, `vgroove_shape`).
 
 </details>
 
 <details>
-<summary><b>Kegelrollenlager: Kontaktwinkel</b> — gemeinsamer Apex</summary>
+<summary><b>Tapered roller bearings: contact angle</b> — common apex</summary>
 
 <br>
 
-α (Default 14°) ist die Neigung der Cup-Laufbahn zur Lagerachse. Für reine Rollbewegung
-treffen sich Rolle und beide Laufbahnen in einem **gemeinsamen Apex**; daraus leitet das
-Tool den halben Kegelwinkel der Rolle ab:
+α (default 14°) is the inclination of the cup raceway to the bearing axis. For pure rolling
+motion the roller and both raceways meet at a **common apex**; from that the tool derives
+the half cone angle of the roller:
 
 ```
 β = ½ · (α − arctan( R_i / R_o · tan α ))
 ```
 
-→ Kegel-(Innen-)Laufbahn unter `α − 2β`, Rollenachse unter `α − β`. Die Rollen werden als
-echte Kegelstümpfe um die lokale Y-Achse gekippt, *bevor* sie auf den Teilkreis rotieren.
-Der Apex-Z wird als Metadatum (`tapered_apex_z_mm`) hinterlegt.
+→ cone (inner) raceway at `α − 2β`, roller axis at `α − β`. The rollers are tilted as
+true truncated cones about the local Y axis *before* being rotated onto the pitch circle.
+The apex Z is stored as metadata (`tapered_apex_z_mm`).
 
 </details>
 
 <details>
-<summary><b>Käfig</b> — Pocket · Massiv · Ribbon · Leiter</summary>
+<summary><b>Cage</b> — pocket · solid · ribbon · ladder</summary>
 
 <br>
 
-Checkbox **Käfig erzeugen** → eigene `Cage`-Sub-Assembly. Bauarten:
+Checkbox **Create cage** → its own `Cage` sub-assembly. Designs:
 
-- **Pocket** (Default) — einteiliger Sleeve, aus dem typgerechte Wälzkörper-Stempel per
-  Boolean-Difference herausgeschnitten werden (sphärisch/zylindrisch/kegelig/tonnenförmig).
-- **Massiv** — Pocket-Sleeve mit radialen Schmiertaschen-Bohrungen (`oil_pocket_diameter_mm`,
-  0 = automatisch), wie bei gefrästen Messing-Massivkäfigen.
-- **Ribbon** — zwei genietete Halbringe (Pressblech-Stil).
-- **Leiter** — Fallback bei misslungenem Boolean: zwei Endplatten + tangentiale Webs.
+- **Pocket** (default) — one-piece sleeve from which type-appropriate rolling-element punches are
+  cut by boolean difference (spherical/cylindrical/conical/barrel-shaped).
+- **Solid** — pocket sleeve with radial lubrication-pocket bores (`oil_pocket_diameter_mm`,
+  0 = automatic), like machined brass solid cages.
+- **Ribbon** — two riveted half rings (pressed-sheet style).
+- **Ladder** — fallback on a failed boolean: two end plates + tangential webs.
 
-Reicht der Bauraum nicht (Wälzkörper füllen fast die ganze Breite), wird der Käfig
-übersprungen und gewarnt.
+If there is not enough space (rolling elements fill almost the whole width), the cage is
+skipped with a warning.
 
 </details>
 
 <details>
-<summary><b>Normbezug &amp; Tragzahlen</b> — was abgedeckt ist</summary>
+<summary><b>Standards basis &amp; load ratings</b> — what is covered</summary>
 
 <br>
 
-> **Hinweis:** praxisnahe Start-Presets + normorientierte Felder, noch **keine**
-> vollständige digitale Normdatenbank.
+> **Note:** practical starting presets + standards-oriented fields, **not yet** a
+> complete digital standards database.
 
-- **ISO 15 / DIN ISO 15** — Maßreihen als JSON-Datenquelle (`norm_engine.py`).
-- **DIN 623** — Bohrungskennzahl-Logik (`din623.py`), ~80 Rillenkugellager-Größen.
-- **DIN 625** — Reihen 60/62/63/64/618/619. **DIN 720** — 302/303/313/320/322/323 mit
-  getrennten Cone/Cup-Breiten.
-- **ISO 492 / DIN 620** — Klassen NORMAL/P6/P5/P4 → µm-Abweichungen für d/D/B.
-- **DIN 5418** — Welle-/Gehäuse-Passungen je Belastungsfall (ISO-286-Abmaße).
-- **ISO 76 / ISO 281** — statische/dynamische Tragzahl + L10h live im Panel; `f0`/`fc`
-  über γ = `Dw·cos α / dm` interpoliert, äquivalente Last `P = X·Fr + Y·Fa`.
+- **ISO 15 / DIN ISO 15** — dimension series as a JSON data source (`norm_engine.py`).
+- **DIN 623** — bore-number logic (`din623.py`), ~80 deep-groove ball bearing sizes.
+- **DIN 625** — series 60/62/63/64/618/619. **DIN 720** — 302/303/313/320/322/323 with
+  separate cone/cup widths.
+- **ISO 492 / DIN 620** — classes NORMAL/P6/P5/P4 → µm deviations for d/D/B.
+- **DIN 5418** — shaft/housing fits per load case (ISO 286 deviations).
+- **ISO 76 / ISO 281** — static/dynamic load rating + L10h live in the panel; `f0`/`fc`
+  interpolated via γ = `Dw·cos α / dm`, equivalent load `P = X·Fr + Y·Fa`.
 
 </details>
 
@@ -301,76 +302,75 @@ Reicht der Bauraum nicht (Wälzkörper füllen fast die ganze Breite), wird der 
 
 ## FreeCAD 🛠️
 
-Das Projekt ist als **FreeCAD-Workbench** verfügbar — derselbe Kern wie in Blender, aber
-echte **BREP-Solids** statt Mesh. Rotationskörper entstehen aus **geraden
-Polygon-Meridianen** (kein BSpline), damit der FreeCAD-Körper *exakt* dieselben Nennmaße
-trifft wie der Blender-Mesh: gerade Schultern bleiben gerade, kein Naht-/Verrundungs-Defekt.
+The project is available as a **FreeCAD workbench** — the same core as in Blender, but
+real **BREP solids** instead of a mesh. Solids of revolution are built from **straight
+polygon meridians** (no BSpline), so the FreeCAD body hits *exactly* the same nominal
+dimensions as the Blender mesh: straight shoulders stay straight, no seam/fillet defect.
 
-Die Workbench bietet einen `Part::FeaturePython`-Proxy mit **Live-Rebuild** und einem
-**kontextabhängigen Eigenschaften-Editor** (nur Felder, die der gewählte Lagertyp wirklich
-nutzt). Daraus lässt sich nativ **STEP/IGES** exportieren.
+The workbench offers a `Part::FeaturePython` proxy with **live rebuild** and a
+**context-aware property editor** (only the fields the chosen bearing type actually
+uses). From it you can export natively to **STEP/IGES**.
 
-> **Stand v0.30:** Kern, Bauplan, `Part`-Backend und die komplette Workbench-GUI sind
-> umgesetzt und host-frei getestet. Einzig der manuelle Gegencheck in echtem FreeCAD ist
-> naturgemäß nur am Host prüfbar — Details in der [Roadmap](ROADMAP.md).
+> **As of v0.30:** core, build plan, `Part` backend and the complete workbench GUI are
+> implemented and tested host-free. Only the manual cross-check in real FreeCAD is, by
+> nature, only verifiable on the host — details in the [Roadmap](ROADMAP.md).
 
 ---
 
 ## Troubleshooting 🔧
 
 <details>
-<summary><b>„Wälzkörper schneidet in den Ring" / Lager sieht falsch aus</b></summary>
+<summary><b>"Rolling element cuts into the ring" / bearing looks wrong</b></summary>
 
 <br>
 
-**Auto-Fit** aktiviert lassen — es begrenzt `Wälzkörper-Ø` und `Anzahl` auf plausible Werte
-und löst die Geometrie vor dem Bau auf. Die Ergebnis-Sektion zeigt, ob Werte angepasst
-wurden.
+Leave **Auto-fit** enabled — it limits `rolling-element Ø` and `count` to plausible values
+and resolves the geometry before building. The result section shows whether values were
+adjusted.
 </details>
 
 <details>
-<summary><b>Käfig fehlt im Ergebnis</b></summary>
+<summary><b>Cage missing in the result</b></summary>
 
 <br>
 
-Bei sehr grober Auflösung oder zu wenig Bauraum kann der Boolean-Schnitt fehlschlagen →
-Fallback auf den **Leiter-Käfig**, oder der Käfig wird mit Warnung übersprungen.
-`Auflösung Segmente` erhöhen oder etwas mehr Breite/Pocket-Spiel geben.
+At a very coarse resolution or with too little space, the boolean cut can fail →
+fallback to the **ladder cage**, or the cage is skipped with a warning.
+Increase `Resolution segments` or give a little more width/pocket clearance.
 </details>
 
 <details>
-<summary><b>FreeCAD: Workbench erscheint nicht im Dropdown</b></summary>
+<summary><b>FreeCAD: workbench does not appear in the dropdown</b></summary>
 
 <br>
 
-`InitGui.py` und `package.xml` müssen im **Wurzelverzeichnis** des Mod-Ordners liegen.
-Veraltete `*.backup`-Ordner im Mod-Verzeichnis ausschließen und FreeCAD neu starten.
+`InitGui.py` and `package.xml` must sit in the **root directory** of the Mod folder.
+Exclude stale `*.backup` folders in the Mod directory and restart FreeCAD.
 </details>
 
 ---
 
-## Entwicklung 🧪
+## Development 🧪
 
 ```bash
-# Syntaxcheck (beide Frontends)
+# Syntax check (both frontends)
 python -m compileall uni_rolling_bearing/ freecad_backend/ InitGui.py
 
-# Unit-Tests — laufen ohne Blender/FreeCAD
+# Unit tests — run without Blender/FreeCAD
 python -m unittest discover tests
 ```
 
-**Einschränkungen:** keine FEM-/Kontaktmechanik · keine vollständige DIN/ISO-Abdeckung
-aller Reihen · Tragzahlen/Lebensdauer sind vereinfachte Näherungen, keine zertifizierten
-Auslegungswerte.
+**Limitations:** no FEM/contact mechanics · no complete DIN/ISO coverage of all series ·
+load ratings/service life are simplified approximations, not certified design values.
 
 ---
 
-## Lizenz 📄
+## License 📄
 
-siehe [`LICENSE`](LICENSE).
+GNU General Public License v3.0 — see [`LICENSE`](LICENSE).
 
 <div align="center">
 <br>
-<sub><b>UNI Rolling Bearing Generator</b> · ein Kern, zwei Hosts · Blender 🟧 + FreeCAD 🟦<br>
-Made for Maschinenbau — <i>d · D · B → ready-to-use bearing</i></sub>
+<sub><b>UNI Rolling Bearing Generator</b> · one core, two hosts · Blender 🟧 + FreeCAD 🟦<br>
+Made for mechanical engineering — <i>d · D · B → ready-to-use bearing</i></sub>
 </div>
