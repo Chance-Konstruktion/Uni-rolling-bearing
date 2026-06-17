@@ -156,7 +156,9 @@ Volumen revolviert (Modul `raceway.py`). Folgende Laufbahnen werden modelliert:
 - **Zylinderrollen-/Nadellager** – NU-Bauart: Außenring mit zwei radial nach
   innen vorstehenden Borden, die die Rollen axial halten; Innenring zylindrisch.
   Bei zu engem Bauraum (Rolle füllt nahezu die ganze Lagerbreite) wird der
-  Bord automatisch weggelassen.
+  Bord automatisch weggelassen. Die Rolle füllt den Laufbahnspalt jetzt satt
+  (~94 % Füllgrad, dünnere Ringwand 1/8·(D−d) bei Zylinderrollen) statt mit
+  großem Spiel zu schweben – NU206 → ø≈7.5 mm/13 Rollen statt zuvor ~5.3 mm/24.
 - **Kegelrollenlager** – Beide Ringe haben konische Laufbahnen mit gemeinsamem
   Apex: die Cup-(Außen-)Laufbahn steht unter dem Kontaktwinkel α, die Kegel-
   (Innen-)Laufbahn flacher unter α − 2β, und die Rolle ist ein echter
