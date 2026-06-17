@@ -78,7 +78,10 @@ SPHERICAL_TWO_ROW_LENGTH_FACTOR = 0.70
 # schweben (zu klein/lose wirkend).
 TYPE_RING_THICKNESS_RATIO: Dict[str, float] = {
     BALL: 2.0 / 15.0,
-    CYLINDRICAL: 1.0 / 7.0,
+    # Zylinderrollenlager: 1/8 (statt 1/7) macht die Ringe etwas dünner, damit
+    # die Rolle den Laufbahnspalt katalognah füllt (NU206 → ø≈7.5 mm statt ~5.3 mm,
+    # vorher nur ~33 % des Radialbands).
+    CYLINDRICAL: 1.0 / 8.0,
     NEEDLE: 1.0 / 12.0,
     # Kegel- und Pendelrollenlager haben vergleichsweise dünne Ringe und
     # entsprechend große Wälzkörper. 1/10 (statt früher 1/6 → 1/9) macht die
@@ -94,19 +97,32 @@ TYPE_RING_THICKNESS_RATIO: Dict[str, float] = {
 }
 
 # Empfohlener Anteil des nutzbaren Radial-Spalts, den der Wälzkörper-Ø
-# einnimmt. Höhere Werte = mehr Tragfähigkeit, weniger Schmierfilmreserve.
-# Kugellager: hoher Wert nötig, damit die Rille (groove arc) die Schulter
-# tatsächlich schneidet und sichtbar ins Material taucht; reale Rillenkugellager
-# füllen den Spalt knapp, der Rest sind Lagerluft + Konformitätsreserve.
+# einnimmt. Rollen (Zylinder/Nadel/Tonne) sitzen ohne Rille direkt zwischen den
+# Laufbahnen und sollen den Spalt fast vollständig füllen (snug, kein Schweben);
+# der Rest ist Lagerluft + kleine Reserve. (Für Kugeln greift stattdessen die
+# Rillenformel, für Kegelrollen der cos-α-Faktor – beide ignorieren diesen Wert.)
 TYPE_ROLLER_FILL: Dict[str, float] = {
     BALL: 0.95,
-    CYLINDRICAL: 0.78,
-    NEEDLE: 0.88,
-    # Kegel-/Pendelrollen füllen den (durch die dünneren Ringe verbreiterten)
-    # Laufbahnspalt fast vollständig – große Rollen, wenige Stück, wie im Katalog.
-    # Kegelrollen reichen damit (mittig auf dem Teilkreis) bis an beide
-    # Laufbahnen, statt mit Spiel in der Mitte zu schweben.
+    # 0.94 (statt 0.78): die Zylinderrolle füllt den Laufbahnspalt nahezu ganz
+    # und schwebt nicht mehr mit großem Spiel zwischen den Schultern.
+    CYLINDRICAL: 0.94,
+    # 0.94 (statt 0.88): Nadeln liegen satt zwischen den Laufbahnen.
+    NEEDLE: 0.94,
     TAPERED: 0.94,
-    SPHERICAL: 0.86,
+    # 0.90 (statt 0.86): etwas größere Tonnenrolle, satter Sitz in der Mulde.
+    SPHERICAL: 0.90,
     VGROOVE: 0.92,
+}
+
+# Umfangs-Spaltfaktor für die *vorgeschlagene* Wälzkörperzahl je Lagertyp.
+# Reale Lager packen den Teilkreis nicht dichtest (Käfigstege!) – ein typgerechter
+# Zusatzspalt liefert katalognahe Stückzahlen, statt den Umfang mit zu vielen
+# Wälzkörpern zu füllen. Fehlt ein Eintrag, gilt der UI-``gap_factor``. (Der
+# Resolver deckelt weiterhin über ``gap_factor``; dieser Wert steuert nur den
+# Default-Vorschlag.)
+TYPE_SUGGEST_PITCH_GAP: Dict[str, float] = {
+    BALL: 0.55,        # 6204 → 8 Kugeln
+    VGROOVE: 0.55,
+    CYLINDRICAL: 0.45,  # NU206 → ~13 Rollen
+    SPHERICAL: 0.20,    # 22210 → ~18, 22310 → ~13 je Reihe
 }

@@ -29,12 +29,6 @@ BALL_GROOVE_DEPTH_FRACTION_OUTER = 0.10
 # Begrenzt den Kugel-Ø nach oben, damit die Rille die Ringwand nicht durchsticht.
 MIN_BALL_WALL_MM = 0.4
 
-# Umfangs-Spaltfaktor für die *vorgeschlagene* Kugelanzahl. Reale Rillenkugel-
-# lager füllen den Teilkreis nur zu ~60 % mit Kugeln (Rest = Käfigstege), daher
-# deutlich mehr Luft als der dichtest-gepackte Resolver-Default (gap_factor).
-# So liefert der Vorschlag katalognahe Stückzahlen (6204 → 8 statt 11 Kugeln).
-BALL_SUGGEST_PITCH_GAP = 0.55
-
 # Default-Kontaktwinkel [°] für die Kegelrollen-Auslegung, wenn keiner übergeben
 # wird (entspricht dem UI-Default ``contact_angle_deg``).
 DEFAULT_TAPERED_CONTACT_ANGLE_DEG = 14.0
@@ -358,8 +352,10 @@ def suggest_defaults(
     * **Kegelrollen** sitzen geneigt und werden über ``cos α`` an die
       Cup-Laufbahn gesetzt (``tapered_roller_diameter``) – sonst zu klein.
     * **Kugeln** folgen der DIN-625-Rillenformel (``ball_diameter_from_groove``)
-      und tauchen über die Schultern hinaus in die Rillen ein; die vorgeschlagene
-      Kugelzahl nutzt einen katalognahen Umfangsspalt (``BALL_SUGGEST_PITCH_GAP``).
+      und tauchen über die Schultern hinaus in die Rillen ein.
+
+    Die vorgeschlagene Stückzahl nutzt einen typgerechten Umfangsspalt
+    (``constants.TYPE_SUGGEST_PITCH_GAP``) für katalognahe Bestückung.
     """
     if bore_diameter >= outer_diameter:
         # Degenerate Eingabe – minimaler Default damit nichts crasht.
@@ -391,7 +387,6 @@ def suggest_defaults(
             ),
         )
         roller_d = max(0.5, roller_d)
-        count = max_elements_for_pitch(pitch_d, roller_d, BALL_SUGGEST_PITCH_GAP)
     elif bearing_type == constants.TAPERED:
         roller_d = max(
             0.5,
@@ -401,12 +396,15 @@ def suggest_defaults(
                 contact_angle_rad=math.radians(contact_angle_deg),
             ),
         )
-        count = max_elements_for_pitch(pitch_d, roller_d, gap_factor)
     else:
         usable = max(MIN_USABLE_SPACE_MM, dims.radial_space - 2.0 * radial_clearance)
         fill = constants.TYPE_ROLLER_FILL.get(bearing_type, SUGGESTED_ROLLER_FILL)
         roller_d = max(0.5, usable * fill)
-        count = max_elements_for_pitch(pitch_d, roller_d, gap_factor)
+
+    # Vorgeschlagene Stückzahl: typgerechter Umfangsspalt (Käfigstege!), damit
+    # die Default-Bestückung katalognah ist statt den Umfang dichtest zu füllen.
+    suggest_gap = constants.TYPE_SUGGEST_PITCH_GAP.get(bearing_type, gap_factor)
+    count = max_elements_for_pitch(pitch_d, roller_d, suggest_gap)
 
     return SuggestedDefaults(
         ring_thickness=ring_thickness,

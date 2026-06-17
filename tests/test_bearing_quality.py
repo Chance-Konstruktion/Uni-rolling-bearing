@@ -378,6 +378,53 @@ class TestTaperedRollerSizing(unittest.TestCase):
                 self.assertLessEqual(spec.element_count, hi, msg=f"{code} n zu groß")
 
 
+class TestRollerSnugFit(unittest.TestCase):
+    """Zylinder-/Nadel-/Tonnenrollen füllen den Laufbahnspalt satt (kein Schweben)."""
+
+    # (Typ, [(code, d, D, B), ...]) – die Rolle soll den Radialspalt nahezu füllen.
+    SNUG_TYPES = {
+        constants.CYLINDRICAL: [("NU206", 30.0, 62.0, 16.0), ("NU306", 30.0, 72.0, 19.0),
+                                ("NU310", 50.0, 110.0, 27.0)],
+        constants.NEEDLE: [("NK20", 20.0, 28.0, 12.0), ("NA4905", 25.0, 42.0, 17.0)],
+        constants.SPHERICAL: [("22210", 50.0, 90.0, 23.0), ("22310", 50.0, 110.0, 40.0)],
+    }
+
+    def test_roller_fills_radial_gap(self):
+        for bt, cases in self.SNUG_TYPES.items():
+            for code, d, big_d, b in cases:
+                with self.subTest(type=bt, code=code):
+                    s, spec, error = _resolve_for(bt, d, big_d, b)
+                    self.assertIsNone(error, msg=f"{code}: {error}")
+                    dims = compute_dims(d, big_d, s.ring_thickness)
+                    ratio = spec.roller_d / dims.radial_space
+                    # Satt (≥ 82 % des Spalts), aber nicht über die Schultern (≤ 1.0).
+                    self.assertGreaterEqual(
+                        ratio, 0.82, msg=f"{code}: Rolle schwebt ({ratio:.2f} des Spalts)"
+                    )
+                    self.assertLessEqual(
+                        ratio, 1.0 + 1e-9, msg=f"{code}: Rolle ragt über die Schultern"
+                    )
+
+    def test_cylindrical_roller_is_substantial_and_not_overpacked(self):
+        # Regression gegen „zu klein": Zylinderrolle füllt ≥ 40 % des Radialbands
+        # (D−d)/2 (vorher nur ~33 %) und die Stückzahl bleibt katalognah (nicht
+        # mit zu vielen, zu kleinen Rollen überfüllt).
+        for code, d, big_d, b, n_lo, n_hi in [
+            ("NU206", 30.0, 62.0, 16.0, 8, 16),
+            ("NU306", 30.0, 72.0, 19.0, 8, 15),
+        ]:
+            with self.subTest(code=code):
+                _s, spec, error = _resolve_for(constants.CYLINDRICAL, d, big_d, b)
+                self.assertIsNone(error, msg=f"{code}: {error}")
+                band = (big_d - d) / 2.0
+                self.assertGreaterEqual(
+                    spec.roller_d, 0.40 * band,
+                    msg=f"{code}: Zylinderrolle {spec.roller_d:.2f} zu klein (<40 % Band)",
+                )
+                self.assertGreaterEqual(spec.element_count, n_lo, msg=f"{code} n zu klein")
+                self.assertLessEqual(spec.element_count, n_hi, msg=f"{code} n zu groß (überfüllt)")
+
+
 class TestRollerTypesFitWithinRaces(unittest.TestCase):
     """Rollen (kein Rillen-Sizing) bleiben zwischen den Schultern."""
 
