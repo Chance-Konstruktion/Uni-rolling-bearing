@@ -15,7 +15,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import List, Optional, Tuple
 
-from uni_rolling_bearing import constants
+from uni_rolling_bearing import constants, norm_engine
 from uni_rolling_bearing.geometry import suggest_defaults
 
 from .params import BearingParams
@@ -24,6 +24,33 @@ from .params import BearingParams
 def bearing_type_choices() -> List[Tuple[str, str, str]]:
     """Alle Lagertypen als ``(id, label, beschreibung)`` (für das Typ-Dropdown)."""
     return [(bid, label, desc) for bid, label, desc in constants.BEARING_TYPES]
+
+
+def coding_for(bearing_type: str) -> str:
+    """Coding-Schema des Lagertyps: ``'din623'`` (Reihe+Kennzahl) oder ``'direct'``."""
+    return norm_engine.coding_for(bearing_type)
+
+
+def norm_hint_for(bearing_type: str) -> str:
+    """Normhinweis-Text für die Beschriftung unter dem Lagertyp (z. B. DIN 625 / ISO 15)."""
+    return norm_engine.norm_hint_for(bearing_type) or ""
+
+
+def mass_series_for(bearing_type: str) -> List[str]:
+    """Maßreihen-Codes (mit Prefix) eines DIN-623-Lagertyps – sonst leer."""
+    return list(norm_engine.load_series_for(bearing_type))
+
+
+def bore_codes_for(bearing_type: str, mass_series: str) -> List[str]:
+    """Bohrungskennzahlen einer Maßreihe (sortiert nach Bohrungs-Ø) – sonst leer."""
+    if not mass_series:
+        return []
+    return list(norm_engine.load_bore_codes_for(bearing_type, mass_series))
+
+
+def combined_code(mass_series: str, bore_code: str) -> str:
+    """Setzt Maßreihe + Bohrungskennzahl zur DIN-Bezeichnung zusammen (z. B. ``6204``)."""
+    return f"{mass_series}{bore_code}"
 
 
 def series_codes(bearing_type: str) -> List[str]:
@@ -94,6 +121,11 @@ def apply_preset(params: BearingParams, bearing_type: str, code: str) -> Bearing
 
 __all__ = [
     "bearing_type_choices",
+    "coding_for",
+    "norm_hint_for",
+    "mass_series_for",
+    "bore_codes_for",
+    "combined_code",
     "series_codes",
     "preset_dims",
     "apply_preset",

@@ -413,6 +413,38 @@ class TestCatalog(unittest.TestCase):
         self.assertEqual(params.bearing_type, constants.SPHERICAL)
         self.assertAlmostEqual(params.bore_diameter, base.bore_diameter)
 
+    def test_coding_matches_norm_engine(self):
+        from freecad_backend import catalog
+        from uni_rolling_bearing import norm_engine
+
+        self.assertEqual(catalog.coding_for(constants.BALL), "din623")
+        self.assertEqual(catalog.coding_for(constants.NEEDLE), "direct")
+        for bid, _l, _d in constants.BEARING_TYPES:
+            self.assertEqual(catalog.coding_for(bid), norm_engine.coding_for(bid))
+
+    def test_din623_series_bore_combine_to_known_preset(self):
+        from freecad_backend import catalog
+
+        series = catalog.mass_series_for(constants.BALL)
+        self.assertIn("62", series)
+        bores = catalog.bore_codes_for(constants.BALL, "62")
+        self.assertIn("04", bores)
+        code = catalog.combined_code("62", "04")
+        self.assertEqual(code, "6204")
+        self.assertIsNotNone(catalog.preset_dims(constants.BALL, code))
+
+    def test_direct_types_have_no_mass_series(self):
+        from freecad_backend import catalog
+
+        self.assertEqual(catalog.mass_series_for(constants.NEEDLE), [])
+        self.assertEqual(catalog.bore_codes_for(constants.NEEDLE, ""), [])
+
+    def test_norm_hint_nonempty_for_all_types(self):
+        from freecad_backend import catalog
+
+        for bid, _l, _d in constants.BEARING_TYPES:
+            self.assertTrue(catalog.norm_hint_for(bid))
+
 
 if __name__ == "__main__":
     unittest.main()
