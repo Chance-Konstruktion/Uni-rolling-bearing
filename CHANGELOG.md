@@ -24,6 +24,14 @@ Geplante, noch offene Arbeiten stehen in [`ROADMAP.md`](ROADMAP.md).
   berücksichtigen). Neue host-freie Helfer in `freecad_backend/catalog.py`
   (`precision_class_choices`, `tolerance_position_choices`,
   `tolerance_offset_text`).
+- **FreeCAD-Katalog-Panel: Tragzahlen, Lebensdauer & Passungen** – spiegelt die
+  Blender-Abschnitte „6) Tragzahlen & Lebensdauer", „7) Passungen (DIN 5418)"
+  und „Ergebnisse": Eingaben für Radial-/Axiallast und Drehzahl, Belastungsfall-
+  Dropdown sowie ein **Live-Ergebnis-Readout** (Plausibilität, C0r/Cr, X/Y/e, P,
+  L10h und Passungs-Empfehlung für Welle/Gehäuse). Neue Parameter
+  `radial_load_fr_n`, `axial_load_fa_n`, `speed_rpm`, `load_case` (in
+  `BearingParams` + Eigenschaften-Editor) und ein host-freier Auswerter
+  `freecad_backend/analysis.py`.
 
 ### Fixed
 - **`din623.bore_code_to_diameter`** interpretiert einstellige Bohrungskennzahlen

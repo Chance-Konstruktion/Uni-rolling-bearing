@@ -49,6 +49,12 @@ class BearingParams:
     precision_class: str = "NORMAL"
     tolerance_position: str = "MEAN"
 
+    # Tragzahlen & Lebensdauer (ISO 281) / Passungen (DIN 5418)
+    radial_load_fr_n: float = 0.0
+    axial_load_fa_n: float = 0.0
+    speed_rpm: float = 0.0
+    load_case: str = "INNER_ROT_NORMAL"
+
     # Kugel-/Rillengeometrie
     groove_conformity_inner: float = 0.58
     groove_conformity_outer: float = 0.60

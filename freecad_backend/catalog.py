@@ -16,6 +16,7 @@ from dataclasses import replace
 from typing import List, Optional, Tuple
 
 from uni_rolling_bearing import constants, norm_engine
+from uni_rolling_bearing.fits import LOAD_CASES
 from uni_rolling_bearing.geometry import suggest_defaults
 from uni_rolling_bearing.tolerances import TOLERANCE_POSITIONS, apply_tolerances
 
@@ -35,6 +36,11 @@ def precision_class_choices() -> List[Tuple[str, str, str]]:
 def tolerance_position_choices() -> List[Tuple[str, str, str]]:
     """Toleranzlagen als ``(id, label, beschreibung)`` (Normen-Dropdown)."""
     return [(tid, label, desc) for tid, label, desc in TOLERANCE_POSITIONS]
+
+
+def load_case_choices() -> List[Tuple[str, str, str]]:
+    """DIN-5418-Belastungsfälle als ``(id, label, beschreibung)`` (Passungs-Dropdown)."""
+    return [(lid, label, desc) for lid, label, desc in LOAD_CASES]
 
 
 def tolerance_offset_text(
@@ -163,6 +169,7 @@ __all__ = [
     "bearing_type_choices",
     "precision_class_choices",
     "tolerance_position_choices",
+    "load_case_choices",
     "tolerance_offset_text",
     "coding_for",
     "norm_hint_for",
