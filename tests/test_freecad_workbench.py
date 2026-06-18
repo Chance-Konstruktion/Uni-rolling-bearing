@@ -445,6 +445,38 @@ class TestCatalog(unittest.TestCase):
         for bid, _l, _d in constants.BEARING_TYPES:
             self.assertTrue(catalog.norm_hint_for(bid))
 
+    def test_miniature_skateboard_bearing_available(self):
+        from freecad_backend import catalog
+
+        # Reihe 60 bietet die einstellige Bohrungskennzahl "8" → 608.
+        bores = catalog.bore_codes_for(constants.BALL, "60")
+        self.assertIn("8", bores)
+        self.assertEqual(catalog.combined_code("60", "8"), "608")
+        self.assertEqual(catalog.preset_dims(constants.BALL, "608"), (8.0, 22.0, 7.0))
+        params = catalog.apply_preset(BearingParams(), constants.BALL, "608")
+        self.assertAlmostEqual(params.bore_diameter, 8.0)
+        self.assertAlmostEqual(params.outer_diameter, 22.0)
+        self.assertGreater(params.element_count, 0)
+
+    def test_precision_and_tolerance_choices_cover_norm(self):
+        from freecad_backend import catalog
+        from uni_rolling_bearing.tolerances import TOLERANCE_POSITIONS
+
+        prec_ids = [pid for pid, _l, _d in catalog.precision_class_choices()]
+        self.assertEqual(prec_ids, [pid for pid, _l, _d in constants.PRECISION_CLASSES])
+        tol_ids = [tid for tid, _l, _d in catalog.tolerance_position_choices()]
+        self.assertEqual(tol_ids, [tid for tid, _l, _d in TOLERANCE_POSITIONS])
+
+    def test_tolerance_offset_text_blank_for_upper_position(self):
+        from freecad_backend import catalog
+
+        # Lage „oberes Maß" (MAX) = Nennmaß → keine Offsets → leerer String.
+        self.assertEqual(catalog.tolerance_offset_text(20.0, 47.0, 14.0, "NORMAL", "MAX"), "")
+        # Mittenmaß bei enger Klasse erzeugt eine sichtbare Offset-Zeile.
+        text = catalog.tolerance_offset_text(20.0, 47.0, 14.0, "P4", "MIN")
+        self.assertIn("Δd=", text)
+        self.assertIn("µm", text)
+
 
 if __name__ == "__main__":
     unittest.main()

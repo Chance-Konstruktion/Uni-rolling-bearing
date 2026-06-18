@@ -16,6 +16,14 @@ Geplante, noch offene Arbeiten stehen in [`ROADMAP.md`](ROADMAP.md).
   einstellige DIN-623-Bohrungskennzahlen (`d = Kennzahl` in mm), u. a. das
   klassische **Skateboard-Lager 608** (d 8 / D 22 / B 7) sowie 604–609,
   623–629 und 633–636 (`data/ball.json`).
+- **FreeCAD-Katalog-Panel: Normen & Toleranzen** – das Task-Panel mirror't nun
+  auch den Abschnitt „2) Normen & Presets" des Blender-N-Panels: Toleranzklasse
+  (ISO 492) und Toleranzlage als Dropdown, **Live-Vorschau der wirksamen
+  Offsets** (Δd/ΔD/ΔB in µm) sowie Radialluft. Die Werte fließen ins erzeugte
+  Lager-Objekt (Radialluft vor dem Preset, damit die Wälzkörper-Defaults sie
+  berücksichtigen). Neue host-freie Helfer in `freecad_backend/catalog.py`
+  (`precision_class_choices`, `tolerance_position_choices`,
+  `tolerance_offset_text`).
 
 ### Fixed
 - **`din623.bore_code_to_diameter`** interpretiert einstellige Bohrungskennzahlen
