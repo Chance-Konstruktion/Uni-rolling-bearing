@@ -16,7 +16,9 @@ from dataclasses import replace
 from typing import List, Optional, Tuple
 
 from uni_rolling_bearing import constants, norm_engine
+from uni_rolling_bearing.fits import LOAD_CASES
 from uni_rolling_bearing.geometry import suggest_defaults
+from uni_rolling_bearing.tolerances import TOLERANCE_POSITIONS, apply_tolerances
 
 from .params import BearingParams
 
@@ -24,6 +26,50 @@ from .params import BearingParams
 def bearing_type_choices() -> List[Tuple[str, str, str]]:
     """Alle Lagertypen als ``(id, label, beschreibung)`` (für das Typ-Dropdown)."""
     return [(bid, label, desc) for bid, label, desc in constants.BEARING_TYPES]
+
+
+def precision_class_choices() -> List[Tuple[str, str, str]]:
+    """ISO-492-Toleranzklassen als ``(id, label, beschreibung)`` (Normen-Dropdown)."""
+    return [(pid, label, desc) for pid, label, desc in constants.PRECISION_CLASSES]
+
+
+def tolerance_position_choices() -> List[Tuple[str, str, str]]:
+    """Toleranzlagen als ``(id, label, beschreibung)`` (Normen-Dropdown)."""
+    return [(tid, label, desc) for tid, label, desc in TOLERANCE_POSITIONS]
+
+
+def load_case_choices() -> List[Tuple[str, str, str]]:
+    """DIN-5418-Belastungsfälle als ``(id, label, beschreibung)`` (Passungs-Dropdown)."""
+    return [(lid, label, desc) for lid, label, desc in LOAD_CASES]
+
+
+def tolerance_offset_text(
+    bore_diameter: float,
+    outer_diameter: float,
+    width: float,
+    precision_class: str,
+    tolerance_position: str,
+) -> str:
+    """Live-Vorschau der wirksamen Toleranz-Offsets (Δd/ΔD/ΔB in µm).
+
+    Spiegelt die Anzeige im Blender-N-Panel: bei vernachlässigbaren Offsets
+    (z. B. Lage „oberes Maß") wird ein leerer String zurückgegeben.
+    """
+    eff = apply_tolerances(
+        bore_diameter_mm=bore_diameter,
+        outer_diameter_mm=outer_diameter,
+        width_mm=width,
+        precision_class=precision_class,
+        position=tolerance_position,
+    )
+    offsets = (eff.bore_offset_um, eff.od_offset_um, eff.width_offset_um)
+    if not any(abs(x) > 0.0005 for x in offsets):
+        return ""
+    return (
+        f"Δd={eff.bore_offset_um:+.1f} µm  "
+        f"ΔD={eff.od_offset_um:+.1f} µm  "
+        f"ΔB={eff.width_offset_um:+.1f} µm"
+    )
 
 
 def coding_for(bearing_type: str) -> str:
@@ -121,6 +167,10 @@ def apply_preset(params: BearingParams, bearing_type: str, code: str) -> Bearing
 
 __all__ = [
     "bearing_type_choices",
+    "precision_class_choices",
+    "tolerance_position_choices",
+    "load_case_choices",
+    "tolerance_offset_text",
     "coding_for",
     "norm_hint_for",
     "mass_series_for",

@@ -19,10 +19,21 @@ from __future__ import annotations
 def bore_code_to_diameter(code: str) -> float:
     """DIN 623 Bohrungskennzahl → Bohrungs-Ø in mm.
 
-    Sonderfälle 00..03 entsprechen 10/12/15/17 mm; ab 04 gilt ``d = n * 5``
-    bis Kennzahl 96 (d = 480 mm). Größere Lager werden mit ``/d`` angehängt
-    bezeichnet und sind hier nicht abgedeckt.
+    Für Bohrungen ``d < 10 mm`` (z. B. Miniatur-/Skateboardlager wie 608) wird
+    der Bohrungs-Ø nach DIN 623 *direkt* als einstellige Kennzahl angegeben:
+    ``"4"`` → 4 mm … ``"9"`` → 9 mm.
+
+    Ab ``d = 10 mm`` gilt das zweistellige Schema: Sonderfälle 00..03 entsprechen
+    10/12/15/17 mm; ab 04 gilt ``d = n * 5`` bis Kennzahl 96 (d = 480 mm).
+    Größere Lager werden mit ``/d`` angehängt bezeichnet und sind hier nicht
+    abgedeckt.
     """
+    # Einstellige Kennzahl: Bohrungs-Ø in mm direkt (Miniaturlager, d < 10 mm).
+    if len(code) == 1:
+        n = int(code)
+        if n < 1 or n > 9:
+            raise ValueError(f"Einstellige Bohrungskennzahl ausserhalb 1..9: {code}")
+        return float(n)
     special = {"00": 10.0, "01": 12.0, "02": 15.0, "03": 17.0}
     if code in special:
         return special[code]

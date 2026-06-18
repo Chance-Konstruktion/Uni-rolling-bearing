@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Sequence, Set, Tuple
 
 from uni_rolling_bearing import constants
+from uni_rolling_bearing.fits import LOAD_CASES
 from uni_rolling_bearing.tolerances import TOLERANCE_POSITIONS
 
 from .params import BearingParams
@@ -49,6 +50,7 @@ class FieldSpec:
 _BEARING_TYPE_IDS = tuple(item[0] for item in constants.BEARING_TYPES)
 _PRECISION_IDS = tuple(item[0] for item in constants.PRECISION_CLASSES)
 _TOLERANCE_IDS = tuple(item[0] for item in TOLERANCE_POSITIONS)
+_LOAD_CASE_IDS = tuple(item[0] for item in LOAD_CASES)
 
 
 SCHEMA: List[FieldSpec] = [
@@ -90,6 +92,11 @@ SCHEMA: List[FieldSpec] = [
     FieldSpec("tolerance_position", "App::PropertyEnumeration", "enum", "Toleranzen", "Toleranzlage", tuple(_TOLERANCE_IDS)),
     FieldSpec("radial_clearance", "App::PropertyLength", "length", "Toleranzen", "Radiale Lagerluft [mm]"),
 
+    FieldSpec("radial_load_fr_n", "App::PropertyFloat", "float", "Tragzahlen", "Radiallast Fr [N]"),
+    FieldSpec("axial_load_fa_n", "App::PropertyFloat", "float", "Tragzahlen", "Axiallast Fa [N]"),
+    FieldSpec("speed_rpm", "App::PropertyFloat", "float", "Tragzahlen", "Drehzahl n [1/min]"),
+    FieldSpec("load_case", "App::PropertyEnumeration", "enum", "Passungen", "Belastungsfall (DIN 5418)", tuple(_LOAD_CASE_IDS)),
+
     FieldSpec("segments", "App::PropertyInteger", "int", "Qualitaet", "Auflösung Segmente"),
 ]
 
@@ -102,6 +109,7 @@ _ALWAYS: Set[str] = {
     "bore_diameter", "outer_diameter", "width", "ring_thickness",
     "roller_diameter", "element_count", "gap_factor", "auto_fit",
     "precision_class", "tolerance_position", "radial_clearance",
+    "radial_load_fr_n", "axial_load_fa_n", "speed_rpm", "load_case",
     "segments", "use_cage",
 }
 

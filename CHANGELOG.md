@@ -9,6 +9,36 @@ Veröffentlichungsdaten erfasst; sie sind chronologisch absteigend gelistet.
 
 Geplante, noch offene Arbeiten stehen in [`ROADMAP.md`](ROADMAP.md).
 
+## [Unreleased]
+
+### Added
+- **Miniatur-/Kleinstlager (Bohrung < 10 mm)** im Rillenkugellager-Katalog –
+  einstellige DIN-623-Bohrungskennzahlen (`d = Kennzahl` in mm), u. a. das
+  klassische **Skateboard-Lager 608** (d 8 / D 22 / B 7) sowie 604–609,
+  623–629 und 633–636 (`data/ball.json`).
+- **FreeCAD-Katalog-Panel: Normen & Toleranzen** – das Task-Panel mirror't nun
+  auch den Abschnitt „2) Normen & Presets" des Blender-N-Panels: Toleranzklasse
+  (ISO 492) und Toleranzlage als Dropdown, **Live-Vorschau der wirksamen
+  Offsets** (Δd/ΔD/ΔB in µm) sowie Radialluft. Die Werte fließen ins erzeugte
+  Lager-Objekt (Radialluft vor dem Preset, damit die Wälzkörper-Defaults sie
+  berücksichtigen). Neue host-freie Helfer in `freecad_backend/catalog.py`
+  (`precision_class_choices`, `tolerance_position_choices`,
+  `tolerance_offset_text`).
+- **FreeCAD-Katalog-Panel: Tragzahlen, Lebensdauer & Passungen** – spiegelt die
+  Blender-Abschnitte „6) Tragzahlen & Lebensdauer", „7) Passungen (DIN 5418)"
+  und „Ergebnisse": Eingaben für Radial-/Axiallast und Drehzahl, Belastungsfall-
+  Dropdown sowie ein **Live-Ergebnis-Readout** (Plausibilität, C0r/Cr, X/Y/e, P,
+  L10h und Passungs-Empfehlung für Welle/Gehäuse). Neue Parameter
+  `radial_load_fr_n`, `axial_load_fa_n`, `speed_rpm`, `load_case` (in
+  `BearingParams` + Eigenschaften-Editor) und ein host-freier Auswerter
+  `freecad_backend/analysis.py`.
+
+### Fixed
+- **`din623.bore_code_to_diameter`** interpretiert einstellige Bohrungskennzahlen
+  jetzt korrekt als direkten Bohrungs-Ø in mm (z. B. `"8"` → 8 mm). Bisher
+  fielen Lager wie die 608 durch das Raster, weil nur das zweistellige Schema
+  (`d = n·5` ab Kennzahl 04) abgedeckt war.
+
 ## [0.30.0] – 2026-06-17
 
 Zweite Stufe des **FreeCAD-Ports**: die Workbench ist jetzt bedienbar. Ein Klick

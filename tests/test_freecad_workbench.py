@@ -445,6 +445,100 @@ class TestCatalog(unittest.TestCase):
         for bid, _l, _d in constants.BEARING_TYPES:
             self.assertTrue(catalog.norm_hint_for(bid))
 
+    def test_miniature_skateboard_bearing_available(self):
+        from freecad_backend import catalog
+
+        # Reihe 60 bietet die einstellige Bohrungskennzahl "8" → 608.
+        bores = catalog.bore_codes_for(constants.BALL, "60")
+        self.assertIn("8", bores)
+        self.assertEqual(catalog.combined_code("60", "8"), "608")
+        self.assertEqual(catalog.preset_dims(constants.BALL, "608"), (8.0, 22.0, 7.0))
+        params = catalog.apply_preset(BearingParams(), constants.BALL, "608")
+        self.assertAlmostEqual(params.bore_diameter, 8.0)
+        self.assertAlmostEqual(params.outer_diameter, 22.0)
+        self.assertGreater(params.element_count, 0)
+
+    def test_precision_and_tolerance_choices_cover_norm(self):
+        from freecad_backend import catalog
+        from uni_rolling_bearing.tolerances import TOLERANCE_POSITIONS
+
+        prec_ids = [pid for pid, _l, _d in catalog.precision_class_choices()]
+        self.assertEqual(prec_ids, [pid for pid, _l, _d in constants.PRECISION_CLASSES])
+        tol_ids = [tid for tid, _l, _d in catalog.tolerance_position_choices()]
+        self.assertEqual(tol_ids, [tid for tid, _l, _d in TOLERANCE_POSITIONS])
+
+    def test_tolerance_offset_text_blank_for_upper_position(self):
+        from freecad_backend import catalog
+
+        # Lage „oberes Maß" (MAX) = Nennmaß → keine Offsets → leerer String.
+        self.assertEqual(catalog.tolerance_offset_text(20.0, 47.0, 14.0, "NORMAL", "MAX"), "")
+        # Mittenmaß bei enger Klasse erzeugt eine sichtbare Offset-Zeile.
+        text = catalog.tolerance_offset_text(20.0, 47.0, 14.0, "P4", "MIN")
+        self.assertIn("Δd=", text)
+        self.assertIn("µm", text)
+
+    def test_load_case_choices_cover_norm(self):
+        from freecad_backend import catalog
+        from uni_rolling_bearing.fits import LOAD_CASES
+
+        ids = [lid for lid, _l, _d in catalog.load_case_choices()]
+        self.assertEqual(ids, [lid for lid, _l, _d in LOAD_CASES])
+
+
+# --------------------------------------------------------------------------- #
+# 5) Host-freie Ergebnis-Auswertung (Tragzahlen / Lebensdauer / Passungen)     #
+# --------------------------------------------------------------------------- #
+
+
+class TestAnalysis(unittest.TestCase):
+    def _ball_6204(self):
+        from freecad_backend import catalog
+
+        return catalog.apply_preset(BearingParams(), constants.BALL, "6204")
+
+    def test_valid_bearing_has_plausibility_ratings_and_fits(self):
+        from freecad_backend import analysis
+
+        res = analysis.analyze(self._ball_6204())
+        self.assertIsNone(res.error)
+        self.assertTrue(res.plausibility)
+        self.assertTrue(any("C0r" in line for line in res.ratings))
+        self.assertTrue(any("Cr" in line for line in res.ratings))
+        self.assertEqual(len(res.fits), 2)
+
+    def test_l10h_only_with_load_and_speed(self):
+        from freecad_backend import analysis
+
+        no_load = analysis.analyze(self._ball_6204())
+        self.assertFalse(any("L10h" in line for line in no_load.ratings))
+
+        params = self._ball_6204()
+        params.radial_load_fr_n = 5000.0
+        params.speed_rpm = 3000.0
+        loaded = analysis.analyze(params)
+        self.assertTrue(any("L10h" in line for line in loaded.ratings))
+        self.assertTrue(any("P ≈" in line for line in loaded.ratings))
+
+    def test_invalid_geometry_still_yields_fits(self):
+        from freecad_backend import analysis
+
+        params = BearingParams(bore_diameter=50.0, outer_diameter=40.0)  # d ≥ D
+        res = analysis.analyze(params)
+        self.assertIsNotNone(res.error)
+        self.assertFalse(res.ratings)
+        # Passungen hängen nur an d/D/Lastfall → trotzdem vorhanden.
+        self.assertEqual(len(res.fits), 2)
+
+    def test_cylindrical_axial_load_flagged_ignored(self):
+        from freecad_backend import analysis, catalog
+
+        params = catalog.apply_preset(BearingParams(), constants.CYLINDRICAL,
+                                      catalog.series_codes(constants.CYLINDRICAL)[0])
+        params.radial_load_fr_n = 2000.0
+        params.axial_load_fa_n = 800.0
+        res = analysis.analyze(params)
+        self.assertTrue(any("ignoriert" in line for line in res.ratings))
+
 
 if __name__ == "__main__":
     unittest.main()

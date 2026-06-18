@@ -8,7 +8,7 @@ import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from uni_rolling_bearing import constants, din623  # noqa: E402
+from uni_rolling_bearing import constants, din623, norm_engine  # noqa: E402
 
 
 class TestBoreCode(unittest.TestCase):
@@ -23,9 +23,17 @@ class TestBoreCode(unittest.TestCase):
         self.assertEqual(din623.bore_code_to_diameter("20"), 100.0)
         self.assertEqual(din623.bore_code_to_diameter("96"), 480.0)
 
+    def test_single_digit_codes_are_direct_mm(self):
+        # Miniatur-/Skateboardlager: Kennzahl = Bohrungs-Ø in mm (608 → 8 mm).
+        self.assertEqual(din623.bore_code_to_diameter("8"), 8.0)
+        self.assertEqual(din623.bore_code_to_diameter("4"), 4.0)
+        self.assertEqual(din623.bore_code_to_diameter("9"), 9.0)
+
     def test_out_of_range_raises(self):
         with self.assertRaises(ValueError):
             din623.bore_code_to_diameter("97")
+        with self.assertRaises(ValueError):
+            din623.bore_code_to_diameter("0")
 
 
 class TestPresetGeneration(unittest.TestCase):
@@ -36,15 +44,28 @@ class TestPresetGeneration(unittest.TestCase):
         self.assertEqual(ball["6306"], (30.0, 72.0, 19.0))
         self.assertEqual(ball["61804"], (20.0, 37.0, 9.0))
 
+    def test_ball_presets_include_miniature_skateboard_sizes(self):
+        ball = constants.SERIES_PRESETS[constants.BALL]
+        # 608 (Skateboard-Lager): d 8 / D 22 / B 7
+        self.assertEqual(ball["608"], (8.0, 22.0, 7.0))
+        self.assertEqual(ball["607"], (7.0, 19.0, 6.0))
+        self.assertEqual(ball["625"], (5.0, 16.0, 5.0))
+
     def test_ball_preset_count_covers_main_series(self):
         ball = constants.SERIES_PRESETS[constants.BALL]
         # 60/62/63 jeweils 21 Größen + 64 (6) + 618 (9) + 619 (7) = 79
         self.assertGreaterEqual(len(ball), 70)
 
     def test_d_consistent_with_bore_code(self):
-        for code, (d, _D, _B) in constants.SERIES_PRESETS[constants.BALL].items():
-            bore_code = code[-2:]
-            self.assertAlmostEqual(d, din623.bore_code_to_diameter(bore_code))
+        # Bohrungskennzahl (ein- oder zweistellig) aus den Maßreihen-Tabellen
+        # ableiten, statt blind die letzten zwei Zeichen zu nehmen – sonst
+        # würde "608" fälschlich als Kennzahl "08" (40 mm) gelesen.
+        presets = constants.SERIES_PRESETS[constants.BALL]
+        for series in norm_engine.load_series_for(constants.BALL):
+            for bore_code in norm_engine.load_bore_codes_for(constants.BALL, series):
+                code = f"{series}{bore_code}"
+                d = presets[code][0]
+                self.assertAlmostEqual(d, din623.bore_code_to_diameter(bore_code))
 
     def test_d_less_than_D(self):
         for type_, table in constants.SERIES_PRESETS.items():
