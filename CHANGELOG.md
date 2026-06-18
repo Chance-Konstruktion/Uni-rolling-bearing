@@ -9,6 +9,20 @@ Veröffentlichungsdaten erfasst; sie sind chronologisch absteigend gelistet.
 
 Geplante, noch offene Arbeiten stehen in [`ROADMAP.md`](ROADMAP.md).
 
+## [Unreleased]
+
+### Added
+- **Miniatur-/Kleinstlager (Bohrung < 10 mm)** im Rillenkugellager-Katalog –
+  einstellige DIN-623-Bohrungskennzahlen (`d = Kennzahl` in mm), u. a. das
+  klassische **Skateboard-Lager 608** (d 8 / D 22 / B 7) sowie 604–609,
+  623–629 und 633–636 (`data/ball.json`).
+
+### Fixed
+- **`din623.bore_code_to_diameter`** interpretiert einstellige Bohrungskennzahlen
+  jetzt korrekt als direkten Bohrungs-Ø in mm (z. B. `"8"` → 8 mm). Bisher
+  fielen Lager wie die 608 durch das Raster, weil nur das zweistellige Schema
+  (`d = n·5` ab Kennzahl 04) abgedeckt war.
+
 ## [0.30.0] – 2026-06-17
 
 Zweite Stufe des **FreeCAD-Ports**: die Workbench ist jetzt bedienbar. Ein Klick

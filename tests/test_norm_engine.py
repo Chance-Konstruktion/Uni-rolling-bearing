@@ -94,13 +94,14 @@ class TestSeriesAndBoreCodes(unittest.TestCase):
     def test_load_bore_codes_sorted_by_diameter(self):
         codes = norm_engine.load_bore_codes_for("BALL", "60")
         self.assertGreater(len(codes), 0)
-        # Erste Einträge sind die Sonderkennzahlen 00..03 → d=10/12/15/17 mm,
-        # danach 04 → 20 mm aufsteigend. Sortierung ist nach Bohrungs-Ø.
-        self.assertEqual(codes[0], "00")
-        self.assertEqual(codes[1], "01")
-        self.assertEqual(codes[2], "02")
-        self.assertEqual(codes[3], "03")
-        self.assertEqual(codes[4], "04")
+        # Sortierung ist nach Bohrungs-Ø. Zuerst die einstelligen Miniatur-
+        # kennzahlen (4..9 mm, z. B. 608), dann die Sonderkennzahlen 00..03
+        # → d=10/12/15/17 mm, danach 04 → 20 mm aufsteigend.
+        self.assertEqual(codes[0], "4")
+        # Übergang Miniatur → zweistelliges Schema bei d = 10 mm ("00").
+        idx_00 = codes.index("00")
+        self.assertEqual(codes[idx_00 - 1], "9")
+        self.assertEqual(codes[idx_00:idx_00 + 5], ["00", "01", "02", "03", "04"])
 
     def test_load_bore_codes_with_prefix(self):
         # series_code "NU2" muss das prefix korrekt strippen.
