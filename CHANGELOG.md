@@ -11,6 +11,18 @@ Geplante, noch offene Arbeiten stehen in [`ROADMAP.md`](ROADMAP.md).
 
 ## [Unreleased]
 
+### Fixed
+- Wälzkörperanzahl wird anhand des tatsächlichen Sehnenabstands auf dem Teilkreis begrenzt; unmögliche Layouts und ungültige Geometrieeingaben werden mit Fehlern statt erzwungenen Minimalwerten abgelehnt.
+- Reine Axiallast bei Kegelrollenlagern fließt in die äquivalente Last ein; die konfigurierbare Kontaktwinkel-Property wird für Pendelrollenlager in der Tragzahl-Auswertung berücksichtigt.
+- FreeCAD-Analyse verwendet die ausgewählten effektiven Toleranzmaße und die wirksame Rollenlänge für zweireihige Pendelrollenlager.
+- Ungültige benutzerdefinierte Katalogmaße, unbekannte Toleranzklassen/-lagen und unbekannte Passungs-Lastfälle werden abgewiesen oder sichtbar gemeldet.
+- FreeCAD-Käfigbooleans überspringen fehlgeschlagene Schnitte nicht mehr stillschweigend.
+- Größen über 250 mm liegen außerhalb der eingebauten Toleranztabellen und werden nicht mehr mit dem letzten Tabellenwert extrapoliert.
+- Tragzahl-/Lebensdauer-Eingaben prüfen nicht-endliche Zahlenwerte, unbekannte Lagertypen und fehlerhafte Wälzkörper-/Reihenanzahlen; FreeCAD meldet ungültige Last- oder Drehzahlwerte sichtbar.
+- Typabhängige Geometrieoptionen werden vor dem Bauen validiert; die unterstützte Wälzkörperanzahl ist auf 256 begrenzt.
+- FreeCAD zeigt Rebuild-Fehler in einer schreibgeschützten Status-Property und prüft CAD-Solids/Compound vor der Assembly-Ausgabe.
+- Das ausgelieferte Blender-ZIP ist mit den geänderten Kernmodulen synchronisiert; `build_addon_zip.py --check` bestand im abschließenden CI-Lauf.
+
 ### Added
 - **Miniatur-/Kleinstlager (Bohrung < 10 mm)** im Rillenkugellager-Katalog –
   einstellige DIN-623-Bohrungskennzahlen (`d = Kennzahl` in mm), u. a. das
