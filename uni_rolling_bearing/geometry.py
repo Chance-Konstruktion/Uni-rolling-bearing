@@ -15,6 +15,10 @@ from .raceway import (
 # Mindesthöhe [mm] für den nutzbaren Ringspalt, damit ein Wälzkörper sinnvoll passt.
 MIN_USABLE_SPACE_MM = 0.2
 
+# Hard cap shared with the Blender UI. Prevents extreme dimensions/small rollers
+# from creating millions of mesh objects during suggestion or Auto-Fit.
+MAX_SUPPORTED_ELEMENT_COUNT = 256
+
 # --- Rillenkugellager: Kugel-Sizing nach der DIN-625-Rillenformel ------------
 #
 # Anteil der Kugel-Ø, um den die Laufbahn-Rille je Ring unter die Schulter
@@ -95,13 +99,39 @@ def max_elements_for_pitch(
     element_diameter: float,
     gap_factor: float,
 ) -> int:
-    """Maximale Wälzkörperanzahl, bei der sie sich auf dem Teilkreis nicht überlappen.
+    """Maximale Wälzkörperanzahl anhand des tatsächlichen Sehnenabstands.
 
-    ``gap_factor`` ist der relative Zusatzabstand (z. B. 0.1 = 10 % Spalt).
+    Der Abstand benachbarter Mittelpunkte auf einem Teilkreis ist eine Sehne,
+    nicht die Bogenlänge. Für N Elemente beträgt die Sehne
+    ``pitch_diameter * sin(pi / N)``. Die frühere Umfangsdivision konnte daher
+    bei dicht gepackten Elementen eine kollidierende Stückzahl freigeben.
+
+    ``gap_factor`` ist der relative Zusatzabstand (z. B. 0.1 = 10 %).
+    Liefert 0, wenn selbst zwei gegenüberliegende Elemente nicht passen, bzw.
+    2, wenn zwar zwei, aber keine drei Elemente den geforderten Abstand halten.
     """
-    circumference = math.pi * pitch_diameter
-    element_pitch = max(0.1, element_diameter * (1.0 + gap_factor))
-    return max(3, int(circumference // element_pitch))
+    values = (pitch_diameter, element_diameter, gap_factor)
+    if not all(math.isfinite(v) for v in values):
+        return 0
+    if pitch_diameter <= 0.0 or element_diameter <= 0.0 or gap_factor < 0.0:
+        return 0
+
+    required_spacing = element_diameter * (1.0 + gap_factor)
+    ratio = required_spacing / pitch_diameter
+    if ratio > 1.0:
+        return 0
+    if ratio > math.sin(math.pi / 3.0):
+        return 2
+    # The UI and CAD backends intentionally cap the assembly at 256 rolling
+    # elements. This also avoids overflow for extreme but finite dimension ratios.
+    if ratio <= math.sin(math.pi / MAX_SUPPORTED_ELEMENT_COUNT):
+        return MAX_SUPPORTED_ELEMENT_COUNT
+
+    # chord(N) >= required_spacing iff N <= pi / asin(required / pitch).
+    n = max(2, int(math.floor(math.pi / math.asin(ratio))))
+    while n >= 3 and pitch_diameter * math.sin(math.pi / n) < required_spacing - 1e-12:
+        n -= 1
+    return min(n, MAX_SUPPORTED_ELEMENT_COUNT)
 
 
 def roller_length_for_type(bearing_type: str, width: float, roller_d: float) -> float:
@@ -198,6 +228,93 @@ def tapered_roller_diameter(
     return max(0.0, usable * safety)
 
 
+def validate_specialized_options(params) -> Optional[str]:
+    """Validate typ- and feature-specific fields shared by both frontends.
+
+    The core resolver validates the common dimensions. These additional fields
+    affect selected raceway/cage build paths and could otherwise bypass that
+    validation when supplied by scripts or a CAD property editor. Returns a
+    user-facing error string, or None when valid.
+    """
+    bearing_type = getattr(params, "bearing_type", None)
+
+    def _finite_nonnegative(name: str, value) -> Optional[str]:
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+        ):
+            return f"{name} muss ein endlicher Zahlenwert sein."
+        if value < 0.0:
+            return f"{name} darf nicht negativ sein."
+        return None
+
+    if bearing_type == constants.TAPERED:
+        for name in (
+            "tapered_cone_width_mm",
+            "tapered_cup_width_mm",
+            "tapered_flange_height_mm",
+        ):
+            error = _finite_nonnegative(name, getattr(params, name, 0.0))
+            if error:
+                return error
+
+    if bearing_type in (constants.BALL, constants.VGROOVE):
+        error = _finite_nonnegative(
+            "bearing_chamfer_mm", getattr(params, "bearing_chamfer_mm", 0.30)
+        )
+        if error:
+            return error
+
+    if bearing_type == constants.VGROOVE:
+        error = _finite_nonnegative(
+            "vgroove_depth_mm", getattr(params, "vgroove_depth_mm", 0.0)
+        )
+        if error:
+            return error
+        half_angle = getattr(params, "vgroove_half_angle_deg", 45.0)
+        if (
+            isinstance(half_angle, bool)
+            or not isinstance(half_angle, (int, float))
+            or not math.isfinite(half_angle)
+            or not (5.0 <= half_angle <= 80.0)
+        ):
+            return "Der V-Rillen-Halbwinkel muss zwischen 5° und 80° liegen."
+        if getattr(params, "vgroove_shape", "V") not in ("V", "U"):
+            return "Die V-Rillen-Form muss 'V' oder 'U' sein."
+
+    segments = getattr(params, "segments", 48)
+    if (
+        not isinstance(segments, int)
+        or isinstance(segments, bool)
+        or not (12 <= segments <= 256)
+    ):
+        return "Die Mesh-Auflösung muss eine ganze Zahl zwischen 12 und 256 sein."
+
+    use_cage = getattr(params, "use_cage", False)
+    if not isinstance(use_cage, bool):
+        return "use_cage muss ein boolescher Wert sein."
+    if use_cage:
+        if getattr(params, "cage_style", "AUTO") not in (
+            "AUTO", "POCKET", "MASSIVE", "RIBBON", "LADDER"
+        ):
+            return "Unbekannter Käfigstil; erlaubt sind AUTO, POCKET, MASSIVE, RIBBON, LADDER."
+        if getattr(params, "cage_material", "STEEL") not in ("STEEL", "BRASS", "POLYMER"):
+            return "Unbekannter Käfigwerkstoff; erlaubt sind STEEL, BRASS, POLYMER."
+        error = _finite_nonnegative(
+            "pocket_clearance_mm", getattr(params, "pocket_clearance_mm", 0.20)
+        )
+        if error:
+            return error
+        if getattr(params, "cage_style", "AUTO") == "MASSIVE":
+            error = _finite_nonnegative(
+                "oil_pocket_diameter_mm", getattr(params, "oil_pocket_diameter_mm", 0.0)
+            )
+            if error:
+                return error
+
+    return None
+
 def resolve_geometry(
     *,
     bearing_type: str,
@@ -213,6 +330,8 @@ def resolve_geometry(
     conformity_inner: float = BALL_GROOVE_CONFORMITY_INNER,
     conformity_outer: float = BALL_GROOVE_CONFORMITY_OUTER,
     contact_angle_deg: float = DEFAULT_TAPERED_CONTACT_ANGLE_DEG,
+    spherical_contact_angle_deg: float = 10.0,
+    spherical_rows: int = 1,
 ) -> Tuple[Optional[ResolvedBearing], Optional[str]]:
     """Löst alle Parameter zu einer funktionsfähigen Geometrie auf.
 
@@ -230,6 +349,63 @@ def resolve_geometry(
       Schulterspalt und taucht über beide Schultern hinaus in die Rillen ein;
       nach oben begrenzt sie nur die Restwand bis Bohrung/Außenmantel.
     """
+    numeric_parameters = {
+        "bore_diameter": bore_diameter,
+        "outer_diameter": outer_diameter,
+        "width": width,
+        "ring_thickness": ring_thickness,
+        "roller_diameter": roller_diameter,
+        "radial_clearance": radial_clearance,
+        "gap_factor": gap_factor,
+        "conformity_inner": conformity_inner,
+        "conformity_outer": conformity_outer,
+        "contact_angle_deg": contact_angle_deg,
+        "spherical_contact_angle_deg": spherical_contact_angle_deg,
+    }
+    for name, value in numeric_parameters.items():
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+        ):
+            return None, f"Parameter '{name}' muss ein endlicher Zahlenwert sein."
+
+    if not isinstance(bearing_type, str) or bearing_type not in {
+        item[0] for item in constants.BEARING_TYPES
+    }:
+        return None, f"Unbekannter Lagertyp: {bearing_type!r}."
+    if not isinstance(element_count, int) or isinstance(element_count, bool) or element_count < 3:
+        return None, "Die Wälzkörperanzahl muss eine ganze Zahl von mindestens 3 sein."
+    if not isinstance(auto_fit, bool):
+        return None, "Auto-Fit muss als boolescher Wert angegeben werden."
+    if bore_diameter <= 0.0 or outer_diameter <= 0.0 or width <= 0.0:
+        return None, "Bohrung, Außendurchmesser und Lagerbreite müssen positiv sein."
+    if ring_thickness <= 0.0:
+        return None, "Die Ringstärke muss positiv sein."
+    if roller_diameter <= 0.0:
+        return None, "Der Wälzkörper-Ø muss positiv sein."
+    if radial_clearance < 0.0:
+        return None, "Die Lagerluft darf nicht negativ sein."
+    if gap_factor < 0.0:
+        return None, "Der Umfangsspaltfaktor darf nicht negativ sein."
+    if is_ball_type(bearing_type) and not (
+        0.0 < conformity_inner < 1.0 and 0.0 < conformity_outer < 1.0
+    ):
+        return None, "Die Rillenkonformität muss für beide Ringe zwischen 0 und 1 liegen."
+    if bearing_type == constants.TAPERED and not (0.0 <= contact_angle_deg < 90.0):
+        return None, "Der Kontaktwinkel muss mindestens 0° und kleiner als 90° sein."
+    if bearing_type == constants.SPHERICAL:
+        if not (0.0 <= spherical_contact_angle_deg < 90.0):
+            return None, "Der Pendelrollen-Kontaktwinkel muss mindestens 0° und kleiner als 90° sein."
+        if (
+            not isinstance(spherical_rows, int)
+            or isinstance(spherical_rows, bool)
+            or spherical_rows not in (1, 2)
+        ):
+            return None, "Ein Tonnen-/Pendelrollenlager muss eine oder zwei Rollenreihen haben."
+        if spherical_rows == 2 and spherical_contact_angle_deg <= 0.0:
+            return None, "Das zweireihige Pendelrollenlager benötigt einen Kontaktwinkel > 0°."
+
     if bore_diameter >= outer_diameter:
         return None, (
             f"Innendurchmesser ({bore_diameter:.2f} mm) muss kleiner als "
@@ -279,6 +455,12 @@ def resolve_geometry(
         # Übrige Rollen füllen den Schulterspalt (mit Sicherheitsabschlag).
         max_roller_d = usable_space * ROLLER_SAFETY_FRACTION
 
+    if not math.isfinite(max_roller_d) or max_roller_d <= PROFILE_EPSILON:
+        return None, (
+            "Für diese Ringabmessungen bleibt kein positiver Bauraum für einen "
+            "Wälzkörper. Ringstärke reduzieren oder Hauptmaße ändern."
+        )
+
     if roller_diameter > max_roller_d:
         if not auto_fit:
             return None, (
@@ -298,6 +480,12 @@ def resolve_geometry(
     # ragte.
     pitch_d = (dims.inner_outer_d + dims.outer_inner_d) * 0.5
     max_count = max_elements_for_pitch(pitch_d, roller_d, gap_factor)
+    if max_count < 3:
+        return None, (
+            "Mindestens drei Wälzkörper passen mit dem geforderten Umfangsspalt "
+            "nicht auf diesen Teilkreis. Wälzkörper-Ø oder Umfangsspaltfaktor "
+            "reduzieren bzw. Lagermaße ändern."
+        )
     if element_count > max_count:
         if not auto_fit:
             return None, (
@@ -404,7 +592,18 @@ def suggest_defaults(
     # Vorgeschlagene Stückzahl: typgerechter Umfangsspalt (Käfigstege!), damit
     # die Default-Bestückung katalognah ist statt den Umfang dichtest zu füllen.
     suggest_gap = constants.TYPE_SUGGEST_PITCH_GAP.get(bearing_type, gap_factor)
+
+    # Auch für extrem schmale Maßbänder soll Auto-Berechnen keine Stückzahl
+    # vorschlagen, die schon im neutralen Teilkreismodell kollidiert. Für drei
+    # Elemente ist der kleinste Mittelpunktabstand pitch_d * sin(pi/3).
+    max_d_for_three = (
+        pitch_d * math.sin(math.pi / 3.0) / (1.0 + suggest_gap) * 0.98
+    )
+    roller_d = min(roller_d, max_d_for_three)
     count = max_elements_for_pitch(pitch_d, roller_d, suggest_gap)
+    if count < 3:
+        # Defensive Absicherung gegen Rundung und entartete Miniaturmaße.
+        count = 3
 
     return SuggestedDefaults(
         ring_thickness=ring_thickness,

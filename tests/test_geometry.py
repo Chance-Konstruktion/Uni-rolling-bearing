@@ -6,6 +6,7 @@ import math
 import pathlib
 import sys
 import unittest
+from types import SimpleNamespace
 
 # Repo-Wurzel auf den Pfad legen, damit ``uni_rolling_bearing`` importierbar ist.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
@@ -13,6 +14,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from uni_rolling_bearing import constants  # noqa: E402
 from uni_rolling_bearing.geometry import (  # noqa: E402
     MIN_OIL_POCKET_DIAMETER_MM,
+    MAX_SUPPORTED_ELEMENT_COUNT,
     OIL_POCKET_AUTO_FILL,
     cage_dimensions,
     compute_dims,
@@ -24,6 +26,7 @@ from uni_rolling_bearing.geometry import (  # noqa: E402
     tapered_apex_z,
     tapered_cone_half_angle,
     validate_against_suggestion,
+    validate_specialized_options,
 )
 
 
@@ -60,17 +63,29 @@ class TestComputeDims(unittest.TestCase):
 
 
 class TestMaxElementsForPitch(unittest.TestCase):
-    def test_no_overlap_at_max(self):
-        pitch = 30.0
-        roller = 5.0
-        gap = 0.10
+    def test_no_overlap_at_max_uses_chord_spacing(self):
+        pitch = 20.0
+        roller = 12.5
+        gap = 0.0
         n = max_elements_for_pitch(pitch, roller, gap)
-        # n Wälzkörper mit 10% Spalt müssen auf den Umfang passen.
-        self.assertGreaterEqual(math.pi * pitch, n * roller * (1.0 + gap))
+        self.assertEqual(n, 4)
+        # Die nächste Stückzahl wäre kollidierend, weil die Sehne zu kurz ist.
+        self.assertGreaterEqual(pitch * math.sin(math.pi / n), roller)
+        self.assertLess(pitch * math.sin(math.pi / (n + 1)), roller)
 
-    def test_at_least_three(self):
-        # Sehr enger Pitch / großer Roller – Funktion muss trotzdem ≥3 liefern.
-        self.assertGreaterEqual(max_elements_for_pitch(1.0, 10.0, 0.0), 3)
+    def test_supported_count_is_capped_for_extreme_pitch_ratio(self):
+        n = max_elements_for_pitch(1.0e308, 1.0e-308, 0.0)
+        self.assertEqual(n, MAX_SUPPORTED_ELEMENT_COUNT)
+
+    def test_supported_count_cap_is_respected(self):
+        n = max_elements_for_pitch(1.0e6, 0.1, 0.0)
+        self.assertEqual(n, MAX_SUPPORTED_ELEMENT_COUNT)
+    def test_too_large_for_two_elements_returns_zero(self):
+        self.assertEqual(max_elements_for_pitch(1.0, 10.0, 0.0), 0)
+
+    def test_three_elements_may_not_fit(self):
+        # Zwei Elemente passen gegenüber, aber drei verletzen den Abstand.
+        self.assertEqual(max_elements_for_pitch(20.0, 18.0, 0.0), 2)
 
 
 class TestRollerLengthForType(unittest.TestCase):
@@ -87,7 +102,105 @@ class TestRollerLengthForType(unittest.TestCase):
         self.assertEqual(roller_length_for_type("UNKNOWN", 20.0, 7.0), 7.0)
 
 
+class TestSpecializedOptionValidation(unittest.TestCase):
+    def test_vgroove_rejects_non_finite_or_out_of_range_angle(self):
+        params = SimpleNamespace(
+            bearing_type=constants.VGROOVE, vgroove_depth_mm=0.0,
+            vgroove_half_angle_deg=float("nan"), vgroove_shape="V",
+            bearing_chamfer_mm=0.3, segments=48, use_cage=False,
+        )
+        self.assertIn("Halbwinkel", validate_specialized_options(params))
+        params.vgroove_half_angle_deg = 90.0
+        self.assertIn("Halbwinkel", validate_specialized_options(params))
+
+    def test_cage_and_mesh_settings_are_validated(self):
+        params = SimpleNamespace(
+            bearing_type=constants.BALL, bearing_chamfer_mm=0.3, segments=8,
+            use_cage=True, cage_style="UNKNOWN", cage_material="STEEL",
+            pocket_clearance_mm=0.2, oil_pocket_diameter_mm=0.0,
+        )
+        self.assertIn("Mesh-Auflösung", validate_specialized_options(params))
+        params.segments = 48
+        self.assertIn("Käfigstil", validate_specialized_options(params))
+        params.cage_style = "MASSIVE"
+        params.pocket_clearance_mm = -0.1
+        self.assertIn("nicht negativ", validate_specialized_options(params))
+
+    def test_valid_specialized_settings_pass(self):
+        params = SimpleNamespace(bearing_type=constants.BALL, bearing_chamfer_mm=0.3, segments=48)
+        self.assertIsNone(validate_specialized_options(params))
 class TestResolveGeometry(unittest.TestCase):
+    def test_rejects_non_finite_dimensions(self):
+        for bad_value in (float("nan"), float("inf"), -float("inf")):
+            with self.subTest(value=bad_value):
+                spec, error = resolve_geometry(**_base_kwargs(bore_diameter=bad_value))
+                self.assertIsNone(spec)
+                self.assertIn("endlicher Zahlenwert", error)
+
+    def test_rejects_invalid_positive_dimensions(self):
+        for name in ("bore_diameter", "outer_diameter", "width", "ring_thickness", "roller_diameter"):
+            with self.subTest(parameter=name):
+                spec, error = resolve_geometry(**_base_kwargs(**{name: 0.0}))
+                self.assertIsNone(spec)
+                self.assertTrue(error)
+
+    def test_rejects_invalid_count_and_type(self):
+        for count in (0, 1, 2, -1, 2.5, True):
+            with self.subTest(count=count):
+                spec, error = resolve_geometry(**_base_kwargs(element_count=count))
+                self.assertIsNone(spec)
+                self.assertIn("mindestens 3", error)
+        spec, error = resolve_geometry(**_base_kwargs(bearing_type="UNKNOWN"))
+        self.assertIsNone(spec)
+        self.assertIn("Unbekannter Lagertyp", error)
+
+    def test_ignored_hidden_angles_do_not_block_other_bearing_types(self):
+        spec, error = resolve_geometry(**_base_kwargs(contact_angle_deg=100.0))
+        self.assertIsNone(error)
+        self.assertIsNotNone(spec)
+        spec, error = resolve_geometry(**_base_kwargs(
+            bearing_type=constants.CYLINDRICAL, conformity_inner=0.0, conformity_outer=0.0,
+        ))
+        self.assertIsNone(error)
+        self.assertIsNotNone(spec)
+    def test_rejects_invalid_spherical_angle_and_row_count(self):
+        for angle, rows in ((90.0, 1), (float("nan"), 1), (0.0, 2)):
+            with self.subTest(angle=angle, rows=rows):
+                spec, error = resolve_geometry(**_base_kwargs(
+                    bearing_type=constants.SPHERICAL,
+                    spherical_contact_angle_deg=angle, spherical_rows=rows,
+                ))
+                self.assertIsNone(spec)
+                self.assertTrue(error)
+        spec, error = resolve_geometry(**_base_kwargs(
+            bearing_type=constants.SPHERICAL, spherical_rows=3,
+        ))
+        self.assertIsNone(spec)
+        self.assertIn("Rollenreihen", error)
+    def test_rejects_invalid_clearance_gap_and_angle(self):
+        for name, value in (("radial_clearance", -0.01), ("gap_factor", -0.1)):
+            with self.subTest(parameter=name):
+                spec, error = resolve_geometry(**_base_kwargs(**{name: value}))
+                self.assertIsNone(spec)
+                self.assertTrue(error)
+
+        # The tapered contact angle is only relevant for tapered bearings.
+        spec, error = resolve_geometry(**_base_kwargs(
+            bearing_type=constants.TAPERED, contact_angle_deg=90.0,
+        ))
+        self.assertIsNone(spec)
+        self.assertIn("Kontaktwinkel", error)
+
+    def test_too_large_for_three_rollers_returns_error(self):
+        spec, error = resolve_geometry(**_base_kwargs(
+            bearing_type=constants.CYLINDRICAL,
+            bore_diameter=8.0, outer_diameter=12.0, ring_thickness=0.5,
+            roller_diameter=2.0, element_count=3, radial_clearance=0.0,
+            gap_factor=20.0, auto_fit=True,
+        ))
+        self.assertIsNone(spec)
+        self.assertIn("Mindestens drei", error)
+
     def test_happy_path(self):
         spec, error = resolve_geometry(**_base_kwargs())
         self.assertIsNone(error)
@@ -855,6 +968,16 @@ class TestISO492Tolerances(unittest.TestCase):
         self.assertAlmostEqual(w.od_lower_um, -11.0, places=3)
         self.assertAlmostEqual(w.width_lower_um, -120.0, places=3)
 
+    def test_diameter_at_250_mm_boundary_is_supported(self):
+        from uni_rolling_bearing.tolerances import window_for
+        window_for("NORMAL", 250.0, 250.0, 250.0)
+
+    def test_sizes_above_tolerance_table_are_rejected(self):
+        from uni_rolling_bearing.tolerances import window_for
+        for d, D, B in ((250.01, 100.0, 20.0), (20.0, 250.01, 20.0), (20.0, 100.0, 250.01)):
+            with self.subTest(d=d, D=D, B=B):
+                with self.assertRaisesRegex(ValueError, "außerhalb dieses Bereichs"):
+                    window_for("NORMAL", d, D, B)
     def test_higher_class_shrinks_window(self):
         from uni_rolling_bearing.tolerances import window_for
 
@@ -912,6 +1035,31 @@ class TestISO492Tolerances(unittest.TestCase):
         self.assertGreater(p4.bore_diameter, n.bore_diameter)
 
 
+class TestToleranceInputValidation(unittest.TestCase):
+    def test_non_string_precision_class_is_rejected(self):
+        from uni_rolling_bearing.tolerances import window_for
+        with self.assertRaisesRegex(ValueError, "Präzisionsklasse"):
+            window_for([], 20.0, 47.0, 14.0)
+
+    def test_unknown_precision_class_is_rejected(self):
+        from uni_rolling_bearing.tolerances import window_for
+        with self.assertRaisesRegex(ValueError, "Präzisionsklasse"):
+            window_for("P3", 20.0, 47.0, 14.0)
+
+    def test_unknown_tolerance_position_is_rejected(self):
+        from uni_rolling_bearing.tolerances import apply_tolerances
+        with self.assertRaisesRegex(ValueError, "Toleranzlage"):
+            apply_tolerances(
+                bore_diameter_mm=20.0, outer_diameter_mm=47.0, width_mm=14.0,
+                precision_class="NORMAL", position="MIDDLE",
+            )
+
+    def test_non_positive_or_non_finite_tolerance_dimensions_are_rejected(self):
+        from uni_rolling_bearing.tolerances import window_for
+        for value in (0.0, -1.0, float("nan"), float("inf")):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, "endlicher positiver"):
+                    window_for("NORMAL", value, 47.0, 14.0)
 class TestSphericalInnerRingProfile(unittest.TestCase):
     def test_profile_has_two_concave_raceways(self):
         from uni_rolling_bearing import raceway
