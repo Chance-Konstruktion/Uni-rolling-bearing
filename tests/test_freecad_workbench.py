@@ -22,6 +22,7 @@ import pathlib
 import sys
 import types
 import unittest
+from unittest.mock import patch
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -226,7 +227,7 @@ class TestBearingProxy(unittest.TestCase):
 
     def test_adds_all_properties_with_defaults(self):
         _, obj = self._proxy_obj()
-        self.assertEqual(set(obj._types), uischema.schema_names())
+        self.assertEqual(set(obj._types), uischema.schema_names() | {"BuildError"})
         self.assertEqual(str(obj.bearing_type), "BALL")
         self.assertAlmostEqual(float(obj.bore_diameter), 20.0)
         self.assertEqual(int(obj.element_count), 10)
@@ -251,6 +252,30 @@ class TestBearingProxy(unittest.TestCase):
         self.assertEqual(obj._editor["contact_angle_deg"], 0)
         self.assertEqual(obj._editor["groove_conformity_inner"], 2)
 
+    def test_build_error_property_is_read_only(self):
+        _, obj = self._proxy_obj()
+        self.assertEqual(obj.BuildError, "")
+        self.assertEqual(obj._editor["BuildError"], 1)
+        self.assertEqual(obj._types["BuildError"], "App::PropertyString")
+
+    def test_existing_object_gets_build_error_property(self):
+        proxy, obj = self._proxy_obj()
+        obj._props.pop("BuildError", None)
+        obj._types.pop("BuildError", None)
+        obj._editor.pop("BuildError", None)
+        obj.Shape = "previous-valid-shape"
+        obj.tolerance_position = "NOPE"
+        proxy.execute(obj)
+        self.assertIn("Toleranzlage", obj.BuildError)
+        self.assertEqual(obj._editor["BuildError"], 1)
+    def test_invalid_rebuild_is_reported_and_old_shape_is_preserved(self):
+        proxy, obj = self._proxy_obj()
+        obj.Shape = "previous-valid-shape"
+        obj.tolerance_position = "NOPE"
+        proxy.execute(obj)
+        self.assertIn("Rebuild fehlgeschlagen", obj.BuildError)
+        self.assertIn("Toleranzlage", obj.BuildError)
+        self.assertEqual(obj.Shape, "previous-valid-shape")
     def test_execute_builds_shape(self):
         proxy, obj = self._proxy_obj()
         log, restore = _install_fakes()
@@ -261,6 +286,7 @@ class TestBearingProxy(unittest.TestCase):
         self.assertIsNotNone(obj.Shape)
         self.assertGreaterEqual(log.count("makeSphere"), 3)  # Kugellager
         self.assertIn("makeCompound", log)
+        self.assertEqual(obj.BuildError, "")
 
     def test_make_bearing_creates_and_recomputes(self):
         from freecad_backend.workbench import wb_bearing
@@ -271,7 +297,7 @@ class TestBearingProxy(unittest.TestCase):
         finally:
             restore()
         self.assertIsNotNone(obj.Proxy)
-        self.assertEqual(set(obj._types), uischema.schema_names())
+        self.assertEqual(set(obj._types), uischema.schema_names() | {"BuildError"})
         self.assertIsNotNone(obj.Shape)  # recompute() rief execute()
 
 
@@ -467,6 +493,11 @@ class TestCatalog(unittest.TestCase):
         tol_ids = [tid for tid, _l, _d in catalog.tolerance_position_choices()]
         self.assertEqual(tol_ids, [tid for tid, _l, _d in TOLERANCE_POSITIONS])
 
+    def test_tolerance_offset_text_reports_unsupported_sizes(self):
+        from freecad_backend import catalog
+        text = catalog.tolerance_offset_text(300.0, 500.0, 20.0, "NORMAL", "MEAN")
+        self.assertIn("Toleranzvorschau nicht verfügbar", text)
+        self.assertIn("außerhalb dieses Bereichs", text)
     def test_tolerance_offset_text_blank_for_upper_position(self):
         from freecad_backend import catalog
 
@@ -489,6 +520,49 @@ class TestCatalog(unittest.TestCase):
 # 5) Host-freie Ergebnis-Auswertung (Tragzahlen / Lebensdauer / Passungen)     #
 # --------------------------------------------------------------------------- #
 
+
+class TestCageBooleanFailures(unittest.TestCase):
+    def test_null_boolean_result_is_rejected(self):
+        from freecad_backend import backend_freecad
+        from freecad_backend.plan import CagePart, RevolveRing
+
+        class EmptyShape:
+            def isNull(self):
+                return True
+
+        class Shape:
+            def cut(self, _other):
+                return EmptyShape()
+
+        solid = RevolveRing([(5.0, -1.0), (6.0, -1.0), (6.0, 1.0), (5.0, 1.0)])
+        with patch.object(backend_freecad, "_make_solid", return_value=Shape()):
+            with self.assertRaisesRegex(RuntimeError, "leere Form"):
+                backend_freecad._build_cage_part(CagePart(solid, (solid,)))
+
+    def test_cage_shape_without_solids_is_rejected(self):
+        from freecad_backend import backend_freecad
+        from freecad_backend.plan import CagePart, RevolveRing
+
+        class EmptySolidShape:
+            Solids = []
+
+        solid = RevolveRing([(5.0, -1.0), (6.0, -1.0), (6.0, 1.0), (5.0, 1.0)])
+        with patch.object(backend_freecad, "_make_solid", return_value=EmptySolidShape()):
+            with self.assertRaisesRegex(RuntimeError, "kein Solid"):
+                backend_freecad._build_cage_part(CagePart(solid))
+    def test_failed_cage_pocket_raises_instead_of_silently_skipping(self):
+        from freecad_backend import backend_freecad
+        from freecad_backend.plan import CagePart, RevolveRing
+
+        class BrokenShape:
+            def cut(self, _other):
+                raise RuntimeError("simulated OCC boolean failure")
+
+        solid = RevolveRing([(5.0, -1.0), (6.0, -1.0), (6.0, 1.0), (5.0, 1.0)])
+        with patch.object(backend_freecad, "_make_solid", return_value=BrokenShape()):
+            with self.assertRaisesRegex(RuntimeError, "Käfigtasche 1/1") as raised:
+                backend_freecad._build_cage_part(CagePart(solid, (solid,)))
+        self.assertIn("nicht exportiert", str(raised.exception))
 
 class TestAnalysis(unittest.TestCase):
     def _ball_6204(self):
@@ -529,6 +603,83 @@ class TestAnalysis(unittest.TestCase):
         # Passungen hängen nur an d/D/Lastfall → trotzdem vorhanden.
         self.assertEqual(len(res.fits), 2)
 
+    def test_analysis_uses_effective_dimensions_from_tolerances(self):
+        from freecad_backend import analysis, plan
+
+        params = self._ball_6204()
+        params.tolerance_position = "MIN"
+        result = analysis.analyze(params)
+        planned = plan.build_plan(params)
+        self.assertIsNone(result.error)
+        displayed_pitch = float(
+            next(line.split(": ", 1)[1].split(" ", 1)[0]
+                 for line in result.plausibility if line.startswith("Teilkreis-Ø:"))
+        )
+        # The UI displays three decimals; avoid binary-rounding edge failures.
+        self.assertAlmostEqual(planned.spec.pitch_d, displayed_pitch, places=2)
+
+    def test_analysis_uses_spherical_contact_angle(self):
+        from freecad_backend import analysis
+
+        params = BearingParams(bearing_type=constants.SPHERICAL)
+        params.apply_suggested_defaults()
+        params.spherical_contact_angle_deg = 20.0
+        params.radial_load_fr_n = 1000.0
+        params.axial_load_fa_n = 100.0
+        result = analysis.analyze(params)
+        self.assertIsNone(result.error)
+        factor_line = next(line for line in result.ratings if line.startswith("X="))
+        self.assertIn("e=0.55", factor_line)
+    def test_invalid_specialized_geometry_setting_is_reported(self):
+        from freecad_backend import analysis
+        params = self._ball_6204()
+        params.bearing_chamfer_mm = float("nan")
+        result = analysis.analyze(params)
+        self.assertIn("bearing_chamfer_mm", result.error)
+        self.assertTrue(result.fits)
+    def test_invalid_spherical_controls_are_reported_without_crashing(self):
+        from freecad_backend import analysis
+        params = BearingParams(bearing_type=constants.SPHERICAL, spherical_rows="2")
+        params.spherical_contact_angle_deg = 0.0
+        result = analysis.analyze(params)
+        self.assertIn("Kontaktwinkel", result.error)
+    def test_unknown_tolerance_selection_is_reported_without_crashing(self):
+        from freecad_backend import analysis
+        params = self._ball_6204()
+        params.tolerance_position = "CENTER"
+        result = analysis.analyze(params)
+        self.assertIn("Ungültige Geometrie- oder Toleranzeingabe", result.error)
+        self.assertTrue(result.fits)
+
+    def test_unknown_precision_class_is_reported_without_crashing(self):
+        from freecad_backend import analysis
+        params = self._ball_6204()
+        params.precision_class = "P3"
+        result = analysis.analyze(params)
+        self.assertIn("Ungültige Geometrie- oder Toleranzeingabe", result.error)
+    def test_negative_operating_inputs_are_reported(self):
+        from freecad_backend import analysis
+        params = self._ball_6204()
+        params.radial_load_fr_n = -100.0
+        result = analysis.analyze(params)
+        self.assertIn("Radiallast Fr darf nicht negativ sein", result.error)
+        self.assertTrue(result.fits)
+        self.assertFalse(result.ratings)
+    def test_invalid_rating_input_keeps_fit_results_available(self):
+        from freecad_backend import analysis
+        params = self._ball_6204()
+        params.speed_rpm = float("inf")
+        result = analysis.analyze(params)
+        self.assertIn("Ungültige Last-/Tragzahleingabe", result.error)
+        self.assertTrue(result.fits)
+        self.assertFalse(result.ratings)
+    def test_unknown_fit_load_case_is_reported_without_crashing(self):
+        from freecad_backend import analysis
+        params = self._ball_6204()
+        params.load_case = "NOT_A_LOAD_CASE"
+        result = analysis.analyze(params)
+        self.assertIsNone(result.error)
+        self.assertTrue(any("Passung nicht bestimmbar" in line for line in result.fits))
     def test_cylindrical_axial_load_flagged_ignored(self):
         from freecad_backend import analysis, catalog
 

@@ -11,11 +11,12 @@ die Rechen-Logik liegt im geteilten Kern (``geometry``/``ratings``/``fits``).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import List, Optional
 
 from uni_rolling_bearing import constants, fits as fits_mod, ratings as ratings_mod
-from uni_rolling_bearing.geometry import resolve_geometry
+from uni_rolling_bearing.geometry import resolve_geometry, validate_specialized_options
+from uni_rolling_bearing.tolerances import apply_tolerances
 
 from .params import BearingParams
 
@@ -45,21 +46,37 @@ def analyze(params: BearingParams) -> AnalysisResult:
     """
     result = AnalysisResult()
 
-    spec, error = resolve_geometry(
-        bearing_type=params.bearing_type,
-        bore_diameter=params.bore_diameter,
-        outer_diameter=params.outer_diameter,
-        width=params.width,
-        ring_thickness=params.ring_thickness,
-        roller_diameter=params.roller_diameter,
-        element_count=params.element_count,
-        radial_clearance=params.radial_clearance,
-        gap_factor=params.gap_factor,
-        auto_fit=params.auto_fit,
-        conformity_inner=params.groove_conformity_inner,
-        conformity_outer=params.groove_conformity_outer,
-        contact_angle_deg=params.contact_angle_deg,
-    )
+    try:
+        option_error = validate_specialized_options(params)
+        if option_error:
+            raise ValueError(option_error)
+        effective = apply_tolerances(
+            bore_diameter_mm=params.bore_diameter,
+            outer_diameter_mm=params.outer_diameter,
+            width_mm=params.width,
+            precision_class=params.precision_class,
+            position=params.tolerance_position,
+        )
+        spec, error = resolve_geometry(
+            bearing_type=params.bearing_type,
+            bore_diameter=effective.bore_diameter,
+            outer_diameter=effective.outer_diameter,
+            width=effective.width,
+            ring_thickness=params.ring_thickness,
+            roller_diameter=params.roller_diameter,
+            element_count=params.element_count,
+            radial_clearance=params.radial_clearance,
+            gap_factor=params.gap_factor,
+            auto_fit=params.auto_fit,
+            conformity_inner=params.groove_conformity_inner,
+            conformity_outer=params.groove_conformity_outer,
+            contact_angle_deg=params.contact_angle_deg,
+            spherical_contact_angle_deg=params.spherical_contact_angle_deg,
+            spherical_rows=params.spherical_row_count(),
+        )
+    except (TypeError, ValueError, OverflowError) as exc:
+        spec = None
+        error = f"Ungültige Geometrie- oder Toleranzeingabe: {exc}"
 
     if error or spec is None:
         result.error = error or "Geometrie unzulässig."
@@ -81,49 +98,76 @@ def analyze(params: BearingParams) -> AnalysisResult:
         angle = (
             params.contact_angle_deg
             if params.bearing_type == constants.TAPERED
+            else params.spherical_contact_angle_deg
+            if params.bearing_type == constants.SPHERICAL
             else 0.0
         )
-        r = ratings_mod.compute_ratings(
-            bearing_type=params.bearing_type,
-            roller_d_mm=spec.roller_d,
-            roller_length_mm=spec.roller_length,
-            element_count=spec.element_count,
-            pitch_d_mm=spec.pitch_d,
-            contact_angle_deg=angle,
-            radial_load_Fr_N=params.radial_load_fr_n,
-            axial_load_Fa_N=params.axial_load_fa_n,
-            speed_rpm=params.speed_rpm,
-            rows=(
-                params.spherical_row_count()
-                if params.bearing_type == constants.SPHERICAL
-                else None
-            ),
-        )
-        result.ratings.append(f"γ={r.gamma:.3f}  f0={r.f0:.1f}  fc={r.fc:.1f}")
-        result.ratings.append(f"C0r ≈ {r.static_C0_N:,.0f} N")
-        result.ratings.append(f"Cr  ≈ {r.dynamic_C_N:,.0f} N")
-        if params.radial_load_fr_n > 0.0 or params.axial_load_fa_n > 0.0:
-            result.ratings.append(f"X={r.X:.2f}  Y={r.Y:.2f}  e={r.e:.2f}")
-            result.ratings.append(f"P ≈ {r.P_N:,.0f} N")
-            if (
-                params.bearing_type in (constants.CYLINDRICAL, constants.NEEDLE)
-                and params.axial_load_fa_n > 0.0
+        if (
+            params.bearing_type == constants.SPHERICAL
+            and params.spherical_row_count() == 2
+        ):
+            spec = replace(
+                spec,
+                roller_length=(
+                    spec.roller_length * constants.SPHERICAL_TWO_ROW_LENGTH_FACTOR
+                ),
+            )
+        try:
+            for name, value in (
+                ("Radiallast Fr", params.radial_load_fr_n),
+                ("Axiallast Fa", params.axial_load_fa_n),
+                ("Drehzahl", params.speed_rpm),
             ):
-                result.ratings.append("Axiallast wird bei diesem Lagertyp ignoriert.")
-        if r.L10h is not None:
-            result.ratings.append(f"L10h ≈ {r.L10h:,.0f} h")
+                if value < 0.0:
+                    raise ValueError(f"{name} darf nicht negativ sein.")
+            r = ratings_mod.compute_ratings(
+                bearing_type=params.bearing_type,
+                roller_d_mm=spec.roller_d,
+                roller_length_mm=spec.roller_length,
+                element_count=spec.element_count,
+                pitch_d_mm=spec.pitch_d,
+                contact_angle_deg=angle,
+                radial_load_Fr_N=params.radial_load_fr_n,
+                axial_load_Fa_N=params.axial_load_fa_n,
+                speed_rpm=params.speed_rpm,
+                rows=(
+                    params.spherical_row_count()
+                    if params.bearing_type == constants.SPHERICAL
+                    else None
+                ),
+            )
+        except (TypeError, ValueError, OverflowError) as exc:
+            result.error = f"Ungültige Last-/Tragzahleingabe: {exc}"
+        else:
+            result.ratings.append(f"γ={r.gamma:.3f}  f0={r.f0:.1f}  fc={r.fc:.1f}")
+            result.ratings.append(f"C0r ≈ {r.static_C0_N:,.0f} N")
+            result.ratings.append(f"Cr  ≈ {r.dynamic_C_N:,.0f} N")
+            if params.radial_load_fr_n > 0.0 or params.axial_load_fa_n > 0.0:
+                result.ratings.append(f"X={r.X:.2f}  Y={r.Y:.2f}  e={r.e:.2f}")
+                result.ratings.append(f"P ≈ {r.P_N:,.0f} N")
+                if (
+                    params.bearing_type in (constants.CYLINDRICAL, constants.NEEDLE)
+                    and params.axial_load_fa_n > 0.0
+                ):
+                    result.ratings.append("Axiallast wird bei diesem Lagertyp ignoriert.")
+            if r.L10h is not None:
+                result.ratings.append(f"L10h ≈ {r.L10h:,.0f} h")
 
-    fit = fits_mod.recommend_fits(
-        load_case=params.load_case,
-        bore_diameter_mm=params.bore_diameter,
-        outer_diameter_mm=params.outer_diameter,
-    )
-    result.fits.append(
-        _dev_label("Welle:", fit.shaft_class, fit.shaft_upper_um, fit.shaft_lower_um)
-    )
-    result.fits.append(
-        _dev_label("Gehäuse:", fit.housing_class, fit.housing_upper_um, fit.housing_lower_um)
-    )
+    try:
+        fit = fits_mod.recommend_fits(
+            load_case=params.load_case,
+            bore_diameter_mm=params.bore_diameter,
+            outer_diameter_mm=params.outer_diameter,
+        )
+    except ValueError as exc:
+        result.fits.append(f"Passung nicht bestimmbar: {exc}")
+    else:
+        result.fits.append(
+            _dev_label("Welle:", fit.shaft_class, fit.shaft_upper_um, fit.shaft_lower_um)
+        )
+        result.fits.append(
+            _dev_label("Gehäuse:", fit.housing_class, fit.housing_upper_um, fit.housing_lower_um)
+        )
     return result
 
 

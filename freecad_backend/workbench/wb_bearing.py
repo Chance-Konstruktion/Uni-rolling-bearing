@@ -29,8 +29,21 @@ def _to_float(value) -> float:
     return float(value)
 
 
+def _ensure_build_error_property(obj) -> None:
+    """Add the diagnostic property to both new and previously saved objects."""
+    if hasattr(obj, "BuildError"):
+        return
+    obj.addProperty(
+        "App::PropertyString",
+        "BuildError",
+        "Status",
+        "Letzter Rebuild-Fehler; bei Fehlern bleibt die bisherige Shape unverändert",
+    )
+    obj.BuildError = ""
+    obj.setEditorMode("BuildError", 1)
+
 def add_properties(obj) -> None:
-    """Legt alle Lager-Eigenschaften gemäß :data:`uischema.SCHEMA` an."""
+    """Legt Lager-Parameter und schreibgeschützte Rebuild-Diagnose an."""
     for spec in uischema.SCHEMA:
         obj.addProperty(spec.fc_type, spec.name, spec.group, spec.label)
         default = uischema.default_for(spec.name)
@@ -40,6 +53,9 @@ def add_properties(obj) -> None:
             setattr(obj, spec.name, str(default))
         else:
             setattr(obj, spec.name, default)
+
+    # Nicht in BearingParams/SCHEMA aufnehmen: reine Diagnose, kein Eingabeparameter.
+    _ensure_build_error_property(obj)
 
 
 def params_from_obj(obj) -> BearingParams:
@@ -118,13 +134,23 @@ class UniBearingProxy:
         """Baut die Lager-Geometrie neu und legt sie als ``obj.Shape`` ab."""
         # Nach Datei-Laden ist die Sichtbarkeit ggf. noch nicht gesetzt.
         apply_visibility(obj)
-        params = params_from_obj(obj)
+        _ensure_build_error_property(obj)
         try:
+            params = params_from_obj(obj)
             result = build_bearing(params)
-        except ValueError:
-            # Unlösbare Maße: vorhandene Shape stehen lassen statt zu crashen.
+            shape = result.compound()
+        except Exception as exc:
+            # Shape nicht still als aktuell ausgeben: Fehler als Diagnose sichtbar
+            # machen und die letzte erfolgreiche Form für die Reparatur erhalten.
+            if hasattr(obj, "BuildError"):
+                obj.BuildError = (
+                    f"Rebuild fehlgeschlagen; Shape nicht aktualisiert: "
+                    f"{type(exc).__name__}: {exc}"
+                )
             return
-        obj.Shape = result.compound()
+        obj.Shape = shape
+        if hasattr(obj, "BuildError"):
+            obj.BuildError = ""
 
 
 class ViewProviderBearing:

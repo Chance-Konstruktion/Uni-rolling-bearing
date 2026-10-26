@@ -121,6 +121,35 @@ class TestBuildPlan(unittest.TestCase):
         self.assertEqual(len(plan.cage_parts), 1)
         self.assertEqual(len(plan.cage_parts[0].cutters), plan.spec.element_count)
 
+    def test_invalid_tolerance_selection_returns_plan_error(self):
+        p = _params(constants.BALL, 20.0, 47.0, 14.0)
+        p.tolerance_position = "CENTER"
+        plan = plan_mod.build_plan(p)
+        self.assertIsNotNone(plan.error)
+        self.assertIn("Toleranzlage", plan.error)
+        self.assertIsNone(plan.spec)
+
+    def test_invalid_specialized_configuration_returns_plan_error(self):
+        p = _params(constants.VGROOVE, 10.0, 35.0, 10.0)
+        p.vgroove_half_angle_deg = float("nan")
+        plan = plan_mod.build_plan(p)
+        self.assertIsNotNone(plan.error)
+        self.assertIn("Halbwinkel", plan.error)
+        self.assertIsNone(plan.spec)
+    def test_invalid_spherical_configuration_returns_plan_error(self):
+        p = _params(constants.SPHERICAL, 30.0, 72.0, 19.0, spherical_rows="3")
+        plan = plan_mod.build_plan(p)
+        self.assertIsNotNone(plan.error)
+        self.assertIn("Rollenreihen", plan.error)
+        self.assertIsNone(plan.spec)
+    def test_invalid_precision_class_returns_plan_error(self):
+        p = _params(constants.BALL, 20.0, 47.0, 14.0)
+        p.precision_class = "P3"
+        plan = plan_mod.build_plan(p)
+        self.assertIsNotNone(plan.error)
+        self.assertIn("Präzisionsklasse", plan.error)
+        self.assertIsNone(plan.spec)
+
     def test_invalid_geometry_returns_error(self):
         # Bohrung ≥ Außen-Ø ist unlösbar.
         p = BearingParams(bearing_type=constants.BALL, bore_diameter=50.0,

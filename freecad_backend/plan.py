@@ -27,6 +27,7 @@ from uni_rolling_bearing.geometry import (
     oil_pocket_diameter,
     resolve_geometry,
     tapered_cone_half_angle,
+    validate_specialized_options,
 )
 from uni_rolling_bearing.tolerances import apply_tolerances
 
@@ -126,6 +127,9 @@ def _effective_dims(p: BearingParams):
 
 
 def _resolve(p: BearingParams) -> Tuple[Optional[ResolvedBearing], Optional[str]]:
+    option_error = validate_specialized_options(p)
+    if option_error:
+        return None, option_error
     eff = _effective_dims(p)
     spec, error = resolve_geometry(
         bearing_type=p.bearing_type,
@@ -141,6 +145,8 @@ def _resolve(p: BearingParams) -> Tuple[Optional[ResolvedBearing], Optional[str]
         conformity_inner=p.groove_conformity_inner,
         conformity_outer=p.groove_conformity_outer,
         contact_angle_deg=p.contact_angle_deg,
+        spherical_contact_angle_deg=p.spherical_contact_angle_deg,
+        spherical_rows=p.spherical_row_count(),
     )
     if (
         spec is not None
@@ -470,7 +476,10 @@ def build_plan(p: BearingParams) -> BearingPlan:
 
     Bei unlösbarer Geometrie wird ``BearingPlan(error=...)`` zurückgegeben.
     """
-    spec, error = _resolve(p)
+    try:
+        spec, error = _resolve(p)
+    except (TypeError, ValueError, OverflowError) as exc:
+        return BearingPlan(error=f"Ungültige Geometrie- oder Toleranzeingabe: {exc}")
     if spec is None:
         return BearingPlan(error=error or "Geometrie konnte nicht aufgelöst werden.")
 

@@ -15,6 +15,7 @@ from .geometry import (
     oil_pocket_diameter,
     resolve_geometry,
     suggest_defaults,
+    validate_specialized_options,
     tapered_apex_z,
     tapered_cone_half_angle,
 )
@@ -67,6 +68,9 @@ def _effective_dims(props):
 
 
 def _props_to_resolve_kwargs(props) -> dict:
+    option_error = validate_specialized_options(props)
+    if option_error:
+        raise ValueError(option_error)
     eff = _effective_dims(props)
     return dict(
         bearing_type=props.bearing_type,
@@ -86,6 +90,8 @@ def _props_to_resolve_kwargs(props) -> dict:
         conformity_outer=props.groove_conformity_outer,
         # Kegelrollen-Sizing (cos α) nutzt den eingestellten Kontaktwinkel.
         contact_angle_deg=props.contact_angle_deg,
+        spherical_contact_angle_deg=getattr(props, "spherical_contact_angle_deg", 10.0),
+        spherical_rows=_spherical_rows(props),
     )
 
 

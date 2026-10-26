@@ -59,7 +59,9 @@ class BuildResult:
     def compound(self):
         import Part  # lazy – nur in echtem FreeCAD verfügbar
 
-        return Part.makeCompound(self.all_shapes())
+        compound = Part.makeCompound(self.all_shapes())
+        _validate_solid_shape(compound, "Lager-Assembly")
+        return compound
 
 
 def _barrel_meridian(radius_mid: float, radius_end: float, length: float,
@@ -149,15 +151,45 @@ def _make_solid(solid: Solid):
     raise TypeError(f"Unbekanntes Solid: {type(solid)!r}")
 
 
+def _validate_solid_shape(shape, context: str) -> None:
+    """Reject empty/invalid OpenCascade shapes when the host exposes checks."""
+    if shape is None:
+        raise RuntimeError(f"{context}: FreeCAD lieferte keine Form.")
+    is_null = getattr(shape, "isNull", None)
+    if callable(is_null) and is_null():
+        raise RuntimeError(f"{context}: FreeCAD lieferte eine leere Form.")
+    is_valid = getattr(shape, "isValid", None)
+    if callable(is_valid) and not is_valid():
+        raise RuntimeError(f"{context}: FreeCAD lieferte eine ungültige Form.")
+    solids = getattr(shape, "Solids", None)
+    if solids is not None and len(solids) == 0:
+        raise RuntimeError(f"{context}: FreeCAD-Form enthält kein Solid.")
+
 def _build_cage_part(part: CagePart):
-    """Baut einen Käfigkörper und subtrahiert seine Pocket-Cutter (Boolean)."""
+    """Baut einen Käfigkörper und subtrahiert seine Pocket-Cutter (Boolean).
+
+    Ein fehlgeschlagener Schnitt wird absichtlich nicht übersprungen: Ein Käfig
+    ohne einzelne Taschen ist ein falsches CAD-Ergebnis. Der Aufrufer erhält
+    stattdessen einen konkreten Fehler und kann einen alternativen Käfigstil
+    wählen, statt unbemerkt ein unvollständiges Solid zu exportieren.
+    """
     shape = _make_solid(part.additive)
-    for cutter in part.cutters:
+    _validate_solid_shape(shape, "Käfig-Grundkörper")
+    cutter_count = len(part.cutters)
+    for index, cutter in enumerate(part.cutters, start=1):
         cut_shape = _make_solid(cutter)
+        _validate_solid_shape(cut_shape, f"Käfig-Cutter {index}/{cutter_count}")
         try:
-            shape = shape.cut(cut_shape)
-        except Exception:  # pragma: no cover – einzelner Boolean darf scheitern
-            continue
+            result = shape.cut(cut_shape)
+        except Exception as exc:
+            raise RuntimeError(
+                f"FreeCAD-Boolean für Käfigtasche {index}/{cutter_count} "
+                "fehlgeschlagen. Käfig nicht exportiert; Geometrie prüfen oder "
+                "Käfigstil 'LADDER' wählen."
+            ) from exc
+
+        _validate_solid_shape(result, f"FreeCAD-Boolean Käfigtasche {index}/{cutter_count}")
+        shape = result
     return shape
 
 
@@ -169,9 +201,15 @@ def build_from_plan(plan: BearingPlan) -> BuildResult:
     result = BuildResult()
     if plan.inner_ring is not None:
         result.inner_ring = _make_solid(plan.inner_ring)
+        _validate_solid_shape(result.inner_ring, "Innenring")
     if plan.outer_ring is not None:
         result.outer_ring = _make_solid(plan.outer_ring)
-    result.elements = [_make_solid(e) for e in plan.elements]
+        _validate_solid_shape(result.outer_ring, "Außenring")
+    result.elements = []
+    for index, element in enumerate(plan.elements, start=1):
+        shape = _make_solid(element)
+        _validate_solid_shape(shape, f"Wälzkörper {index}/{len(plan.elements)}")
+        result.elements.append(shape)
     result.cage = [_build_cage_part(c) for c in plan.cage_parts]
     return result
 

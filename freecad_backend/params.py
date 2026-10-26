@@ -88,9 +88,10 @@ class BearingParams:
     def spherical_row_count(self) -> int:
         """Anzahl Wälzkörperreihen (1 oder 2)."""
         try:
-            return int(self.spherical_rows)
-        except (TypeError, ValueError):
-            return 1
+            rows = int(self.spherical_rows)
+        except (TypeError, ValueError, OverflowError):
+            return 0
+        return rows if rows in (1, 2) else 0
 
     def apply_suggested_defaults(self) -> "BearingParams":
         """Setzt typgerechte Ringstärke/Wälzkörper-Ø/Anzahl (wie 'Auto-Berechnen').
