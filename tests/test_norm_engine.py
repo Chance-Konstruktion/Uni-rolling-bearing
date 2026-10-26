@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import pathlib
 import sys
 import unittest
@@ -37,6 +38,48 @@ class TestExpand(unittest.TestCase):
         result = norm_engine._expand(payload)
         self.assertEqual(result, {"HK1010": (10.0, 14.0, 10.0)})
 
+    def test_direct_skips_nonphysical_and_non_numeric_dimensions(self):
+        payload = {
+            "coding": "direct",
+            "presets": {
+                "BAD_ORDER": [20.0, 20.0, 5.0],
+                "BAD_WIDTH": [10.0, 14.0, 0.0],
+                "BAD_NAN": [10.0, float("nan"), 8.0],
+                "BAD_TEXT": [10.0, "not-a-number", 8.0],
+                "GOOD": [10.0, 14.0, 8.0],
+            },
+        }
+        self.assertEqual(norm_engine._expand(payload), {"GOOD": (10.0, 14.0, 8.0)})
+
+    def test_din623_skips_nonphysical_and_non_numeric_dimensions(self):
+        payload = {
+            "coding": "din623",
+            "series": {"62": {
+                "04": [47.0, 14.0],
+                "05": [20.0, 15.0],
+                "06": [float("inf"), 16.0],
+                "07": [60.0, "broken"],
+            }},
+        }
+        result = norm_engine._expand(payload)
+        self.assertEqual(result, {"6204": (20.0, 47.0, 14.0)})
+
+    def test_non_object_payload_returns_empty(self):
+        self.assertEqual(norm_engine._expand(["not", "an", "object"]), {})
+    def test_non_string_catalog_prefix_is_ignored(self):
+        payload = {
+            "coding": "din623",
+            "prefix": ["not", "text"],
+            "series": {"62": {"04": [47.0, 14.0]}},
+        }
+        self.assertEqual(norm_engine._expand(payload), {})
+
+    def test_ring_width_extractor_rejects_non_string_prefix(self):
+        payload = {
+            "prefix": None,
+            "series": {"302": {"04": [47.0, 15.25, 14.0, 12.0]}},
+        }
+        self.assertEqual(norm_engine._extract_ring_widths(payload), {})
     def test_unknown_coding_returns_empty(self):
         self.assertEqual(norm_engine._expand({"coding": "ufo"}), {})
 
@@ -58,6 +101,18 @@ class TestLoaderIntegration(unittest.TestCase):
         for bt, table in all_presets.items():
             self.assertGreater(len(table), 0, msg=f"{bt} ist leer")
 
+    def test_all_built_in_preset_dimensions_are_finite_and_ordered(self):
+        for bearing_type, presets in norm_engine.load_all_presets().items():
+            for code, dims in presets.items():
+                with self.subTest(type=bearing_type, code=code):
+                    d, D, B = dims
+                    self.assertTrue(all(math.isfinite(value) for value in dims))
+                    self.assertGreater(d, 0.0)
+                    self.assertGreater(D, d)
+                    self.assertGreater(B, 0.0)
+
+    def test_ring_width_extractor_ignores_non_object_payload(self):
+        self.assertEqual(norm_engine._extract_ring_widths([]), {})
     def test_missing_file_returns_empty(self):
         self.assertEqual(norm_engine.load_presets_for("DOES_NOT_EXIST"), {})
 

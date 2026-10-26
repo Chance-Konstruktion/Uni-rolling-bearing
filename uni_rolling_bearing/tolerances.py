@@ -16,6 +16,7 @@ Die Tabellen sind eine kompakte, praxisorientierte Untermenge der Norm
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import List, Tuple
 
@@ -71,7 +72,10 @@ def _lookup_um(table: List[Tuple[float, float]], diameter_mm: float) -> float:
     for upper, dev in table:
         if diameter_mm <= upper:
             return dev
-    return table[-1][1]
+    raise ValueError(
+        f"Toleranztabelle ist nur bis {table[-1][0]:g} mm abgedeckt; "
+        f"Nennmaß {diameter_mm:g} mm liegt außerhalb dieses Bereichs."
+    )
 
 
 @dataclass(frozen=True)
@@ -104,7 +108,25 @@ def window_for(
     width_mm: float,
 ) -> ToleranceWindow:
     """Liefert das Toleranzfenster für die gewählte Klasse."""
-    factor = _CLASS_FACTOR.get(precision_class, 1.0)
+    if not isinstance(precision_class, str) or precision_class not in _CLASS_FACTOR:
+        raise ValueError(
+            f"Unbekannte Präzisionsklasse {precision_class!r}; "
+            f"erlaubt sind {', '.join(_CLASS_FACTOR)}."
+        )
+    for name, value in (
+        ("Bohrungsdurchmesser", bore_d_mm),
+        ("Außendurchmesser", outer_d_mm),
+        ("Lagerbreite", width_mm),
+    ):
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+            or value <= 0.0
+        ):
+            raise ValueError(f"{name} muss ein endlicher positiver Zahlenwert sein.")
+
+    factor = _CLASS_FACTOR[precision_class]
     return ToleranceWindow(
         bore_lower_mm=_lookup_um(_BORE_NORMAL_UM, bore_d_mm) * factor / 1000.0,
         od_lower_mm=_lookup_um(_OD_NORMAL_UM, outer_d_mm) * factor / 1000.0,
@@ -116,9 +138,13 @@ def _position_factor(position: str) -> float:
     """0.0 = oberes Maß (= Nennmaß), 0.5 = Mitte, 1.0 = unteres Maß."""
     if position == "MAX":
         return 0.0
+    if position == "MEAN":
+        return 0.5
     if position == "MIN":
         return 1.0
-    return 0.5
+    raise ValueError(
+        f"Unbekannte Toleranzlage {position!r}; erlaubt sind MAX, MEAN, MIN."
+    )
 
 
 @dataclass(frozen=True)

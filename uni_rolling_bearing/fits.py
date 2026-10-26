@@ -13,6 +13,7 @@ die Klasse weitergegeben, die Abmaße aber als ``None`` markiert.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
@@ -164,7 +165,23 @@ def recommend_fits(
     bore_diameter_mm: float,
     outer_diameter_mm: float,
 ) -> FitRecommendation:
-    """Liefert empfohlene Welle/Gehäuse-Klassen + Abmaße nach DIN 5418."""
+    """Liefert empfohlene Welle/Gehäuse-Klassen + Abmaße nach DIN 5418.
+
+    Unbekannte Lastfälle werden nicht stillschweigend als schwere Belastung
+    interpretiert; nicht endliche oder nicht positive Durchmesser sind ungültig.
+    """
+    valid_cases = {case[0] for case in LOAD_CASES}
+    if not isinstance(load_case, str) or load_case not in valid_cases:
+        raise ValueError(f"Unbekannter Belastungsfall: {load_case!r}.")
+    for name, value in (("Bohrungsdurchmesser", bore_diameter_mm),
+                        ("Außendurchmesser", outer_diameter_mm)):
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+            or value <= 0.0
+        ):
+            raise ValueError(f"{name} muss ein endlicher positiver Zahlenwert sein.")
     shaft_cls = _shaft_class_for(load_case, bore_diameter_mm)
     housing_cls = _housing_class_for(load_case)
     shaft_dev = _deviations(shaft_cls, bore_diameter_mm, _SHAFT_FITS)

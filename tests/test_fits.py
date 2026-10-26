@@ -59,5 +59,22 @@ class TestDeviations(unittest.TestCase):
         self.assertTrue(r.housing_class)
 
 
+class TestInvalidFitInputs(unittest.TestCase):
+    def test_unknown_load_case_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "Unbekannter Belastungsfall"):
+            fits.recommend_fits("UNKNOWN", 20.0, 47.0)
+
+    def test_non_string_load_case_is_rejected(self):
+        for value in (None, [], {}):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, "Unbekannter Belastungsfall"):
+                    fits.recommend_fits(value, 20.0, 47.0)
+
+    def test_non_positive_and_non_finite_diameters_are_rejected(self):
+        for value in (0.0, -1.0, float("nan"), float("inf")):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, "endlicher positiver"):
+                    fits.recommend_fits("INNER_ROT_NORMAL", value, 47.0)
+
 if __name__ == "__main__":
     unittest.main()

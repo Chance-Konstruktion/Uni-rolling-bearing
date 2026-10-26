@@ -55,13 +55,16 @@ def tolerance_offset_text(
     Spiegelt die Anzeige im Blender-N-Panel: bei vernachlässigbaren Offsets
     (z. B. Lage „oberes Maß") wird ein leerer String zurückgegeben.
     """
-    eff = apply_tolerances(
-        bore_diameter_mm=bore_diameter,
-        outer_diameter_mm=outer_diameter,
-        width_mm=width,
-        precision_class=precision_class,
-        position=tolerance_position,
-    )
+    try:
+        eff = apply_tolerances(
+            bore_diameter_mm=bore_diameter,
+            outer_diameter_mm=outer_diameter,
+            width_mm=width,
+            precision_class=precision_class,
+            position=tolerance_position,
+        )
+    except (TypeError, ValueError, OverflowError) as exc:
+        return f"Toleranzvorschau nicht verfügbar: {exc}"
     offsets = (eff.bore_offset_um, eff.od_offset_um, eff.width_offset_um)
     if not any(abs(x) > 0.0005 for x in offsets):
         return ""
