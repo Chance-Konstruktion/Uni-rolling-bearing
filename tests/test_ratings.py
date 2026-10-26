@@ -138,6 +138,42 @@ class TestDynamicRating(unittest.TestCase):
         self.assertAlmostEqual(many / few, 2.0 ** 0.75, places=3)
 
 
+class TestRatingInputValidation(unittest.TestCase):
+    def test_equivalent_load_rejects_non_finite_loads(self):
+        with self.assertRaisesRegex(ValueError, "radial_load_Fr_N"):
+            ratings.equivalent_load(
+                constants.BALL, radial_load_Fr_N=float("nan"), axial_load_Fa_N=0.0,
+                static_C0_N=1000.0,
+            )
+
+    def test_compute_ratings_rejects_non_finite_speed_and_bad_rows(self):
+        with self.assertRaisesRegex(ValueError, "speed_rpm"):
+            ratings.compute_ratings(
+                constants.BALL, 5.0, 5.0, 8, 30.0, speed_rpm=float("inf"),
+            )
+        with self.assertRaisesRegex(ValueError, "Rollenreihen"):
+            ratings.compute_ratings(
+                constants.SPHERICAL, 5.0, 8.0, 12, 40.0, rows=3,
+            )
+
+    def test_gamma_and_interpolation_reject_non_finite_inputs(self):
+        with self.assertRaisesRegex(ValueError, "pitch_d_mm"):
+            ratings.gamma(5.0, 0.0, float("nan"))
+        with self.assertRaisesRegex(ValueError, "gamma_val"):
+            ratings.f0_for(constants.BALL, float("inf"))
+        with self.assertRaisesRegex(ValueError, "gamma_val"):
+            ratings.fc_for(constants.BALL, float("nan"))
+
+    def test_fractional_element_count_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "element_count muss eine ganze Zahl"):
+            ratings.compute_ratings(constants.BALL, 5.0, 5.0, 3.5, 30.0)
+    def test_unknown_bearing_type_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "Unbekannter Lagertyp"):
+            ratings.compute_ratings("UNKNOWN", 5.0, 5.0, 8, 30.0)
+
+    def test_life_function_rejects_non_finite_values(self):
+        with self.assertRaisesRegex(ValueError, "speed_rpm"):
+            ratings.nominal_life_hours(1000.0, 500.0, float("nan"), 3.0)
 class TestLife(unittest.TestCase):
     def test_no_load_returns_none(self):
         self.assertIsNone(ratings.nominal_life_hours(10000.0, 0.0, 1000.0, 3.0))
@@ -259,6 +295,19 @@ class TestEquivalentLoad(unittest.TestCase):
         self.assertEqual(load.Y, 0.0)
         self.assertEqual(load.P_N, 1000.0)
 
+    def test_tapered_pure_axial_load_is_not_ignored(self):
+        # Bei α > 0 muss eine reine Axiallast eine positive äquivalente Last
+        # ergeben; andernfalls würde L10h fälschlich undefiniert bleiben.
+        alpha_deg = 14.0
+        load = ratings.equivalent_load(
+            constants.TAPERED, radial_load_Fr_N=0.0, axial_load_Fa_N=1000.0,
+            static_C0_N=0.0, contact_angle_deg=alpha_deg,
+        )
+        expected_y = 0.4 / math.tan(math.radians(alpha_deg))
+        self.assertAlmostEqual(load.Y, expected_y, places=4)
+        self.assertAlmostEqual(load.P_N, expected_y * 1000.0, places=3)
+        self.assertGreater(load.P_N, 0.0)
+
     def test_tapered_zero_angle_falls_back_to_radial(self):
         # α = 0 ⇒ kein Axiallast-Anteil (degenerate Kegelrolle = Zylinder).
         load = ratings.equivalent_load(
@@ -281,6 +330,18 @@ class TestEquivalentLoad(unittest.TestCase):
         self.assertAlmostEqual(load.Y, 0.45 / tan_a, places=4)
         self.assertAlmostEqual(load.P_N, 1000.0 + load.Y * 50.0, places=3)
 
+    def test_spherical_contact_angle_is_used(self):
+        low = ratings.equivalent_load(
+            constants.SPHERICAL, radial_load_Fr_N=1000.0, axial_load_Fa_N=100.0,
+            static_C0_N=10000.0, contact_angle_deg=10.0,
+        )
+        high = ratings.equivalent_load(
+            constants.SPHERICAL, radial_load_Fr_N=1000.0, axial_load_Fa_N=100.0,
+            static_C0_N=10000.0, contact_angle_deg=20.0,
+        )
+        self.assertAlmostEqual(low.e, 1.5 * math.tan(math.radians(10.0)), places=6)
+        self.assertAlmostEqual(high.e, 1.5 * math.tan(math.radians(20.0)), places=6)
+        self.assertNotAlmostEqual(low.P_N, high.P_N, places=3)
     def test_cylindrical_ignores_axial(self):
         # Reines Radiallager: Fa wird ignoriert, P = Fr.
         load = ratings.equivalent_load(

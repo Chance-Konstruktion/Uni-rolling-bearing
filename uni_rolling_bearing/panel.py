@@ -75,22 +75,29 @@ class UNI_PT_section_norms(_UNI_SubPanelBase, bpy.types.Panel):
         layout.prop(props, "precision_class")
         layout.prop(props, "tolerance_position")
         from .tolerances import apply_tolerances
-        eff = apply_tolerances(
-            bore_diameter_mm=props.bore_diameter,
-            outer_diameter_mm=props.outer_diameter,
-            width_mm=props.width,
-            precision_class=props.precision_class,
-            position=props.tolerance_position,
-        )
-        if any(abs(x) > 0.0005 for x in (eff.bore_offset_um, eff.od_offset_um, eff.width_offset_um)):
-            layout.label(
-                text=(
-                    f"Δd={eff.bore_offset_um:+.1f} µm  "
-                    f"ΔD={eff.od_offset_um:+.1f} µm  "
-                    f"ΔB={eff.width_offset_um:+.1f} µm"
-                ),
-                icon="DRIVER_DISTANCE",
+        try:
+            eff = apply_tolerances(
+                bore_diameter_mm=props.bore_diameter,
+                outer_diameter_mm=props.outer_diameter,
+                width_mm=props.width,
+                precision_class=props.precision_class,
+                position=props.tolerance_position,
             )
+        except (TypeError, ValueError, OverflowError) as exc:
+            layout.label(text=f"Toleranzvorschau nicht verfügbar: {exc}", icon="ERROR")
+        else:
+            if any(
+                abs(x) > 0.0005
+                for x in (eff.bore_offset_um, eff.od_offset_um, eff.width_offset_um)
+            ):
+                layout.label(
+                    text=(
+                        f"Δd={eff.bore_offset_um:+.1f} µm  "
+                        f"ΔD={eff.od_offset_um:+.1f} µm  "
+                        f"ΔB={eff.width_offset_um:+.1f} µm"
+                    ),
+                    icon="DRIVER_DISTANCE",
+                )
         layout.prop(props, "radial_clearance")
         layout.prop(props, "use_preset")
         if props.use_preset:
@@ -298,6 +305,8 @@ class UNI_PT_section_results(_UNI_SubPanelBase, bpy.types.Panel):
             angle = (
                 props.contact_angle_deg
                 if props.bearing_type == constants.TAPERED
+                else props.spherical_contact_angle_deg
+                if props.bearing_type == constants.SPHERICAL
                 else 0.0
             )
             r = ratings_mod.compute_ratings(

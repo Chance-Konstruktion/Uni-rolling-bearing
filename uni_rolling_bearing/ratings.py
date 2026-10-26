@@ -60,11 +60,42 @@ _BM_BALL = 1.3
 _BM_ROLLER = 1.1
 
 
+def _validate_rating_inputs(
+    bearing_type: str,
+    numeric_values: dict,
+    rows: Optional[int] = None,
+) -> None:
+    """Reject malformed values before they contaminate load-rating results."""
+    valid_types = {item[0] for item in constants.BEARING_TYPES}
+    if not isinstance(bearing_type, str) or bearing_type not in valid_types:
+        raise ValueError(f"Unbekannter Lagertyp für Tragzahlberechnung: {bearing_type!r}.")
+    for name, value in numeric_values.items():
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+        ):
+            raise ValueError(f"{name} muss ein endlicher Zahlenwert sein.")
+    if "element_count" in numeric_values:
+        count = numeric_values["element_count"]
+        if not isinstance(count, int) or isinstance(count, bool):
+            raise ValueError("element_count muss eine ganze Zahl sein.")
+    angle = numeric_values.get("contact_angle_deg")
+    if bearing_type in (constants.TAPERED, constants.SPHERICAL) and not (0.0 <= angle < 90.0):
+        raise ValueError("Der Kontaktwinkel muss mindestens 0° und kleiner als 90° sein.")
+    if rows is not None and (
+        not isinstance(rows, int) or isinstance(rows, bool) or rows not in (1, 2)
+    ):
+        raise ValueError("Die Tragzahlberechnung unterstützt eine oder zwei Rollenreihen.")
+
+
 def _contact_angle_rad(bearing_type: str, contact_angle_deg: float) -> float:
     if bearing_type == constants.TAPERED:
         return math.radians(contact_angle_deg)
     if bearing_type == constants.SPHERICAL:
-        return math.radians(10.0)
+        # Backward-compatible default is 10°, but callers can pass the same
+        # contact angle that drives the spherical raceway geometry.
+        return math.radians(contact_angle_deg if contact_angle_deg > 0.0 else 10.0)
     return 0.0
 
 
@@ -101,6 +132,17 @@ def gamma(roller_d_mm: float, contact_angle_rad: float, pitch_d_mm: float) -> fl
     Liefert ``0.0``, wenn ``pitch_d_mm`` nicht positiv ist; das wirkt im
     Tabellen-Lookup wie der untere Randwert (γ = kleinste Stützstelle).
     """
+    for name, value in (
+        ("roller_d_mm", roller_d_mm),
+        ("contact_angle_rad", contact_angle_rad),
+        ("pitch_d_mm", pitch_d_mm),
+    ):
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+        ):
+            raise ValueError(f"{name} muss ein endlicher Zahlenwert sein.")
     if pitch_d_mm <= 0.0:
         return 0.0
     return roller_d_mm * math.cos(contact_angle_rad) / pitch_d_mm
@@ -108,12 +150,16 @@ def gamma(roller_d_mm: float, contact_angle_rad: float, pitch_d_mm: float) -> fl
 
 def f0_for(bearing_type: str, gamma_val: float) -> float:
     """ISO 76-Beiwert ``f0(γ)`` für die statische Tragzahl."""
+    if not isinstance(gamma_val, (int, float)) or isinstance(gamma_val, bool) or not math.isfinite(gamma_val):
+        raise ValueError("gamma_val muss ein endlicher Zahlenwert sein.")
     table = _F0_BALL_TABLE if _is_ball(bearing_type) else _F0_ROLLER_TABLE
     return _interpolate(table, gamma_val)
 
 
 def fc_for(bearing_type: str, gamma_val: float) -> float:
     """ISO 281-Beiwert ``fc(γ)`` für die dynamische Tragzahl."""
+    if not isinstance(gamma_val, (int, float)) or isinstance(gamma_val, bool) or not math.isfinite(gamma_val):
+        raise ValueError("gamma_val muss ein endlicher Zahlenwert sein.")
     table = _FC_BALL_TABLE if _is_ball(bearing_type) else _FC_ROLLER_TABLE
     return _interpolate(table, gamma_val)
 
@@ -193,6 +239,15 @@ def equivalent_load(
     * Zylinderrollen-/Nadellager (CYLINDRICAL/NEEDLE): rein radial.
       ``Fa`` wird ignoriert; P = Fr.
     """
+    _validate_rating_inputs(
+        bearing_type,
+        {
+            "radial_load_Fr_N": radial_load_Fr_N,
+            "axial_load_Fa_N": axial_load_Fa_N,
+            "static_C0_N": static_C0_N,
+            "contact_angle_deg": contact_angle_deg,
+        },
+    )
     Fr = max(0.0, radial_load_Fr_N)
     Fa = max(0.0, axial_load_Fa_N)
     alpha = _contact_angle_rad(bearing_type, contact_angle_deg)
@@ -216,7 +271,11 @@ def equivalent_load(
         tan_a = math.tan(alpha)
         e = 1.5 * tan_a
         Y = 0.4 / tan_a
-        if Fr <= 0.0 or (Fa / Fr) <= e:
+        # Reine Axiallast darf nicht wie eine reine Radiallast behandelt
+        # werden: bei Fr == 0 muss Fa in P eingehen, sofern α > 0.
+        if Fr <= 0.0:
+            return LoadFactors(0.4, Y, e, Y * Fa)
+        if (Fa / Fr) <= e:
             return LoadFactors(1.0, 0.0, e, Fr)
         return LoadFactors(0.4, Y, e, 0.4 * Fr + Y * Fa)
 
@@ -246,6 +305,17 @@ def static_load_rating(
     rows: Optional[int] = None,
 ) -> float:
     """Statische radiale Tragzahl C0r nach ISO 76 mit γ-abhängigem ``f0``."""
+    _validate_rating_inputs(
+        bearing_type,
+        {
+            "roller_d_mm": roller_d_mm,
+            "roller_length_mm": roller_length_mm,
+            "element_count": element_count,
+            "pitch_d_mm": pitch_d_mm,
+            "contact_angle_deg": contact_angle_deg,
+        },
+        rows=rows,
+    )
     alpha = _contact_angle_rad(bearing_type, contact_angle_deg)
     i = rows if rows is not None else _rows(bearing_type)
     if element_count <= 0 or roller_d_mm <= 0.0:
@@ -269,6 +339,17 @@ def dynamic_load_rating(
     rows: Optional[int] = None,
 ) -> float:
     """Dynamische radiale Tragzahl Cr nach ISO 281 mit γ-abhängigem ``fc``."""
+    _validate_rating_inputs(
+        bearing_type,
+        {
+            "roller_d_mm": roller_d_mm,
+            "roller_length_mm": roller_length_mm,
+            "element_count": element_count,
+            "pitch_d_mm": pitch_d_mm,
+            "contact_angle_deg": contact_angle_deg,
+        },
+        rows=rows,
+    )
     alpha = _contact_angle_rad(bearing_type, contact_angle_deg)
     i = rows if rows is not None else _rows(bearing_type)
     if element_count <= 0 or roller_d_mm <= 0.0:
@@ -300,8 +381,19 @@ def nominal_life_hours(
     speed_rpm: float,
     life_exponent: float,
 ) -> Optional[float]:
+    _validate_rating_inputs(
+        constants.BALL,
+        {
+            "dynamic_C_N": dynamic_C_N,
+            "equivalent_load_P_N": equivalent_load_P_N,
+            "speed_rpm": speed_rpm,
+            "life_exponent": life_exponent,
+        },
+    )
     if equivalent_load_P_N <= 0.0 or speed_rpm <= 0.0 or dynamic_C_N <= 0.0:
         return None
+    if life_exponent <= 0.0:
+        raise ValueError("Der Lebensdauerexponent muss positiv sein.")
     l10_million_rev = (dynamic_C_N / equivalent_load_P_N) ** life_exponent
     return l10_million_rev * 1.0e6 / (60.0 * speed_rpm)
 
@@ -318,6 +410,20 @@ def compute_ratings(
     speed_rpm: float = 0.0,
     rows: Optional[int] = None,
 ) -> Ratings:
+    _validate_rating_inputs(
+        bearing_type,
+        {
+            "roller_d_mm": roller_d_mm,
+            "roller_length_mm": roller_length_mm,
+            "element_count": element_count,
+            "pitch_d_mm": pitch_d_mm,
+            "contact_angle_deg": contact_angle_deg,
+            "radial_load_Fr_N": radial_load_Fr_N,
+            "axial_load_Fa_N": axial_load_Fa_N,
+            "speed_rpm": speed_rpm,
+        },
+        rows=rows,
+    )
     alpha = _contact_angle_rad(bearing_type, contact_angle_deg)
     g = gamma(roller_d_mm, alpha, pitch_d_mm)
     f0 = f0_for(bearing_type, g)
