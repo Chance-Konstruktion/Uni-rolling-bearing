@@ -45,6 +45,17 @@ def _base_kwargs(**overrides):
     return base
 
 
+class TestBallRacewayReferenceGeometry(unittest.TestCase):
+    def test_conformity_matches_iso_16281_2025_annex_b2(self):
+        from uni_rolling_bearing.raceway import (
+            BALL_GROOVE_CONFORMITY_INNER,
+            BALL_GROOVE_CONFORMITY_OUTER,
+        )
+
+        self.assertAlmostEqual(BALL_GROOVE_CONFORMITY_INNER, 0.52, places=8)
+        self.assertAlmostEqual(BALL_GROOVE_CONFORMITY_OUTER, 0.53, places=8)
+
+
 class TestComputeDims(unittest.TestCase):
     def test_basic_dims(self):
         dims = compute_dims(20.0, 47.0, 4.0)
