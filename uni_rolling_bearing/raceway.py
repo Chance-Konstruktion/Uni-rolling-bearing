@@ -26,14 +26,12 @@ PROFILE_EPSILON = 1.0e-6
 # gegenüberliegenden Fasen bzw. zwischen Fase und Laufbahn stehen.
 CHAMFER_MAX_FRACTION = 0.45
 
-# Default-Konformitätsfaktoren f = r_groove / d_ball für Rillenkugellager.
-# Real bewegen sich Innen- und Außenring zwischen 0.515 und 0.535 (Eschmann/
-# Hasbargen/Weigand "Die Wälzlagerpraxis"). Hier liegen die Werte etwas höher,
-# damit die Rille auch bei nicht-perfekt befülltem Spalt sichtbar ins Material
-# schneidet (Visualisierungsoptimum vs. Tragmechanik). Der Außenring hat traditionell
-# die etwas größere Konformität.
-BALL_GROOVE_CONFORMITY_INNER = 0.58
-BALL_GROOVE_CONFORMITY_OUTER = 0.60
+# ISO 16281:2025, Annex B.2 (informative reference geometry) gives the
+# cross-sectional raceway groove radii as ri = 0.52 Dw (inner ring) and
+# re = 0.53 Dw (outer ring). Actual manufacturers may use other internal
+# geometries; these are reference values, not a universal design mandate.
+BALL_GROOVE_CONFORMITY_INNER = 0.52
+BALL_GROOVE_CONFORMITY_OUTER = 0.53
 
 # Maximaler axialer Halbweite-Anteil der Rille relativ zur Lagerbreite und
 # zum Wälzkörper-Ø. Verhindert, dass die Rille die Stirnflächen erreicht.
