@@ -56,8 +56,8 @@ class BearingParams:
     load_case: str = "INNER_ROT_NORMAL"
 
     # Kugel-/Rillengeometrie
-    groove_conformity_inner: float = 0.58
-    groove_conformity_outer: float = 0.60
+    groove_conformity_inner: float = 0.52
+    groove_conformity_outer: float = 0.53
     bearing_chamfer_mm: float = 0.30
 
     # V-Rille (vgroove)
