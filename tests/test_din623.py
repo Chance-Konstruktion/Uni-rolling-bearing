@@ -29,6 +29,17 @@ class TestBoreCode(unittest.TestCase):
         self.assertEqual(din623.bore_code_to_diameter("4"), 4.0)
         self.assertEqual(din623.bore_code_to_diameter("9"), 9.0)
 
+    def test_whitespace_is_trimmed_before_code_interpretation(self):
+        # A padded single-digit code still means the direct bore diameter.
+        self.assertEqual(din623.bore_code_to_diameter(" 8 "), 8.0)
+        self.assertEqual(din623.bore_code_to_diameter(" 04 "), 20.0)
+
+    def test_malformed_codes_are_rejected(self):
+        for code in ("", " ", "008", "4A", "４"):
+            with self.subTest(code=code):
+                with self.assertRaises(ValueError):
+                    din623.bore_code_to_diameter(code)
+
     def test_out_of_range_raises(self):
         with self.assertRaises(ValueError):
             din623.bore_code_to_diameter("97")
