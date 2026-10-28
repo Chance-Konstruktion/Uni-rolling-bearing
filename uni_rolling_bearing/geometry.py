@@ -129,24 +129,19 @@ def ball_diameter_from_groove(
     depth_fraction_inner: float = BALL_GROOVE_DEPTH_FRACTION_INNER,
     depth_fraction_outer: float = BALL_GROOVE_DEPTH_FRACTION_OUTER,
 ) -> float:
-    """Heuristische Schätzung des Kugel-Ø aus dem Schulterabstand.
+    """Heuristically estimate ball diameter from the shoulder gap.
 
-    Die Kugel überspannt den **Schulterabstand** (``radial_space`` = radialer
-    Abstand zwischen Außenring-Innenschulter und Innenring-Außenschulter) PLUS
-    die **innere und äußere Rillentiefe**, abzüglich der radialen Lagerluft
-    (Toleranz)::
+    ``radial_space`` is the radial distance between the outer-ring inner
+    shoulder and inner-ring outer shoulder. The visual sizing model assumes
+    that two configurable groove-depth allowances scale with ball diameter::
 
-        d_w = radial_space + t_rille_innen + t_rille_außen − Lagerluft
+        d_w = (radial_space - 2 * radial_clearance)
+              / (1 - depth_fraction_inner - depth_fraction_outer)
 
-    Mit den Rillentiefen als Anteil des Kugel-Ø (``t = e·d_w``) ergibt sich
-    geschlossen::
-
-        d_w = (radial_space − 2·Lagerluft) / (1 − e_innen − e_außen)
-
-    This is an approximation for visualization and layout only; it is not a
-    formula specified by DIN 625-1. Raceway curvature is handled separately
-    with the approximate reference geometry from ISO 16281:2025, Annex B.2.
-    Use manufacturer-specific internal dimensions for engineering calculations.
+    This is a layout approximation, not a formula specified by DIN 625-1.
+    Raceway curvature is handled separately using the approximate reference
+    geometry from ISO 16281:2025, Annex B.2. Manufacturer-specific internal
+    dimensions are required for engineering calculations.
     """
     denom = 1.0 - depth_fraction_inner - depth_fraction_outer
     denom = max(0.2, denom)  # Schutz gegen entartete Anteile (Summe ≥ 1)
