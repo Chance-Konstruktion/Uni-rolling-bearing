@@ -209,7 +209,7 @@ result = build_bearing(p)        # result.inner_ring / .outer_ring / .elements �
 
 | Typ | Norm | Besonderheit |
 | :-- | :-- | :-- |
-| **Rillenkugellager** | DIN 625 / ISO 15 | Kugel nach DIN-625-Rillenformel, taucht in beide Rillen ein |
+| **Rillenkugellager** | DIN 625 / ISO 15 | Referenz-Rillenradien nach ISO 16281; heuristische Kugelgröße |
 | **Zylinderrollenlager** | DIN 5412 / ISO 15 | NU-Bauart mit Borden am Außenring, ~94 % Spaltfüllung |
 | **Nadellager** | DIN 617 / ISO 15 | schlanke Rollen, hoher Füllgrad |
 | **Kegelrollenlager** | DIN 720 / ISO 355 | konische Laufbahnen mit gemeinsamem Apex, einstellbares α |
@@ -221,12 +221,12 @@ result = build_bearing(p)        # result.inner_ring / .outer_ring / .elements �
 
 <br>
 
-- **Kugellager** — Rillen-Bogen mit Konformität `f = r_groove/d_ball` in beiden Ringen.
-  Kugel-Ø nach **DIN-625-Rillenformel**: `d_w = Schulterspalt + innere + äußere
-  Rillentiefe − Lagerluft` (`geometry.ball_diameter_from_groove`). Die Kugel ist damit
-  *größer* als der reine Schulterspalt und taucht über beide Schultern in die Rillen ein,
-  statt dazwischen zu schweben. Optionale 45°-Fase (DIN 620 / ISO 582 `r_s`,
-  `bearing_chamfer_mm`).
+- **Kugellager** — die approximativen Referenz-Rillenradien folgen **ISO 16281:2025,
+  Anhang B.2**: Innenring `r_i = 0,52·D_w`, Außenring `r_e = 0,53·D_w`. Die tatsächliche
+  Innengeometrie ist herstellerspezifisch; DIN 625-1 normiert Hauptmaße und Kurzzeichen,
+  keine universelle Rillenformel. `geometry.ball_diameter_from_groove` verwendet eine
+  explizite Heuristik zur Kugelgrößen-Schätzung, keine Normformel. Optionale 45°-Fasen
+  folgen DIN 620 / ISO 582 `r_s`.
 - **Zylinder-/Nadellager** — NU-Außenring mit zwei nach innen vorstehenden Borden;
   Innenring zylindrisch. Rolle füllt den Spalt satt (~94 %, Ringwand `1/8·(D−d)`).
   NU206 → ø≈7.5 mm / 13 Rollen statt zuvor ~5.3 mm / 24.
@@ -289,6 +289,8 @@ Reicht der Bauraum nicht (Wälzkörper füllen fast die ganze Breite), wird der 
 > vollständige digitale Normdatenbank.
 
 - **ISO 15 / DIN ISO 15** — Maßreihen als JSON-Datenquelle (`norm_engine.py`).
+- **ISO 16281:2025, Anhang B.2 (informativ)** — approximative Referenzwerte für
+  Rillenkugellager-Laufbahnradii; herstellerspezifische Geometrien können abweichen.
 - **DIN 623** — Bohrungskennzahl-Logik (`din623.py`), ~80 Rillenkugellager-Größen.
 - **DIN 625** — Reihen 60/62/63/64/618/619. **DIN 720** — 302/303/313/320/322/323 mit
   getrennten Cone/Cup-Breiten.
