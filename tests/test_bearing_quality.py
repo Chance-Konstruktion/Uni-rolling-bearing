@@ -3,10 +3,10 @@
 Diese Suite prüft *ohne* laufendes Blender, dass die erzeugten Lager
 geometrisch sauber sind, d. h. dass
 
-1. **Kugellager** korrekt nach der DIN-625-Rillenformel ausgelegt werden
-   (Kugel = Schulterspalt + innere + äußere Rillentiefe − Lagerluft) und damit
-   in beide Rillen eintauchen statt zwischen den Schultern zu schweben –
-   inklusive katalognaher Kugel-Ø und Kugelzahlen;
+1. **Kugellager** einen explizit heuristischen Kugeldurchmesser erhalten
+   (die Rillen-Tiefenanteile sind Visualisierungsparameter, keine DIN-625-Formel)
+   und damit in beide Rillen eintauchen statt zwischen den Schultern zu schweben –
+   inklusive plausibler Kugel-Ø und Kugelzahlen;
 2. die Kugel real in die Laufbahn-Rille passt (Rille schneidet sichtbar unter
    die Schulter, Kugel nestelt mit Bodenspiel) – Konsistenz Sizing ↔ Laufbahn;
 3. **alle Lagertypen** über alle Norm-Presets revolvier-fähige (manifold-taugliche)
@@ -97,7 +97,7 @@ BALL_REFERENCE = [
 
 
 # --------------------------------------------------------------------------- #
-# 1) Kugel-Sizing nach der DIN-625-Rillenformel                               #
+# 1) Heuristisches Kugel-Sizing (keine DIN-625-Formel)                               #
 # --------------------------------------------------------------------------- #
 
 
