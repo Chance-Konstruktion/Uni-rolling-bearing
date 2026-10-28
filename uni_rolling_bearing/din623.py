@@ -28,16 +28,22 @@ def bore_code_to_diameter(code: str) -> float:
     Größere Lager werden mit ``/d`` angehängt bezeichnet und sind hier nicht
     abgedeckt.
     """
+    token = str(code).strip()
+    if not token or not token.isascii() or not token.isdigit():
+        raise ValueError(f"Ungueltige Bohrungskennzahl: {code!r}")
+    if len(token) > 2:
+        raise ValueError(f"Bohrungskennzahl muss ein- oder zweistellig sein: {code!r}")
+
     # Einstellige Kennzahl: Bohrungs-Ø in mm direkt (Miniaturlager, d < 10 mm).
-    if len(code) == 1:
-        n = int(code)
+    if len(token) == 1:
+        n = int(token)
         if n < 1 or n > 9:
             raise ValueError(f"Einstellige Bohrungskennzahl ausserhalb 1..9: {code}")
         return float(n)
     special = {"00": 10.0, "01": 12.0, "02": 15.0, "03": 17.0}
-    if code in special:
-        return special[code]
-    n = int(code)
+    if token in special:
+        return special[token]
+    n = int(token)
     if n < 4 or n > 96:
         raise ValueError(f"Bohrungskennzahl ausserhalb 04..96: {code}")
     return float(n * 5)
