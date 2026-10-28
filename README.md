@@ -208,7 +208,7 @@ result = build_bearing(p)        # result.inner_ring / .outer_ring / .elements �
 
 | Type | Standard | Distinctive feature |
 | :-- | :-- | :-- |
-| **Deep-groove ball bearing** | DIN 625 / ISO 15 | ball per DIN 625 groove formula, sinks into both grooves |
+| **Deep-groove ball bearing** | DIN 625 / ISO 15 | ISO 16281 reference raceway curvature; approximate ball sizing |
 | **Cylindrical roller bearing** | DIN 5412 / ISO 15 | NU design with flanges on the outer ring, ~94 % gap fill |
 | **Needle bearing** | DIN 617 / ISO 15 | slim rollers, high fill ratio |
 | **Tapered roller bearing** | DIN 720 / ISO 355 | conical raceways with a common apex, adjustable α |
@@ -220,12 +220,12 @@ result = build_bearing(p)        # result.inner_ring / .outer_ring / .elements �
 
 <br>
 
-- **Ball bearings** — groove arc with conformity `f = r_groove/d_ball` in both rings.
-  Ball Ø per the **DIN 625 groove formula**: `d_w = shoulder gap + inner + outer
-  groove depth − bearing clearance` (`geometry.ball_diameter_from_groove`). The ball is
-  thus *larger* than the bare shoulder gap and dips over both shoulders into the grooves,
-  instead of floating between them. Optional 45° chamfer (DIN 620 / ISO 582 `r_s`,
-  `bearing_chamfer_mm`).
+- **Ball bearings** — the approximate reference groove radii follow **ISO 16281:2025,
+  Annex B.2**: inner ring `r_i = 0.52·D_w`, outer ring `r_e = 0.53·D_w`. Actual
+  bearing internal geometry is manufacturer-specific; DIN 625-1 specifies main dimensions
+  and symbols, not a universal raceway formula. `geometry.ball_diameter_from_groove`
+  uses an explicit heuristic to size a plausible ball from the shoulder gap, not a
+  norm formula. Optional 45° chamfers follow DIN 620 / ISO 582 `r_s`.
 - **Cylindrical/needle bearings** — NU outer ring with two inward-protruding flanges;
   inner ring cylindrical. The roller fills the gap fully (~94 %, ring wall `1/8·(D−d)`).
   NU206 → ø≈7.5 mm / 13 rollers instead of the previous ~5.3 mm / 24.
@@ -288,6 +288,8 @@ skipped with a warning.
 > complete digital standards database.
 
 - **ISO 15 / DIN ISO 15** — dimension series as a JSON data source (`norm_engine.py`).
+- **ISO 16281:2025, Annex B.2 (informative)** — approximate deep-groove raceway curvature
+  reference values; manufacturers’ actual internal geometries can differ.
 - **DIN 623** — bore-number logic (`din623.py`), ~80 deep-groove ball bearing sizes.
 - **DIN 625** — series 60/62/63/64/618/619. **DIN 720** — 302/303/313/320/322/323 with
   separate cone/cup widths.
