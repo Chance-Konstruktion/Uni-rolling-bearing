@@ -353,10 +353,10 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         description=(
             "Nur Kugellager (Standard und SG-Reihe): Verhältnis Rillenradius "
             "zu Kugel-Ø am Innenring (f_i = r_groove / d_ball). Reale Lager "
-            "liegen bei 0.515–0.535 (engerer Bogen = höhere Tragzahl, mehr "
-            "Reibung). Default 0.58 ist visualisierungsoptimiert."
+            "Referenzwert nach ISO 16281:2025 Annex B.2: 0.52. Hersteller können "
+            "abweichen; der Wert bleibt zur Visualisierung konfigurierbar."
         ),
-        default=0.58,
+        default=0.52,
         min=0.51,
         max=0.70,
         precision=3,
@@ -366,9 +366,10 @@ class UNI_Bearing_Properties(bpy.types.PropertyGroup):
         description=(
             "Nur Kugellager (Standard und SG-Reihe): Verhältnis Rillenradius "
             "zu Kugel-Ø am Außenring (f_o = r_groove / d_ball). Traditionell "
-            "etwas größer als f_i. Default 0.60."
+            "Referenzwert nach ISO 16281:2025 Annex B.2: 0.53. Hersteller können "
+            "abweichen; der Wert bleibt zur Visualisierung konfigurierbar."
         ),
-        default=0.60,
+        default=0.53,
         min=0.51,
         max=0.70,
         precision=3,
