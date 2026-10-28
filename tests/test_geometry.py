@@ -10,6 +10,7 @@ import unittest
 # Repo-Wurzel auf den Pfad legen, damit ``uni_rolling_bearing`` importierbar ist.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
+import uni_rolling_bearing  # noqa: E402
 from uni_rolling_bearing import constants  # noqa: E402
 from uni_rolling_bearing.geometry import (  # noqa: E402
     MIN_OIL_POCKET_DIAMETER_MM,
@@ -54,6 +55,11 @@ class TestBallRacewayReferenceGeometry(unittest.TestCase):
 
         self.assertAlmostEqual(BALL_GROOVE_CONFORMITY_INNER, 0.52, places=8)
         self.assertAlmostEqual(BALL_GROOVE_CONFORMITY_OUTER, 0.53, places=8)
+
+
+class TestBlenderMetadata(unittest.TestCase):
+    def test_declared_minimum_matches_readme_support_floor(self):
+        self.assertEqual(uni_rolling_bearing.bl_info["blender"], (3, 6, 0))
 
 
 class TestComputeDims(unittest.TestCase):
