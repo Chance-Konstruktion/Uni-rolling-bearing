@@ -15,13 +15,13 @@ from .raceway import (
 # Mindesthöhe [mm] für den nutzbaren Ringspalt, damit ein Wälzkörper sinnvoll passt.
 MIN_USABLE_SPACE_MM = 0.2
 
-# --- Rillenkugellager: Kugel-Sizing nach der DIN-625-Rillenformel ------------
+# --- Rillenkugellager: heuristisches Kugel-Sizing ---------------------------
 #
-# Anteil der Kugel-Ø, um den die Laufbahn-Rille je Ring unter die Schulter
-# einschneidet (Rillentiefe = e·d_ball). Die Kugel überspannt den Schulter-
-# abstand plus beide Rillentiefen, taucht also über die Schultern hinaus in
-# beide Rillen ein – genau das verhinderte die alte „Kugel = Schulterspalt“-
-# Logik (Kugel zu klein, schwebte zwischen den Schultern).
+# DIN 625-1 standardizes bearing dimensions/designations, not the internal
+# raceway geometry. The sizing fractions below are an explicit visualization
+# heuristic to estimate a ball diameter from the shoulder gap. They are not a
+# DIN 625 formula and are independent from the ISO 16281 reference groove
+# radii used by raceway.py. Real bearing internal geometry is manufacturer-specific.
 BALL_GROOVE_DEPTH_FRACTION_INNER = 0.10
 BALL_GROOVE_DEPTH_FRACTION_OUTER = 0.10
 
@@ -129,7 +129,7 @@ def ball_diameter_from_groove(
     depth_fraction_inner: float = BALL_GROOVE_DEPTH_FRACTION_INNER,
     depth_fraction_outer: float = BALL_GROOVE_DEPTH_FRACTION_OUTER,
 ) -> float:
-    """Kugel-Ø aus der DIN-625-Rillenformel.
+    """Heuristische Schätzung des Kugel-Ø aus dem Schulterabstand.
 
     Die Kugel überspannt den **Schulterabstand** (``radial_space`` = radialer
     Abstand zwischen Außenring-Innenschulter und Innenring-Außenschulter) PLUS
@@ -143,9 +143,10 @@ def ball_diameter_from_groove(
 
         d_w = (radial_space − 2·Lagerluft) / (1 − e_innen − e_außen)
 
-    Weil ``e_innen + e_außen > 0`` ist, wird die Kugel damit **größer** als der
-    reine Schulterspalt und taucht über beide Schultern hinaus in die Rillen ein
-    (statt zwischen den Schultern zu schweben).
+    This is an approximation for visualization and layout only; it is not a
+    formula specified by DIN 625-1. Raceway curvature is handled separately
+    with the approximate reference geometry from ISO 16281:2025, Annex B.2.
+    Use manufacturer-specific internal dimensions for engineering calculations.
     """
     denom = 1.0 - depth_fraction_inner - depth_fraction_outer
     denom = max(0.2, denom)  # Schutz gegen entartete Anteile (Summe ≥ 1)
